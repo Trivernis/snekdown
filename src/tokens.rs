@@ -1,3 +1,5 @@
+use std::ops::Sub;
+
 pub enum Block {
     Section(Section),
     Paragraph(Paragraph),
@@ -7,7 +9,6 @@ pub enum Block {
 
 pub enum Inline {
     Text(Text),
-    Code(Code),
 }
 
 pub struct Document {
@@ -20,8 +21,8 @@ pub struct Section {
 }
 
 pub struct Header {
-    pub(crate) size: u8,
-    pub(crate) text: Text,
+    pub size: u8,
+    pub line: Inline,
 }
 
 pub struct BlockQuote {
@@ -29,16 +30,16 @@ pub struct BlockQuote {
 }
 
 pub struct Paragraph {
-    elements: Vec<Inline>,
+    pub elements: Vec<Inline>,
 }
 
 pub struct List {
-    ordered: bool,
-    items: Vec<ListItem>,
+    pub ordered: bool,
+    pub items: Vec<ListItem>,
 }
 
 pub struct ListItem {
-    text: Vec<Inline>,
+    text: Inline,
 }
 
 pub struct Table {
@@ -51,7 +52,7 @@ pub struct Row {
 }
 
 pub struct Cell {
-    text: Vec<Inline>,
+    text: Inline,
 }
 
 pub struct CodeBlock {
@@ -64,11 +65,36 @@ pub struct Code {
 }
 
 pub struct Text {
-    bold: bool,
-    italic: bool,
-    underlined: bool,
-    striked: bool,
+    subtext: Vec<SubText>,
+}
+
+pub enum SubText {
+    Plain(PlainText),
+    Code(Code),
+    Bold(BoldText),
+    Italic(ItalicText),
+    Underlined(UnderlinedText),
+    Striked(StrikedText),
+}
+
+pub struct PlainText {
     value: String,
+}
+
+pub struct BoldText {
+    value: Box<SubText>,
+}
+
+pub struct ItalicText {
+    value: Box<SubText>,
+}
+
+pub struct UnderlinedText {
+    value: Box<SubText>,
+}
+
+pub struct StrikedText {
+    value: Box<SubText>,
 }
 
 impl Document {
@@ -95,3 +121,30 @@ impl Section {
         self.elements.push(element)
     }
 }
+
+impl Paragraph {
+    pub fn new() -> Self {
+        Self {
+            elements: Vec::new(),
+        }
+    }
+
+    pub fn add_element(&mut self, element: Inline) {
+        self.elements.push(element)
+    }
+}
+
+impl List {
+    pub fn new() -> Self {
+        Self {
+            ordered: false,
+            items: Vec::new(),
+        }
+    }
+
+    pub fn add_item(&mut self, item: ListItem) {
+        self.items.push(item)
+    }
+}
+
+// TODO: Images, URIs

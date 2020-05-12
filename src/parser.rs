@@ -44,6 +44,16 @@ impl Parser {
         }
     }
 
+    pub fn seek_whitespace(&mut self) {
+        if self.current_char.is_whitespace() {
+            while let Some(next_char) = self.next_char() {
+                if !next_char.is_whitespace() {
+                    break;
+                }
+            }
+        }
+    }
+
     pub fn parse(&mut self) {
         let mut document = Document::new();
         while self.index < self.text.len() {
@@ -73,6 +83,7 @@ impl Parser {
         }
     }
 
+    /// Parses a section that consists of a header and one or more blocks
     pub fn parse_section(&mut self) -> Result<Section, ParseError> {
         let start_index = self.index;
         if self.current_char == '#' {
@@ -89,7 +100,7 @@ impl Parser {
                 self.revert_to(start_index)?;
                 return Err(ParseError::new(index));
             }
-            let _ = self.next_char();
+            self.seek_whitespace();
             let mut header = self.parse_header()?;
             header.size = size;
             self.section_nesting = size;
@@ -106,7 +117,16 @@ impl Parser {
     }
 
     pub fn parse_paragraph(&mut self) -> Result<Paragraph, ParseError> {
-        unimplemented!()
+        let mut paragraph = Paragraph::new();
+        while let Ok(token) = self.parse_inline() {
+            paragraph.add_element(token);
+        }
+
+        if paragraph.elements.len() > 0 {
+            Ok(paragraph)
+        } else {
+            Err(ParseError::new(self.index))
+        }
     }
 
     pub fn parse_list(&mut self) -> Result<List, ParseError> {
@@ -120,8 +140,16 @@ impl Parser {
     pub fn parse_header(&mut self) -> Result<Header, ParseError> {
         Ok(Header {
             size: 0,
-            text: self.parse_text()?,
+            line: self.parse_inline()?,
         })
+    }
+
+    pub fn parse_list_item(&mut self) -> Result<ListItem, ParseError> {
+        unimplemented!()
+    }
+
+    pub fn parse_inline(&mut self) -> Result<Inline, ParseError> {
+        unimplemented!()
     }
 
     pub fn parse_text(&mut self) -> Result<Text, ParseError> {
