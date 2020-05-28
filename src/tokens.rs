@@ -52,17 +52,17 @@ pub struct ListItem {
 #[derive(Clone, Debug)]
 pub struct Table {
     header: Row,
-    rows: Vec<Row>,
+    pub rows: Vec<Row>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Row {
-    text: Vec<Cell>,
+    pub(crate) cells: Vec<Cell>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Cell {
-    text: Inline,
+    pub(crate) text: Inline,
 }
 
 #[derive(Clone, Debug)]
@@ -175,6 +175,29 @@ impl Text {
 
     pub fn add_subtext(&mut self, subtext: SubText) {
         self.subtext.push(subtext)
+    }
+}
+
+impl Table {
+    pub fn new(header: Row) -> Self {
+        Self {
+            header,
+            rows: Vec::new(),
+        }
+    }
+
+    pub fn add_row(&mut self, row: Row) {
+        self.rows.push(row)
+    }
+}
+
+impl Row {
+    pub fn new() -> Self {
+        Self { cells: Vec::new() }
+    }
+
+    pub fn add_cell(&mut self, cell: Cell) {
+        self.cells.push(cell)
     }
 }
 

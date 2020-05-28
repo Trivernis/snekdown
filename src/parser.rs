@@ -38,7 +38,8 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(text: String) -> Self {
-        let text: Vec<char> = text.chars().collect();
+        let mut text: Vec<char> = text.chars().collect();
+        text.append(&mut vec!['\n', ' ', '\n']); // push space and newline of eof. it fixes stuff and I don't know why.
         let current_char = text.get(0).unwrap().clone();
 
         Self {
@@ -62,8 +63,9 @@ impl Parser {
 
     /// Returns to an index position
     pub fn revert_to(&mut self, index: usize) -> Result<(), ParseError> {
-        self.index = index - 1;
-        if let Some(_) = self.next_char() {
+        if let Some(char) = self.text.get(index) {
+            self.index = index;
+            self.current_char = char.clone();
             Ok(())
         } else {
             Err(ParseError::new(index))
@@ -132,7 +134,7 @@ impl Parser {
     }
 
     /// Parses a section that consists of a header and one or more blocks
-    pub fn parse_section(&mut self) -> Result<Section, ParseError> {
+    fn parse_section(&mut self) -> Result<Section, ParseError> {
         let start_index = self.index;
         self.seek_whitespace();
         if self.current_char == '#' {
@@ -171,14 +173,25 @@ impl Parser {
         }
     }
 
+    fn parse_header(&mut self) -> Result<Header, ParseError> {
+        Ok(Header {
+            size: 0,
+            line: self.parse_inline()?,
+        })
+    }
+
     /// Parses a paragraph
-    pub fn parse_paragraph(&mut self) -> Result<Paragraph, ParseError> {
+    fn parse_paragraph(&mut self) -> Result<Paragraph, ParseError> {
         let mut paragraph = Paragraph::new();
         while let Ok(token) = self.parse_inline() {
             paragraph.add_element(token);
+            let start_index = self.index;
+            self.seek_inline_whitespace();
             if ['-', '#', '`', '|'].contains(&self.current_char) {
+                self.revert_to(start_index)?;
                 break;
             }
+            self.revert_to(start_index)?;
         }
 
         if paragraph.elements.len() > 0 {
@@ -189,7 +202,7 @@ impl Parser {
     }
 
     /// parses a list which consists of one or more list items
-    pub fn parse_list(&mut self) -> Result<List, ParseError> {
+    fn parse_list(&mut self) -> Result<List, ParseError> {
         let mut list = List::new();
         let start_index = self.index;
         self.seek_whitespace();
@@ -205,23 +218,17 @@ impl Parser {
         }
     }
 
-    pub fn parse_table(&mut self) -> Result<Table, ParseError> {
-        Err(ParseError::new(self.index))
-    }
-
-    pub fn parse_header(&mut self) -> Result<Header, ParseError> {
-        Ok(Header {
-            size: 0,
-            line: self.parse_inline()?,
-        })
-    }
-
     /// parses a single list item defined with -
-    pub fn parse_list_item(&mut self) -> Result<ListItem, ParseError> {
+    fn parse_list_item(&mut self) -> Result<ListItem, ParseError> {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
-        if self.current_char != '-' {
+        if !['-'].contains(&self.current_char) {
+            let err = ParseError::new(self.index);
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+        if self.next_char() == None {
             let err = ParseError::new(self.index);
             self.revert_to(start_index)?;
             return Err(err);
@@ -234,7 +241,71 @@ impl Parser {
         Ok(item)
     }
 
-    pub fn parse_inline(&mut self) -> Result<Inline, ParseError> {
+    fn parse_table(&mut self) -> Result<Table, ParseError> {
+        let header = self.parse_row()?;
+        let start_index = self.index;
+        self.seek_whitespace();
+        if self.current_char == '-' {
+            if self.next_char() != Some('|') {
+                let err_index = self.index;
+                self.revert_to(start_index)?;
+                return Err(ParseError::new(err_index));
+            }
+        }
+        while let Some(char) = self.next_char() {
+            if char == '\n' {
+                break;
+            }
+        }
+        self.seek_whitespace();
+        let mut table = Table::new(header);
+
+        while let Ok(row) = self.parse_row() {
+            table.add_row(row);
+            self.seek_whitespace();
+        }
+
+        Ok(table)
+    }
+
+    /// parses a table row/head
+    pub fn parse_row(&mut self) -> Result<Row, ParseError> {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+
+        if self.current_char == '|' {
+            if self.next_char() == None {
+                let err_index = self.index;
+                self.revert_to(start_index)?;
+                return Err(ParseError::new(err_index));
+            }
+        } else {
+            self.revert_to(start_index)?;
+            return Err(ParseError::new(self.index));
+        }
+        let mut row = Row::new();
+        while let Ok(element) = self.parse_inline() {
+            row.add_cell(Cell { text: element });
+            if self.current_char == '|' {
+                if self.next_char() == None {
+                    break;
+                }
+            }
+            if self.current_char == '\n' {
+                break;
+            }
+        }
+
+        if row.cells.len() > 0 {
+            Ok(row)
+        } else {
+            let current_index = self.index;
+            self.revert_to(start_index)?;
+            Err(ParseError::new(current_index))
+        }
+    }
+
+    fn parse_inline(&mut self) -> Result<Inline, ParseError> {
         if self.index > self.text.len() {
             Err(ParseError::new(self.index))
         } else {
@@ -243,7 +314,7 @@ impl Parser {
     }
 
     /// Parses a line of text
-    pub fn parse_text(&mut self) -> Result<Text, ParseError> {
+    fn parse_text(&mut self) -> Result<Text, ParseError> {
         let mut text = Text::new();
         while let Ok(subtext) = self.parse_subtext() {
             text.add_subtext(subtext);
@@ -261,7 +332,7 @@ impl Parser {
         Ok(text)
     }
 
-    pub fn parse_subtext(&mut self) -> Result<SubText, ParseError> {
+    fn parse_subtext(&mut self) -> Result<SubText, ParseError> {
         match self.current_char {
             '*' => {
                 parse_option!(self.next_char(), self.index);
@@ -304,17 +375,17 @@ impl Parser {
                     value: Box::new(subtext),
                 }))
             }
-            '\n' => Err(ParseError::new(self.index)),
+            '\n' | '|' => Err(ParseError::new(self.index)),
             _ => Ok(SubText::Plain(self.parse_plain_text()?)),
         }
     }
 
-    pub fn parse_plain_text(&mut self) -> Result<PlainText, ParseError> {
+    fn parse_plain_text(&mut self) -> Result<PlainText, ParseError> {
         let mut current_char = self.current_char;
         let mut characters = String::new();
         loop {
             match current_char {
-                '\n' | '*' | '_' | '~' => break,
+                '\n' | '*' | '_' | '~' | '|' => break,
                 _ => characters.push(current_char),
             }
             if let Some(character) = self.next_char() {
