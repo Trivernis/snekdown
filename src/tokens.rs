@@ -46,7 +46,9 @@ pub struct List {
 
 #[derive(Clone, Debug)]
 pub struct ListItem {
-    pub(crate) text: Inline,
+    text: Inline,
+    pub(crate) level: u16,
+    pub(crate) children: Vec<ListItem>,
 }
 
 #[derive(Clone, Debug)]
@@ -163,6 +165,20 @@ impl List {
 
     pub fn add_item(&mut self, item: ListItem) {
         self.items.push(item)
+    }
+}
+
+impl ListItem {
+    pub fn new(text: Inline, level: u16) -> Self {
+        Self {
+            text,
+            level,
+            children: Vec::new(),
+        }
+    }
+
+    pub fn add_child(&mut self, child: ListItem) {
+        self.children.push(child)
     }
 }
 

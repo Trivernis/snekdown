@@ -202,13 +202,55 @@ impl Parser {
     }
 
     /// parses a list which consists of one or more list items
+    /// The parsing is done iterative to resolve nested items
     fn parse_list(&mut self) -> Result<List, ParseError> {
         let mut list = List::new();
         let start_index = self.index;
         self.seek_whitespace();
-        while let Ok(token) = self.parse_list_item() {
-            list.add_item(token);
+
+        let mut list_hierarchy: Vec<ListItem> = Vec::new();
+        while let Ok(mut item) = self.parse_list_item() {
+            while let Some(parent_item) = list_hierarchy.pop() {
+                if parent_item.level < item.level {
+                    // the parent item is the actual parent of the next item
+                    list_hierarchy.push(parent_item);
+                    break;
+                } else if parent_item.level == item.level {
+                    // the parent item is a sibling and has to be appended to a parent
+                    if list_hierarchy.is_empty() {
+                        list.add_item(parent_item);
+                    } else {
+                        let mut parent_parent = list_hierarchy.pop().unwrap();
+                        parent_parent.add_child(parent_item);
+                        list_hierarchy.push(parent_parent);
+                    }
+                    break;
+                } else {
+                    // the parent item is a child of a sibling of the current item
+                    if list_hierarchy.is_empty() {
+                        item.add_child(parent_item);
+                    } else {
+                        let mut parent_parent = list_hierarchy.pop().unwrap();
+                        parent_parent.add_child(parent_item);
+                        list_hierarchy.push(parent_parent);
+                    }
+                }
+            }
+            list_hierarchy.push(item);
         }
+
+        // the remaining items in the hierarchy need to be combined
+        while let Some(item) = list_hierarchy.pop() {
+            if !list_hierarchy.is_empty() {
+                let mut parent_item = list_hierarchy.pop().unwrap();
+                parent_item.add_child(item);
+                list_hierarchy.push(parent_item);
+            } else {
+                list_hierarchy.push(item);
+                break;
+            }
+        }
+        list.items.append(&mut list_hierarchy);
 
         if list.items.len() > 0 {
             Ok(list)
@@ -222,6 +264,7 @@ impl Parser {
     fn parse_list_item(&mut self) -> Result<ListItem, ParseError> {
         let start_index = self.index;
         self.seek_inline_whitespace();
+        let level = self.index - start_index;
 
         if !['-'].contains(&self.current_char) {
             let err = ParseError::new(self.index);
@@ -234,9 +277,7 @@ impl Parser {
             return Err(err);
         }
         self.seek_inline_whitespace();
-        let item = ListItem {
-            text: self.parse_inline()?,
-        };
+        let item = ListItem::new(self.parse_inline()?, level as u16);
 
         Ok(item)
     }
