@@ -58,6 +58,13 @@ impl Parser {
         let mut text: Vec<char> = text.chars().collect();
         text.append(&mut vec!['\n', ' ', '\n']); // push space and newline of eof. it fixes stuff and I don't know why.
         let current_char = text.get(0).unwrap().clone();
+        if let Some(path) = path.clone() {
+            let path_info = Path::new(&path);
+            paths
+                .lock()
+                .unwrap()
+                .push(path_info.to_str().unwrap().to_string())
+        }
         Self {
             index: 0,
             text,
@@ -184,6 +191,10 @@ impl Parser {
 
     fn transform_path(&mut self, path: String) -> String {
         let mut path = path;
+        let first_path_info = Path::new(&path);
+        if first_path_info.is_absolute() {
+            return first_path_info.to_str().unwrap().to_string();
+        }
         if let Some(selfpath) = &self.path {
             let path_info = Path::new(&selfpath);
             if path_info.is_file() {
@@ -192,18 +203,18 @@ impl Parser {
                 }
             }
         }
-        return path;
+        let path_info = Path::new(&path);
+        return path_info.to_str().unwrap().to_string();
     }
 
     /// starts up a new thread to parse the imported document
     fn import_document(&mut self, path: String) -> Result<Arc<Mutex<ImportAnchor>>, ParseError> {
-        let mut path = self.transform_path(path);
+        let path = self.transform_path(path);
         let path_info = Path::new(&path);
         if !path_info.exists() || !path_info.is_file() {
             println!("Import of \"{}\" failed: The file doesn't exist.", path);
             return Err(ParseError::new(self.index));
         }
-        path = path_info.to_str().unwrap().to_string();
         {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
