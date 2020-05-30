@@ -92,6 +92,7 @@ pub enum SubText {
     Underlined(UnderlinedText),
     Striked(StrikedText),
     Monospace(MonospaceText),
+    Url(Url),
 }
 
 #[derive(Clone, Debug)]
@@ -121,8 +122,16 @@ pub struct StrikedText {
 
 #[derive(Clone, Debug)]
 pub struct MonospaceText {
-    pub(crate) value: Box<PlainText>,
+    pub(crate) value: PlainText,
 }
+
+#[derive(Clone, Debug)]
+pub struct Url {
+    title: String,
+    url: String,
+}
+
+// implementations
 
 impl Document {
     pub fn new() -> Self {
@@ -220,6 +229,12 @@ impl Row {
 
     pub fn add_cell(&mut self, cell: Cell) {
         self.cells.push(cell)
+    }
+}
+
+impl Url {
+    pub fn new(title: String, url: String) -> Self {
+        Self { title, url }
     }
 }
 

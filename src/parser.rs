@@ -385,6 +385,9 @@ impl Parser {
     }
 
     fn parse_subtext(&mut self) -> Result<SubText, ParseError> {
+        if let Ok(url) = self.parse_url() {
+            return Ok(SubText::Url(url));
+        }
         match self.current_char {
             '*' => {
                 parse_option!(self.next_char(), self.index);
@@ -433,21 +436,74 @@ impl Parser {
                 if self.current_char == '`' {
                     parse_option!(self.next_char(), self.index)
                 }
-                Ok(SubText::Monospace(MonospaceText {
-                    value: Box::new(plain_text),
-                }))
+                Ok(SubText::Monospace(MonospaceText { value: plain_text }))
             }
             '\n' | '|' => Err(ParseError::new(self.index)),
             _ => Ok(SubText::Plain(self.parse_plain_text()?)),
         }
     }
 
+    // parses an url
+    fn parse_url(&mut self) -> Result<Url, ParseError> {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+
+        if self.current_char != '[' {
+            let err = ParseError::new(self.index);
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+        let mut title = String::new();
+        while let Some(character) = self.next_char() {
+            if character == ']' || character == '\n' {
+                break;
+            }
+            title.push(character);
+        }
+        if self.current_char != ']' {
+            // it stopped at a linebreak or EOF
+            let err = ParseError::new(self.index);
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+        if let Some(character) = self.next_char() {
+            if character != '(' {
+                // the next char isn't the start of the encased url
+                let err = ParseError::new(self.index);
+                self.revert_to(start_index)?;
+                return Err(err);
+            }
+        }
+        self.seek_inline_whitespace();
+        let mut url = String::new();
+        while let Some(character) = self.next_char() {
+            if character == ')' || character == '\n' {
+                break;
+            }
+            url.push(character);
+        }
+        if self.current_char != ')' || url.is_empty() {
+            let err = ParseError::new(self.index);
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+        parse_option!(self.next_char(), self.index);
+
+        if title.is_empty() {
+            Ok(Url::new(url.clone(), url))
+        } else {
+            Ok(Url::new(title, url))
+        }
+    }
+
     fn parse_plain_text(&mut self) -> Result<PlainText, ParseError> {
         let mut current_char = self.current_char;
         let mut characters = String::new();
+        let mut count = 0;
         loop {
             match current_char {
                 '\n' | '*' | '_' | '~' | '|' | '`' => break,
+                '[' if count > 0 => break, // if its the first it means that the url parsing has failed
                 _ => characters.push(current_char),
             }
             if let Some(character) = self.next_char() {
@@ -455,6 +511,7 @@ impl Parser {
             } else {
                 break;
             }
+            count += 1;
         }
 
         if characters.len() > 0 {
