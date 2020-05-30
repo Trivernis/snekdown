@@ -433,6 +433,7 @@ impl Parser {
         if self.check_linebreak() || path.is_empty() {
             return Err(self.revert_with_error(start_index));
         }
+        parse_option!(self.next_char(), self.index);
 
         if let Ok(anchor) = self.import_document(path.clone()) {
             Ok(Import { path, anchor })
@@ -534,6 +535,7 @@ impl Parser {
         if !self.check_special_group(&LIST_SPECIAL_CHARS) && !self.current_char.is_numeric() {
             return Err(self.revert_with_error(start_index));
         }
+        let ordered = self.current_char.is_numeric();
         while let Some(character) = self.next_char() {
             if character.is_whitespace() {
                 break;
@@ -543,7 +545,7 @@ impl Parser {
             return Err(self.revert_with_error(start_index));
         }
         self.seek_inline_whitespace();
-        let item = ListItem::new(self.parse_inline()?, level as u16);
+        let item = ListItem::new(self.parse_inline()?, level as u16, ordered);
 
         Ok(item)
     }
@@ -778,7 +780,7 @@ impl Parser {
                 || (count > 0 && self.check_special_group(&INLINE_SPECIAL_CHARS_SECOND))
             {
                 break;
-            } else {
+            } else if !self.check_special(&SPECIAL_ESCAPE) {
                 characters.push(current_char)
             }
             if let Some(character) = self.next_char() {

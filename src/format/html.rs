@@ -84,7 +84,7 @@ impl ToHtml for Paragraph {
         let inner = self
             .elements
             .iter()
-            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
+            .fold("".to_string(), |a, b| format!("{}<br>{}", a, b.to_html()));
         format!("<p>{}</p>", inner)
     }
 }
@@ -109,7 +109,15 @@ impl ToHtml for ListItem {
             .children
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
-        format!("<li>{}<ul>{}</ul></li>", self.text.to_html(), inner)
+        if let Some(first) = self.children.first() {
+            if first.ordered {
+                format!("<li>{}<ol>{}</ol></li>", self.text.to_html(), inner)
+            } else {
+                format!("<li>{}<ul>{}</ul></li>", self.text.to_html(), inner)
+            }
+        } else {
+            format!("<li>{}</li>", self.text.to_html())
+        }
     }
 }
 
@@ -145,7 +153,7 @@ impl ToHtml for Cell {
 impl ToHtml for CodeBlock {
     fn to_html(&self) -> String {
         format!(
-            "<div><code lang='{}'>{}</code></div>",
+            "<div><code lang='{}'><pre>{}</pre></code></div>",
             self.language.clone(),
             self.code.clone()
         )

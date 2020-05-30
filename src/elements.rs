@@ -48,6 +48,7 @@ pub struct List {
 pub struct ListItem {
     pub(crate) text: Inline,
     pub(crate) level: u16,
+    pub(crate) ordered: bool,
     pub(crate) children: Vec<ListItem>,
 }
 
@@ -213,10 +214,11 @@ impl List {
 }
 
 impl ListItem {
-    pub fn new(text: Inline, level: u16) -> Self {
+    pub fn new(text: Inline, level: u16, ordered: bool) -> Self {
         Self {
             text,
             level,
+            ordered,
             children: Vec::new(),
         }
     }
