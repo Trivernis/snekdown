@@ -106,6 +106,7 @@ pub enum SubText {
     Striked(StrikedText),
     Monospace(MonospaceText),
     Url(Url),
+    Image(Image),
 }
 
 #[derive(Clone, Debug)]
@@ -146,7 +147,8 @@ pub struct Url {
 
 #[derive(Clone, Debug)]
 pub struct Image {
-    url: Url,
+    pub(crate) url: Url,
+    pub(crate) metadata: Option<InlineMetadata>,
 }
 
 // implementations

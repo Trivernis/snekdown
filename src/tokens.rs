@@ -17,6 +17,7 @@ pub(crate) const HASH: char = '#';
 pub(crate) const O: char = 'o';
 pub(crate) const X: char = 'x';
 pub(crate) const GT: char = '>';
+pub(crate) const BANG: char = '!';
 
 // aliases
 
@@ -26,12 +27,16 @@ pub(crate) const META_CLOSE: char = L_BRACKET;
 pub(crate) const QUOTE_START: char = GT;
 pub(crate) const DESC_OPEN: char = R_BRACKET;
 pub(crate) const DESC_CLOSE: char = L_BRACKET;
+pub(crate) const IMG_START: char = BANG;
+pub(crate) const URL_OPEN: char = R_PARENTH;
+pub(crate) const URL_CLOSE: char = L_PARENTH;
 
 // groups
 
 pub(crate) const BLOCK_SPECIAL_CHARS: [char; 6] =
     [HASH, MINUS, BACKTICK, PIPE, QUOTE_START, META_OPEN];
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 6] = [LB, ASTERISK, UNDERSCR, TILDE, PIPE, BACKTICK];
+pub(crate) const INLINE_SPECIAL_CHARS_SECOND: [char; 3] = [DESC_OPEN, IMG_START, URL_OPEN];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
 
@@ -41,4 +46,5 @@ pub(crate) const SQ_CODE_BLOCK: [char; 3] = [BACKTICK, BACKTICK, BACKTICK];
 
 // expressions
 
-pub(crate) const EXPR_URI: &str = r"^(https?://)?\w+\.\w+(.\w+)?$|^([\w, -.]+|\w:)?(/[\w, -.]+)+$";
+pub(crate) const EXPR_URI: &str =
+    r"^(https?://)?\w+\.\w+(\.\w+|)?(/[\w, -.%&]+)*/?$|^([\w, -.]+|\w:)?(/[\w, -.]+)+$";

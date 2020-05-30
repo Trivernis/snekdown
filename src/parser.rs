@@ -339,7 +339,6 @@ impl Parser {
         while let Ok(token) = self.parse_inline() {
             paragraph.add_element(token);
             let start_index = self.index;
-            self.seek_inline_whitespace();
             if self.check_special_group(&BLOCK_SPECIAL_CHARS) {
                 self.revert_to(start_index)?;
                 break;
@@ -441,6 +440,7 @@ impl Parser {
         Ok(item)
     }
 
+    /// parses a markdown table
     fn parse_table(&mut self) -> Result<Table, ParseError> {
         let header = self.parse_row()?;
         let start_index = self.index;
@@ -531,6 +531,9 @@ impl Parser {
         if self.check_linebreak() {
             return Err(ParseError::new(self.index));
         }
+        if let Ok(image) = self.parse_image() {
+            return Ok(SubText::Image(image));
+        }
         if let Ok(url) = self.parse_url() {
             return Ok(SubText::Url(url));
         }
@@ -589,40 +592,61 @@ impl Parser {
         }
     }
 
+    /// parses an image url
+    fn parse_image(&mut self) -> Result<Image, ParseError> {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+
+        if !self.check_special(&IMG_START) || self.next_char() == None {
+            return Err(self.revert_with_error(start_index));
+        }
+        if let Ok(url) = self.parse_url() {
+            let metadata = if let Ok(meta) = self.parse_inline_metadata() {
+                if self.check_special(&META_CLOSE) && self.next_char() == None {
+                    return Err(self.revert_with_error(start_index));
+                }
+                Some(meta)
+            } else {
+                None
+            };
+            Ok(Image { url, metadata })
+        } else {
+            Err(self.revert_with_error(start_index))
+        }
+    }
+
     // parses an url
     fn parse_url(&mut self) -> Result<Url, ParseError> {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
         let mut description = String::new();
-        if self.check_special(&R_BRACKET) {
+        if self.check_special(&DESC_OPEN) {
             while let Some(character) = self.next_char() {
-                if self.check_special(&L_BRACKET) || self.check_linebreak() {
+                if self.check_special(&DESC_CLOSE) || self.check_linebreak() {
                     break;
                 }
                 description.push(character);
             }
-            if !self.check_special(&L_BRACKET) {
+            if !self.check_special(&DESC_CLOSE) || self.next_char() == None {
                 // it stopped at a linebreak or EOF
                 return Err(self.revert_with_error(start_index));
             }
         }
 
-        if let Some(_) = self.next_char() {
-            if !self.check_special(&R_PARENTH) {
-                // the next char isn't the start of the encased url
-                return Err(self.revert_with_error(start_index));
-            }
+        if !self.check_special(&URL_OPEN) {
+            // the next char isn't the start of the encased url
+            return Err(self.revert_with_error(start_index));
         }
         self.seek_inline_whitespace();
         let mut url = String::new();
         while let Some(character) = self.next_char() {
-            if self.check_special(&L_PARENTH) || self.check_linebreak() {
+            if self.check_special(&URL_CLOSE) || self.check_linebreak() {
                 break;
             }
             url.push(character);
         }
-        if !self.check_special(&L_PARENTH) || url.is_empty() {
+        if !self.check_special(&URL_CLOSE) || url.is_empty() {
             return Err(self.revert_with_error(start_index));
         }
         parse_option!(self.next_char(), self.index);
@@ -645,7 +669,7 @@ impl Parser {
         let mut count = 0;
         loop {
             if self.check_special_group(&INLINE_SPECIAL_CHARS)
-                || (count > 0 && self.check_special(&R_BRACKET))
+                || (count > 0 && self.check_special_group(&INLINE_SPECIAL_CHARS_SECOND))
             {
                 break;
             } else {
