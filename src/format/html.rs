@@ -1,4 +1,5 @@
 use crate::elements::*;
+use htmlescape::encode_minimal;
 use minify::html::minify;
 
 macro_rules! combine_with_lb {
@@ -195,7 +196,7 @@ impl ToHtml for Quote {
         if let Some(meta) = self.metadata.clone() {
             format!(
                 "<div class='quote'><blockquote>{}</blockquote><span class='metadata'>{}</span></div>",
-                text, meta.data
+                text, encode_minimal(meta.data.as_str())
             )
         } else {
             format!("<div class='quote'><blockquote>{}</blockquote></div>", text)
@@ -228,8 +229,8 @@ impl ToHtml for Image {
                      </a>\
                      <label class='imageDescription'>{1}</label>\
                      </div>",
-                    self.url.url.clone(),
-                    description
+                    encode_minimal(self.url.url.clone().as_str()),
+                    encode_minimal(description.as_str())
                 )
                 .as_str(),
             )
@@ -272,15 +273,23 @@ impl ToHtml for MonospaceText {
 impl ToHtml for Url {
     fn to_html(&self) -> String {
         if let Some(description) = self.description.clone() {
-            format!("<a href='{}'>{}</a>", self.url.clone(), description)
+            format!(
+                "<a href='{}'>{}</a>",
+                self.url.clone(),
+                encode_minimal(description.as_str())
+            )
         } else {
-            format!("<a href='{}'>{}</a>", self.url.clone(), self.url.clone())
+            format!(
+                "<a href='{}'>{}</a>",
+                self.url.clone(),
+                encode_minimal(self.url.clone().as_str())
+            )
         }
     }
 }
 
 impl ToHtml for PlainText {
     fn to_html(&self) -> String {
-        self.value.clone()
+        encode_minimal(self.value.clone().as_str())
     }
 }

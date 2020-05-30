@@ -74,6 +74,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "htmlescape"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -151,6 +156,7 @@ name = "snekdown"
 version = "0.1.0"
 dependencies = [
  "crossbeam-utils 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "htmlescape 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "minify 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "termion 1.5.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -276,6 +282,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum crossbeam-utils 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)" = "c3c7c73a2d1e9fc0886a08b93e98eb643461230d5f1925e4036204d5f2e261a8"
 "checksum heck 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "20564e78d53d2bb135c343b3f47714a56af2061f1c928fdb541dc7b9fdd94205"
 "checksum hermit-abi 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "91780f809e750b0a89f5544be56617ff6b1227ee485bcb06ebe10cdf89bd3b71"
+"checksum htmlescape 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "e9025058dae765dee5070ec375f591e2ba14638c63feff74f13805a72e523163"
 "checksum lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 "checksum libc 0.2.71 (registry+https://github.com/rust-lang/crates.io-index)" = "9457b06509d27052635f90d6466700c65095fdf75409b3fbdd903e988b886f49"
 "checksum minify 1.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2ef7c582bd7587da887914eaf294897e82f2f5c98b741f137f2a918cd26a885b"
