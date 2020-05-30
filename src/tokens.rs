@@ -27,3 +27,7 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [char; 4] = [HASH, MINUS, BACKTICK, PIPE];
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 6] = [LB, ASTERISK, UNDERSCR, TILDE, PIPE, BACKTICK];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
+
+// sequences
+
+pub(crate) const SQ_CODE_BLOCK: [char; 3] = [BACKTICK, BACKTICK, BACKTICK];

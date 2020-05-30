@@ -120,8 +120,34 @@ impl Parser {
         chars.contains(&self.current_char) && !self.check_escaped()
     }
 
+    /// returns if the current character is a linebreak character
+    /// Note: No one likes CRLF
     pub fn check_linebreak(&self) -> bool {
         self.current_char == LB && !self.check_escaped()
+    }
+
+    /// checks if the next characters match a special sequence
+    pub fn check_special_sequence(&mut self, sequence: &[char]) -> Result<(), ParseError> {
+        let start_index = self.index;
+        self.seek_whitespace();
+        for sq_character in sequence {
+            if !self.check_special(sq_character) {
+                let err = ParseError::new(self.index);
+                self.revert_to(start_index)?;
+                // should work
+                return Err(err);
+            }
+            if self.next_char() == None {
+                let err = ParseError::new(self.index);
+                self.revert_to(start_index)?;
+                return Err(err);
+            }
+        }
+        if self.index > 0 {
+            self.revert_to(self.index - 1)?;
+        }
+
+        Ok(())
     }
 
     /// parses the given text into a document
@@ -153,6 +179,8 @@ impl Parser {
             Block::List(list)
         } else if let Ok(table) = self.parse_table() {
             Block::Table(table)
+        } else if let Ok(code_block) = self.parse_code_block() {
+            Block::CodeBlock(code_block)
         } else if let Ok(paragraph) = self.parse_paragraph() {
             Block::Paragraph(paragraph)
         } else {
@@ -202,10 +230,35 @@ impl Parser {
         }
     }
 
+    /// parses the header of a section
     fn parse_header(&mut self) -> Result<Header, ParseError> {
         Ok(Header {
             size: 0,
             line: self.parse_inline()?,
+        })
+    }
+
+    /// parses a code block
+    fn parse_code_block(&mut self) -> Result<CodeBlock, ParseError> {
+        let mut language = String::new();
+        self.check_special_sequence(&SQ_CODE_BLOCK)?;
+        while let Some(character) = self.next_char() {
+            if self.check_linebreak() {
+                break;
+            }
+            language.push(character);
+        }
+        let mut text = String::new();
+        while let Some(character) = self.next_char() {
+            if let Ok(_) = self.check_special_sequence(&SQ_CODE_BLOCK) {
+                break;
+            }
+            text.push(character);
+        }
+
+        Ok(CodeBlock {
+            language,
+            code: text,
         })
     }
 

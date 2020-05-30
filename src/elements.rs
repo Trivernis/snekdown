@@ -4,6 +4,7 @@ pub enum Block {
     Paragraph(Paragraph),
     List(List),
     Table(Table),
+    CodeBlock(CodeBlock),
 }
 
 #[derive(Clone, Debug)]
@@ -69,8 +70,8 @@ pub struct Cell {
 
 #[derive(Clone, Debug)]
 pub struct CodeBlock {
-    language: String,
-    code: String,
+    pub(crate) language: String,
+    pub(crate) code: String,
 }
 
 #[derive(Clone, Debug)]
