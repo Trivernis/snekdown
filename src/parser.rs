@@ -5,6 +5,7 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::fs::read_to_string;
+use std::io;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -46,6 +47,11 @@ pub struct Parser {
 }
 
 impl Parser {
+    pub fn new_from_file(path: String) -> Result<Self, io::Error> {
+        let content = read_to_string(path.clone())?;
+        Ok(Self::new(content, Some(path)))
+    }
+
     pub fn new(text: String, path: Option<String>) -> Self {
         Parser::new_as_child(text, path, Arc::new(Mutex::new(Vec::new())))
     }

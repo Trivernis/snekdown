@@ -1,17 +1,29 @@
 use markdown_rs::format::html::ToHtml;
 use markdown_rs::parser::Parser;
-use std::fs::{read_to_string, write};
+use std::fs::write;
 use std::time::Instant;
 
+use std::path::PathBuf;
+use structopt::StructOpt;
+
+#[derive(StructOpt, Debug)]
+struct Opt {
+    #[structopt(parse(from_os_str))]
+    input: PathBuf,
+    #[structopt(parse(from_os_str))]
+    output: PathBuf,
+    #[structopt(short, long)]
+    format: String,
+}
+
 fn main() {
+    let opt: Opt = Opt::from_args();
     let start = Instant::now();
-    let mut parser = Parser::new(
-        read_to_string("/home/trivernis/Documents/Programming/Rust/markdown-rs/test/document.md")
-            .unwrap(),
-        Some("/home/trivernis/Documents/Programming/Rust/markdown-rs/test/document.md".to_string()),
-    );
+    let mut parser = Parser::new_from_file(opt.input.to_str().unwrap().to_string()).unwrap();
     let document = parser.parse();
     println!("Total duration: {:?}", start.elapsed());
-    write("test/document.ast", format!("{:#?}", document)).unwrap();
-    write("test/document.html", document.to_html()).unwrap()
+    match opt.format.as_str() {
+        "html" => write(opt.output.to_str().unwrap(), document.to_html()).unwrap(),
+        _ => println!("Unknown format {}", opt.format),
+    }
 }

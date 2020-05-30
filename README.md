@@ -1,4 +1,4 @@
-# Yet another markdown standard
+# Snekdown - A wonderful markdown parser
 
 This projects goal is to implement a fast markdown parser with an extended syntax fitted
 for my needs.
