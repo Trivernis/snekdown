@@ -1,3 +1,4 @@
+use crate::elements::*;
 use crate::tokens::*;
 use std::error::Error;
 use std::fmt;
@@ -75,9 +76,9 @@ impl Parser {
     /// Skips characters until it encounters a character
     /// that isn't an inline whitespace character
     pub fn seek_inline_whitespace(&mut self) {
-        if self.current_char.is_whitespace() && self.current_char != '\n' {
+        if self.current_char.is_whitespace() && !self.check_linebreak() {
             while let Some(next_char) = self.next_char() {
-                if !next_char.is_whitespace() || self.current_char == '\n' {
+                if !next_char.is_whitespace() || self.check_linebreak() {
                     break;
                 }
             }
@@ -96,6 +97,34 @@ impl Parser {
         }
     }
 
+    /// checks if the input character is escaped
+    pub fn check_escaped(&self) -> bool {
+        if self.index == 0 {
+            return false;
+        }
+        if let Some(previous_char) = self.text.get(self.index - 1) {
+            if previous_char == &SPECIAL_ESCAPE {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// checks if the current character is the given input character and not escaped
+    pub fn check_special(&self, character: &char) -> bool {
+        self.current_char == *character && !self.check_escaped()
+    }
+
+    /// checks if the current character is part of the given group
+    pub fn check_special_group(&self, chars: &[char]) -> bool {
+        chars.contains(&self.current_char) && !self.check_escaped()
+    }
+
+    pub fn check_linebreak(&self) -> bool {
+        self.current_char == LB && !self.check_escaped()
+    }
+
+    /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
         let mut document = Document::new();
         while self.index < self.text.len() {
@@ -137,10 +166,10 @@ impl Parser {
     fn parse_section(&mut self) -> Result<Section, ParseError> {
         let start_index = self.index;
         self.seek_whitespace();
-        if self.current_char == '#' {
+        if self.check_special(&HASH) {
             let mut size = 1;
-            while let Some(next_char) = self.next_char() {
-                if next_char == '#' {
+            while let Some(_) = self.next_char() {
+                if self.check_special(&HASH) {
                     size += 1;
                 } else {
                     break;
@@ -187,7 +216,7 @@ impl Parser {
             paragraph.add_element(token);
             let start_index = self.index;
             self.seek_inline_whitespace();
-            if ['-', '#', '`', '|'].contains(&self.current_char) {
+            if self.check_special_group(&BLOCK_SPECIAL_CHARS) {
                 self.revert_to(start_index)?;
                 break;
             }
@@ -208,7 +237,7 @@ impl Parser {
         let start_index = self.index;
         self.seek_whitespace();
 
-        let ordered = if ['-', '*', 'o'].contains(&self.current_char) {
+        let ordered = if self.check_special_group(&LIST_SPECIAL_CHARS) {
             false
         } else {
             true
@@ -272,7 +301,7 @@ impl Parser {
         self.seek_inline_whitespace();
         let level = self.index - start_index;
 
-        if !['-', '*', 'o'].contains(&self.current_char) && !self.current_char.is_numeric() {
+        if !self.check_special_group(&LIST_SPECIAL_CHARS) && !self.current_char.is_numeric() {
             let err = ParseError::new(self.index);
             self.revert_to(start_index)?;
             return Err(err);
@@ -297,8 +326,8 @@ impl Parser {
         let header = self.parse_row()?;
         let start_index = self.index;
         self.seek_whitespace();
-        if self.current_char == '-' {
-            if self.next_char() != Some('|') {
+        if self.check_special(&MINUS) {
+            if self.next_char() != Some(PIPE) {
                 let err_index = self.index;
                 self.revert_to(start_index)?;
                 return Err(ParseError::new(err_index));
@@ -325,7 +354,7 @@ impl Parser {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
-        if self.current_char == '|' {
+        if self.check_special(&PIPE) {
             if self.next_char() == None {
                 let err_index = self.index;
                 self.revert_to(start_index)?;
@@ -338,12 +367,12 @@ impl Parser {
         let mut row = Row::new();
         while let Ok(element) = self.parse_inline() {
             row.add_cell(Cell { text: element });
-            if self.current_char == '|' {
+            if self.check_special(&PIPE) {
                 if self.next_char() == None {
                     break;
                 }
             }
-            if self.current_char == '\n' {
+            if self.check_linebreak() {
                 break;
             }
         }
@@ -377,7 +406,7 @@ impl Parser {
             self.revert_to(current_index)?;
         }
 
-        if self.current_char == '\n' {
+        if self.check_linebreak() {
             parse_option!(self.next_char(), self.index);
         }
 
@@ -389,15 +418,15 @@ impl Parser {
             return Ok(SubText::Url(url));
         }
         match self.current_char {
-            '*' => {
+            ASTERISK if !self.check_escaped() => {
                 parse_option!(self.next_char(), self.index);
 
-                if self.current_char == '*' {
+                if self.check_special(&ASTERISK) {
                     parse_option!(self.next_char(), self.index);
                     let subtext = self.parse_subtext()?;
-                    if self.current_char == '*' {
+                    if self.check_special(&ASTERISK) {
                         parse_option!(self.next_char(), self.index);
-                        if self.current_char == '*' {
+                        if self.check_special(&ASTERISK) {
                             parse_option!(self.next_char(), self.index);
                         }
                     }
@@ -412,7 +441,7 @@ impl Parser {
                     }))
                 }
             }
-            '_' => {
+            UNDERSCR if !self.check_escaped() => {
                 parse_option!(self.next_char(), self.index);
                 let subtext = self.parse_subtext()?;
                 parse_option!(self.next_char(), self.index);
@@ -420,25 +449,25 @@ impl Parser {
                     value: Box::new(subtext),
                 }))
             }
-            '~' => {
+            TILDE if !self.check_escaped() => {
                 parse_option!(self.next_char(), self.index);
                 let subtext = self.parse_subtext()?;
-                if self.current_char == '~' {
+                if self.check_special(&TILDE) {
                     parse_option!(self.next_char(), self.index);
                 }
                 Ok(SubText::Striked(StrikedText {
                     value: Box::new(subtext),
                 }))
             }
-            '`' => {
+            BACKTICK if !self.check_escaped() => {
                 parse_option!(self.next_char(), self.index);
                 let plain_text = self.parse_plain_text()?;
-                if self.current_char == '`' {
+                if self.check_special(&BACKTICK) {
                     parse_option!(self.next_char(), self.index)
                 }
                 Ok(SubText::Monospace(MonospaceText { value: plain_text }))
             }
-            '\n' | '|' => Err(ParseError::new(self.index)),
+            LB | PIPE if !self.check_escaped() => Err(ParseError::new(self.index)),
             _ => Ok(SubText::Plain(self.parse_plain_text()?)),
         }
     }
@@ -448,26 +477,26 @@ impl Parser {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
-        if self.current_char != '[' {
+        if !self.check_special(&R_BRACKET) {
             let err = ParseError::new(self.index);
             self.revert_to(start_index)?;
             return Err(err);
         }
         let mut title = String::new();
         while let Some(character) = self.next_char() {
-            if character == ']' || character == '\n' {
+            if self.check_special(&L_BRACKET) || self.check_linebreak() {
                 break;
             }
             title.push(character);
         }
-        if self.current_char != ']' {
+        if !self.check_special(&L_BRACKET) {
             // it stopped at a linebreak or EOF
             let err = ParseError::new(self.index);
             self.revert_to(start_index)?;
             return Err(err);
         }
-        if let Some(character) = self.next_char() {
-            if character != '(' {
+        if let Some(_) = self.next_char() {
+            if !self.check_special(&R_PARENTH) {
                 // the next char isn't the start of the encased url
                 let err = ParseError::new(self.index);
                 self.revert_to(start_index)?;
@@ -477,12 +506,12 @@ impl Parser {
         self.seek_inline_whitespace();
         let mut url = String::new();
         while let Some(character) = self.next_char() {
-            if character == ')' || character == '\n' {
+            if self.check_special(&L_PARENTH) || self.check_linebreak() {
                 break;
             }
             url.push(character);
         }
-        if self.current_char != ')' || url.is_empty() {
+        if !self.check_special(&L_PARENTH) || url.is_empty() {
             let err = ParseError::new(self.index);
             self.revert_to(start_index)?;
             return Err(err);
@@ -501,10 +530,12 @@ impl Parser {
         let mut characters = String::new();
         let mut count = 0;
         loop {
-            match current_char {
-                '\n' | '*' | '_' | '~' | '|' | '`' => break,
-                '[' if count > 0 => break, // if its the first it means that the url parsing has failed
-                _ => characters.push(current_char),
+            if self.check_special_group(&INLINE_SPECIAL_CHARS)
+                || (count > 0 && self.check_special(&R_BRACKET))
+            {
+                break;
+            } else {
+                characters.push(current_char)
             }
             if let Some(character) = self.next_char() {
                 current_char = character;
