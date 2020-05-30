@@ -208,6 +208,12 @@ impl Parser {
         let start_index = self.index;
         self.seek_whitespace();
 
+        let ordered = if ['-', '*', 'o'].contains(&self.current_char) {
+            false
+        } else {
+            true
+        };
+        list.ordered = ordered;
         let mut list_hierarchy: Vec<ListItem> = Vec::new();
         while let Ok(mut item) = self.parse_list_item() {
             while let Some(parent_item) = list_hierarchy.pop() {
@@ -266,10 +272,15 @@ impl Parser {
         self.seek_inline_whitespace();
         let level = self.index - start_index;
 
-        if !['-'].contains(&self.current_char) {
+        if !['-', '*', 'o'].contains(&self.current_char) && !self.current_char.is_numeric() {
             let err = ParseError::new(self.index);
             self.revert_to(start_index)?;
             return Err(err);
+        }
+        while let Some(character) = self.next_char() {
+            if character.is_whitespace() {
+                break;
+            }
         }
         if self.next_char() == None {
             let err = ParseError::new(self.index);
@@ -416,6 +427,16 @@ impl Parser {
                     value: Box::new(subtext),
                 }))
             }
+            '`' => {
+                parse_option!(self.next_char(), self.index);
+                let plain_text = self.parse_plain_text()?;
+                if self.current_char == '`' {
+                    parse_option!(self.next_char(), self.index)
+                }
+                Ok(SubText::Monospace(MonospaceText {
+                    value: Box::new(plain_text),
+                }))
+            }
             '\n' | '|' => Err(ParseError::new(self.index)),
             _ => Ok(SubText::Plain(self.parse_plain_text()?)),
         }
@@ -426,7 +447,7 @@ impl Parser {
         let mut characters = String::new();
         loop {
             match current_char {
-                '\n' | '*' | '_' | '~' | '|' => break,
+                '\n' | '*' | '_' | '~' | '|' | '`' => break,
                 _ => characters.push(current_char),
             }
             if let Some(character) = self.next_char() {

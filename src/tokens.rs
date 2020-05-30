@@ -91,6 +91,7 @@ pub enum SubText {
     Italic(ItalicText),
     Underlined(UnderlinedText),
     Striked(StrikedText),
+    Monospace(MonospaceText),
 }
 
 #[derive(Clone, Debug)]
@@ -116,6 +117,11 @@ pub struct UnderlinedText {
 #[derive(Clone, Debug)]
 pub struct StrikedText {
     pub(crate) value: Box<SubText>,
+}
+
+#[derive(Clone, Debug)]
+pub struct MonospaceText {
+    pub(crate) value: Box<PlainText>,
 }
 
 impl Document {
