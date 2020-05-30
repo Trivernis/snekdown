@@ -1,11 +1,12 @@
 body {
     background-color: #DDD;
+    overflow-x: hidden;
 }
 
 .content {
     font-family: "Noto Sans", SansSerif, sans-serif;
     width: 100vh;
-    max-width: 100%;
+    max-width: calc(100% - 4rem);
     padding: 2rem;
     margin: auto;
     background-color: #FFF;
@@ -25,6 +26,22 @@ code pre {
     border-radius: 0.25em;
 }
 
+code {
+    font-family: "Fira Code", monospace;
+    padding: 0 0.1em;
+    background-color: #DDD;
+    border-radius: 0.1em;
+}
+
+.tableWrapper {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.tableWrapper > table {
+    margin: auto;
+}
+
 table {
     border-collapse: collapse;
 }
@@ -41,7 +58,7 @@ table tr:nth-child(1) {
 
 table td, table th {
     border-left: 1px solid black;
-    padding: 0.2em
+    padding: 0.2em 0.5em
 }
 
 table tr td:first-child, table tr th:first-child {
@@ -51,6 +68,8 @@ table tr td:first-child, table tr th:first-child {
 blockquote {
     margin-left: 0
 }
+
+p p, p a, p b,
 
 .quote {
     border-left: 0.3em solid gray;

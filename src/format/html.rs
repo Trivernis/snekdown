@@ -108,7 +108,7 @@ impl ToHtml for Paragraph {
             .elements
             .iter()
             .fold("".to_string(), |a, b| combine_with_lb!(a, b));
-        minify(format!("<p>{}</p>", inner).as_str())
+        format!("<p>{}</p>", inner)
     }
 }
 
@@ -153,7 +153,10 @@ impl ToHtml for Table {
             .rows
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
-        format!("<table><tr>{}<tr>{}</table>", head, body)
+        format!(
+            "<div class='tableWrapper'><table><tr>{}<tr>{}</table></div>",
+            head, body
+        )
     }
 }
 
@@ -217,15 +220,18 @@ impl ToHtml for Text {
 impl ToHtml for Image {
     fn to_html(&self) -> String {
         if let Some(description) = self.url.description.clone() {
-            format!(
-                "<div class='figure'>\
-                 <a href={0}>\
-                 <img src='{0}' alt='{1}'/>\
-                 </a>\
-                 <label class='imageDescription'>{1}</label>\
-                 </div>",
-                self.url.url.clone(),
-                description
+            minify(
+                format!(
+                    "<div class='figure'>\
+                     <a href={0}>\
+                     <img src='{0}' alt='{1}'/>\
+                     </a>\
+                     <label class='imageDescription'>{1}</label>\
+                     </div>",
+                    self.url.url.clone(),
+                    description
+                )
+                .as_str(),
             )
         } else {
             format!("<a href={0}><img src='{0}'/></a>", self.url.url.clone(),)

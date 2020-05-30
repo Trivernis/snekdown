@@ -595,7 +595,7 @@ impl Parser {
 
     /// parses a markdown table
     fn parse_table(&mut self) -> Result<Table, ParseError> {
-        let header = self.parse_row()?;
+        let header = self.parse_row()?; // TODO: Fix this row not being included
         let start_index = self.index;
         self.seek_whitespace();
         if self.check_special(&MINUS) {
