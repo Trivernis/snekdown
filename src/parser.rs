@@ -1,6 +1,5 @@
 use crate::elements::*;
 use crate::tokens::*;
-use regex::Regex;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -534,7 +533,7 @@ impl Parser {
         if let Ok(image) = self.parse_image() {
             return Ok(SubText::Image(image));
         }
-        if let Ok(url) = self.parse_url() {
+        if let Ok(url) = self.parse_url(false) {
             return Ok(SubText::Url(url));
         }
         match self.current_char {
@@ -600,7 +599,7 @@ impl Parser {
         if !self.check_special(&IMG_START) || self.next_char() == None {
             return Err(self.revert_with_error(start_index));
         }
-        if let Ok(url) = self.parse_url() {
+        if let Ok(url) = self.parse_url(true) {
             let metadata = if let Ok(meta) = self.parse_inline_metadata() {
                 if self.check_special(&META_CLOSE) && self.next_char() == None {
                     return Err(self.revert_with_error(start_index));
@@ -616,7 +615,7 @@ impl Parser {
     }
 
     // parses an url
-    fn parse_url(&mut self) -> Result<Url, ParseError> {
+    fn parse_url(&mut self, short_syntax: bool) -> Result<Url, ParseError> {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
@@ -632,6 +631,8 @@ impl Parser {
                 // it stopped at a linebreak or EOF
                 return Err(self.revert_with_error(start_index));
             }
+        } else if !short_syntax {
+            return Err(self.revert_with_error(start_index));
         }
 
         if !self.check_special(&URL_OPEN) {
@@ -650,10 +651,6 @@ impl Parser {
             return Err(self.revert_with_error(start_index));
         }
         parse_option!(self.next_char(), self.index);
-        let matcher = Regex::new(EXPR_URI).unwrap();
-        if !matcher.is_match(&url) {
-            return Err(self.revert_with_error(start_index));
-        }
 
         if description.is_empty() {
             Ok(Url::new(None, url))

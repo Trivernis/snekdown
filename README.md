@@ -5,30 +5,20 @@ for my needs.
 
 ## Syntax
 
-### URLs
-
-```
-The simplest way to insert an url is
-(valid url)
-
-The default syntax can also be used
-[text](valid url)
-```
-
 ### Images
 
 ```
 Simple Syntax
-!(valid url)
+!(url)
 
 Extended syntax with a description
-![description](valid url)
+![description](url)
 
 Extended syntax with metadata to specify the size
-![description](valid url)[metadata]
+![description](url)[metadata]
 
 Extended syntax with metadata and no description
-!(valid url)[metadata]
+!(url)[metadata]
 ```
 
 ### Quotes
