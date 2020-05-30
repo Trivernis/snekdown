@@ -19,6 +19,7 @@ pub(crate) const X: char = 'x';
 pub(crate) const GT: char = '>';
 pub(crate) const LT: char = '<';
 pub(crate) const BANG: char = '!';
+pub(crate) const SPACE: char = ' ';
 
 // aliases
 
@@ -46,6 +47,7 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [char; 7] = [
     META_OPEN,
     IMPORT_START,
 ];
+
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 6] = [LB, ASTERISK, UNDERSCR, TILDE, PIPE, BACKTICK];
 pub(crate) const INLINE_SPECIAL_CHARS_SECOND: [char; 3] = [DESC_OPEN, IMG_START, URL_OPEN];
 
@@ -54,6 +56,7 @@ pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
 // sequences
 
 pub(crate) const SQ_CODE_BLOCK: [char; 3] = [BACKTICK, BACKTICK, BACKTICK];
+pub(crate) const SQ_RULER: [char; 5] = [MINUS, SPACE, MINUS, SPACE, MINUS];
 
 // expressions
 

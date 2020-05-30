@@ -14,6 +14,7 @@ pub enum Block {
 #[derive(Clone, Debug)]
 pub enum Inline {
     Text(Text),
+    Ruler(Ruler),
 }
 
 #[derive(Clone, Debug)]
@@ -100,6 +101,9 @@ pub struct ImportAnchor {
 pub struct InlineMetadata {
     pub(crate) data: String,
 }
+
+#[derive(Clone, Debug)]
+pub struct Ruler {}
 
 #[derive(Clone, Debug)]
 pub struct Text {

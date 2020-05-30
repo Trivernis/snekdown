@@ -8,6 +8,7 @@ impl ToHtml for Inline {
     fn to_html(&self) -> String {
         match self {
             Inline::Text(text) => text.to_html(),
+            Inline::Ruler(ruler) => ruler.to_html(),
         }
     }
 }
@@ -174,6 +175,12 @@ impl ToHtml for Quote {
         } else {
             format!("<blockquote>{}</blockquote>", text)
         }
+    }
+}
+
+impl ToHtml for Ruler {
+    fn to_html(&self) -> String {
+        "<hr>".to_string()
     }
 }
 

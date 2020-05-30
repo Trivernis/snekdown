@@ -559,7 +559,7 @@ impl Parser {
                 break;
             }
         }
-        if self.next_char() == None {
+        if self.next_char() == None || self.check_special(&MINUS) {
             return Err(self.revert_with_error(start_index));
         }
         self.seek_inline_whitespace();
@@ -631,7 +631,29 @@ impl Parser {
         if self.index > self.text.len() {
             Err(ParseError::new(self.index))
         } else {
-            Ok(Inline::Text(self.parse_text()?))
+            if let Ok(ruler) = self.parse_ruler() {
+                return Ok(Inline::Ruler(ruler));
+            } else if let Ok(text) = self.parse_text() {
+                return Ok(Inline::Text(text));
+            }
+            return Err(ParseError::new(self.index));
+        }
+    }
+
+    /// parses a ruler
+    fn parse_ruler(&mut self) -> Result<Ruler, ParseError> {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+        if let Ok(_) = self.check_special_sequence(&SQ_RULER) {
+            while let Some(character) = self.next_char() {
+                // seek until end of line
+                if character == LB {
+                    break;
+                }
+            }
+            Ok(Ruler {})
+        } else {
+            Err(self.revert_with_error(start_index))
         }
     }
 
