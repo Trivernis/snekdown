@@ -24,6 +24,8 @@ pub(crate) const SPECIAL_ESCAPE: char = BACKSLASH;
 pub(crate) const META_OPEN: char = R_BRACKET;
 pub(crate) const META_CLOSE: char = L_BRACKET;
 pub(crate) const QUOTE_START: char = GT;
+pub(crate) const DESC_OPEN: char = R_BRACKET;
+pub(crate) const DESC_CLOSE: char = L_BRACKET;
 
 // groups
 
@@ -36,3 +38,7 @@ pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
 // sequences
 
 pub(crate) const SQ_CODE_BLOCK: [char; 3] = [BACKTICK, BACKTICK, BACKTICK];
+
+// expressions
+
+pub(crate) const EXPR_URI: &str = r"^(https?://)?\w+\.\w+(.\w+)?$|^([\w, -.]+|\w:)?(/[\w, -.]+)+$";

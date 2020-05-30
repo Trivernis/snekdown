@@ -140,7 +140,7 @@ pub struct MonospaceText {
 
 #[derive(Clone, Debug)]
 pub struct Url {
-    title: String,
+    description: Option<String>,
     url: String,
 }
 
@@ -251,8 +251,8 @@ impl Row {
 }
 
 impl Url {
-    pub fn new(title: String, url: String) -> Self {
-        Self { title, url }
+    pub fn new(description: Option<String>, url: String) -> Self {
+        Self { description, url }
     }
 }
 

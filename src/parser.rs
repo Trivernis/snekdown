@@ -1,5 +1,6 @@
 use crate::elements::*;
 use crate::tokens::*;
+use regex::Regex;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -73,6 +74,17 @@ impl Parser {
         }
     }
 
+    /// reverts and returns a parse error
+    fn revert_with_error(&mut self, index: usize) -> ParseError {
+        let err = ParseError::new(self.index);
+
+        if let Err(revert_err) = self.revert_to(index) {
+            revert_err
+        } else {
+            err
+        }
+    }
+
     /// Skips characters until it encounters a character
     /// that isn't an inline whitespace character
     fn seek_inline_whitespace(&mut self) {
@@ -140,15 +152,10 @@ impl Parser {
         self.seek_whitespace();
         for sq_character in sequence {
             if !self.check_special(sq_character) {
-                let err = ParseError::new(self.index);
-                self.revert_to(start_index)?;
-                // should work
-                return Err(err);
+                return Err(self.revert_with_error(start_index));
             }
             if self.next_char() == None {
-                let err = ParseError::new(self.index);
-                self.revert_to(start_index)?;
-                return Err(err);
+                return Err(self.revert_with_error(start_index));
             }
         }
         if self.index > 0 {
@@ -214,12 +221,10 @@ impl Parser {
                 }
             }
             if size <= self.section_nesting || !self.current_char.is_whitespace() {
-                let index = self.index;
                 if size <= self.section_nesting {
                     self.section_return = Some(size);
                 }
-                self.revert_to(start_index)?;
-                return Err(ParseError::new(index));
+                return Err(self.revert_with_error(start_index));
             }
             self.seek_inline_whitespace();
             let mut header = self.parse_header()?;
@@ -234,9 +239,7 @@ impl Parser {
             self.section_nesting -= 1;
             Ok(section)
         } else {
-            let error_index = self.index;
-            self.revert_to(start_index)?;
-            Err(ParseError::new(error_index))
+            return Err(self.revert_with_error(start_index));
         }
     }
 
@@ -283,9 +286,7 @@ impl Parser {
         };
         if self.check_special(&META_CLOSE) {
             if self.next_char() == None {
-                let err = ParseError::new(start_index);
-                self.revert_to(start_index)?;
-                return Err(err);
+                return Err(self.revert_with_error(start_index));
             }
         }
         let mut quote = Quote::new(metadata);
@@ -301,9 +302,7 @@ impl Parser {
             }
         }
         if quote.text.len() == 0 {
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
+            return Err(self.revert_with_error(start_index));
         }
 
         Ok(quote)
@@ -314,19 +313,21 @@ impl Parser {
     fn parse_inline_metadata(&mut self) -> Result<InlineMetadata, ParseError> {
         let start_index = self.index;
         if !self.check_special(&META_OPEN) {
+            // if no meta open tag is present, the parsing has failed
             return Err(ParseError::new(self.index));
         }
         let mut text = String::new();
         while let Some(character) = self.next_char() {
             if self.check_special(&META_CLOSE) || self.check_linebreak() {
+                // abort the parsing of the inner content when encountering a closing tag or linebreak
                 break;
             }
             text.push(character);
         }
         if self.check_linebreak() || text.len() == 0 {
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
+            // if there was a linebreak (the metadata wasn't closed) or there is no inner data
+            // return an error
+            return Err(self.revert_with_error(start_index));
         }
 
         Ok(InlineMetadata { data: text })
@@ -413,8 +414,7 @@ impl Parser {
         if list.items.len() > 0 {
             Ok(list)
         } else {
-            self.revert_to(start_index)?;
-            Err(ParseError::new(self.index))
+            return Err(self.revert_with_error(start_index));
         }
     }
 
@@ -425,9 +425,7 @@ impl Parser {
         let level = self.index - start_index;
 
         if !self.check_special_group(&LIST_SPECIAL_CHARS) && !self.current_char.is_numeric() {
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
+            return Err(self.revert_with_error(start_index));
         }
         while let Some(character) = self.next_char() {
             if character.is_whitespace() {
@@ -435,9 +433,7 @@ impl Parser {
             }
         }
         if self.next_char() == None {
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
+            return Err(self.revert_with_error(start_index));
         }
         self.seek_inline_whitespace();
         let item = ListItem::new(self.parse_inline()?, level as u16);
@@ -451,9 +447,7 @@ impl Parser {
         self.seek_whitespace();
         if self.check_special(&MINUS) {
             if self.next_char() != Some(PIPE) {
-                let err_index = self.index;
-                self.revert_to(start_index)?;
-                return Err(ParseError::new(err_index));
+                return Err(self.revert_with_error(start_index));
             }
         }
         while let Some(char) = self.next_char() {
@@ -479,13 +473,10 @@ impl Parser {
 
         if self.check_special(&PIPE) {
             if self.next_char() == None {
-                let err_index = self.index;
-                self.revert_to(start_index)?;
-                return Err(ParseError::new(err_index));
+                return Err(self.revert_with_error(start_index));
             }
         } else {
-            self.revert_to(start_index)?;
-            return Err(ParseError::new(self.index));
+            return Err(self.revert_with_error(start_index));
         }
         let mut row = Row::new();
         while let Ok(element) = self.parse_inline() {
@@ -503,12 +494,11 @@ impl Parser {
         if row.cells.len() > 0 {
             Ok(row)
         } else {
-            let current_index = self.index;
-            self.revert_to(start_index)?;
-            Err(ParseError::new(current_index))
+            return Err(self.revert_with_error(start_index));
         }
     }
 
+    /// parses inline definitions
     fn parse_inline(&mut self) -> Result<Inline, ParseError> {
         if self.index > self.text.len() {
             Err(ParseError::new(self.index))
@@ -536,7 +526,11 @@ impl Parser {
         Ok(text)
     }
 
+    /// parses subtext, the formatting parts of a line (Text)
     fn parse_subtext(&mut self) -> Result<SubText, ParseError> {
+        if self.check_linebreak() {
+            return Err(ParseError::new(self.index));
+        }
         if let Ok(url) = self.parse_url() {
             return Ok(SubText::Url(url));
         }
@@ -590,7 +584,7 @@ impl Parser {
                 }
                 Ok(SubText::Monospace(MonospaceText { value: plain_text }))
             }
-            LB | PIPE if !self.check_escaped() => Err(ParseError::new(self.index)),
+            PIPE if !self.check_escaped() => Err(ParseError::new(self.index)), // handling of table cells
             _ => Ok(SubText::Plain(self.parse_plain_text()?)),
         }
     }
@@ -600,30 +594,24 @@ impl Parser {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
-        if !self.check_special(&R_BRACKET) {
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
-        }
-        let mut title = String::new();
-        while let Some(character) = self.next_char() {
-            if self.check_special(&L_BRACKET) || self.check_linebreak() {
-                break;
+        let mut description = String::new();
+        if self.check_special(&R_BRACKET) {
+            while let Some(character) = self.next_char() {
+                if self.check_special(&L_BRACKET) || self.check_linebreak() {
+                    break;
+                }
+                description.push(character);
             }
-            title.push(character);
+            if !self.check_special(&L_BRACKET) {
+                // it stopped at a linebreak or EOF
+                return Err(self.revert_with_error(start_index));
+            }
         }
-        if !self.check_special(&L_BRACKET) {
-            // it stopped at a linebreak or EOF
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
-        }
+
         if let Some(_) = self.next_char() {
             if !self.check_special(&R_PARENTH) {
                 // the next char isn't the start of the encased url
-                let err = ParseError::new(self.index);
-                self.revert_to(start_index)?;
-                return Err(err);
+                return Err(self.revert_with_error(start_index));
             }
         }
         self.seek_inline_whitespace();
@@ -635,19 +623,22 @@ impl Parser {
             url.push(character);
         }
         if !self.check_special(&L_PARENTH) || url.is_empty() {
-            let err = ParseError::new(self.index);
-            self.revert_to(start_index)?;
-            return Err(err);
+            return Err(self.revert_with_error(start_index));
         }
         parse_option!(self.next_char(), self.index);
+        let matcher = Regex::new(EXPR_URI).unwrap();
+        if !matcher.is_match(&url) {
+            return Err(self.revert_with_error(start_index));
+        }
 
-        if title.is_empty() {
-            Ok(Url::new(url.clone(), url))
+        if description.is_empty() {
+            Ok(Url::new(None, url))
         } else {
-            Ok(Url::new(title, url))
+            Ok(Url::new(Some(description), url))
         }
     }
 
+    /// parses plain text as a string until it encounters an unescaped special inline char
     fn parse_plain_text(&mut self) -> Result<PlainText, ParseError> {
         let mut current_char = self.current_char;
         let mut characters = String::new();
