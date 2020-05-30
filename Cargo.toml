@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 crossbeam-utils = "0.7.2"
 structopt = "0.3.14"
+termion = "1.5.5"

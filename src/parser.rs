@@ -9,6 +9,8 @@ use std::io;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use termion::color::{self, Fg};
+use termion::style;
 
 macro_rules! parse_option {
     ($option:expr, $index:expr) => {
@@ -218,13 +220,23 @@ impl Parser {
         let path = self.transform_path(path);
         let path_info = Path::new(&path);
         if !path_info.exists() || !path_info.is_file() {
-            println!("Import of \"{}\" failed: The file doesn't exist.", path);
+            println!(
+                "{}Import of \"{}\" failed: The file doesn't exist.{}",
+                Fg(color::Yellow),
+                path,
+                style::Reset
+            );
             return Err(ParseError::new(self.index));
         }
         {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
-                println!("Import of \"{}\" failed: Cyclic reference.", path);
+                println!(
+                    "{}Import of \"{}\" failed: Cyclic reference.{}",
+                    Fg(color::Yellow),
+                    path,
+                    style::Reset
+                );
                 return Err(ParseError::new(self.index));
             }
             paths.push(path.clone());
