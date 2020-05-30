@@ -1,5 +1,15 @@
 use crate::elements::*;
 
+macro_rules! combine_with_lb {
+    ($a:expr, $b:expr) => {
+        if $a.len() > 0 {
+            format!("{}<br>{}", $a, $b.to_html())
+        } else {
+            $b.to_html()
+        }
+    };
+}
+
 pub trait ToHtml {
     fn to_html(&self) -> String;
 }
@@ -50,7 +60,11 @@ impl ToHtml for Document {
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
         if self.is_root {
-            format!("<html><body>{}</body></html>", inner)
+            let style = std::include_str!("assets/style.css");
+            format!(
+                "<html><head><style>{}</style></head><body><div class='content'>{}</div></body></html>",
+                style, inner
+            )
         } else {
             format!(
                 "<div class='documentImport' document-import=true>{}</div>",
@@ -92,7 +106,7 @@ impl ToHtml for Paragraph {
         let inner = self
             .elements
             .iter()
-            .fold("".to_string(), |a, b| format!("{}<br>{}", a, b.to_html()));
+            .fold("".to_string(), |a, b| combine_with_lb!(a, b));
         format!("<p>{}</p>", inner)
     }
 }
@@ -173,7 +187,7 @@ impl ToHtml for Quote {
         let text = self
             .text
             .iter()
-            .fold("".to_string(), |a, b| format!("{}<br>{}", a, b.to_html()));
+            .fold("".to_string(), |a, b| combine_with_lb!(a, b));
         if let Some(meta) = self.metadata.clone() {
             format!(
                 "<div><blockquote>{}</blockquote><span>- {}</span></div>",
@@ -203,12 +217,12 @@ impl ToHtml for Image {
     fn to_html(&self) -> String {
         if let Some(description) = self.url.description.clone() {
             format!(
-                "<div>\
-                <a href={0}>\
-                    <img src='{0}' alt='{1}'/>\
-                </a>\
-                <label class='imageDescription'>{1}</label>
-            </div>",
+                "<div class='figure'>\
+                 <a href={0}>\
+                 <img src='{0}' alt='{1}'/>\
+                 </a>\
+                 <label class='imageDescription'>{1}</label>\
+                 </div>",
                 self.url.url.clone(),
                 description
             )

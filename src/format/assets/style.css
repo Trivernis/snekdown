@@ -1,0 +1,37 @@
+body {
+    background-color: #DDD;
+}
+
+.content {
+    font-family: "Noto Sans", SansSerif, sans-serif;
+    width: 100vh;
+    max-width: 100%;
+    padding: 2rem;
+    margin: auto;
+    background-color: #FFF;
+    box-shadow: 1em 1em 1em gray;
+}
+
+img {
+    max-width: 100%;
+    max-height: 100vh;
+    height: auto;
+}
+
+blockquote {
+    border-left: 0.3em solid gray;
+    border-radius: 0.2em;
+    padding-left: 0.5em;
+}
+
+.figure {
+    width: 100%;
+    display: block;
+    text-align: center;
+}
+
+.figure .imageDescription {
+    display: block;
+    color: #444;
+    font-style: italic;
+}

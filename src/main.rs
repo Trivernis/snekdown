@@ -6,6 +6,7 @@ use termion::style;
 
 use std::path::PathBuf;
 use structopt::StructOpt;
+use termion::color::{Fg, Red};
 
 #[derive(StructOpt, Debug)]
 struct Opt {
@@ -19,6 +20,24 @@ struct Opt {
 
 fn main() {
     let opt: Opt = Opt::from_args();
+    if !opt.input.exists() {
+        println!(
+            "{}The input file {} could not be found{}",
+            Fg(Red),
+            opt.input.to_str().unwrap(),
+            style::Reset
+        );
+        return;
+    }
+    if !opt.output.exists() {
+        println!(
+            "{} The output file {} could not be found{}",
+            Fg(Red),
+            opt.output.to_str().unwrap(),
+            style::Reset
+        );
+        return;
+    }
     let start = Instant::now();
     let mut parser = Parser::new_from_file(opt.input.to_str().unwrap().to_string()).unwrap();
     let document = parser.parse();

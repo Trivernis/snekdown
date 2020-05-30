@@ -352,6 +352,7 @@ impl Parser {
             header.size = size;
             self.section_nesting = size;
             let mut section = Section::new(header);
+            self.seek_whitespace();
 
             while let Ok(block) = self.parse_block() {
                 section.add_element(block);
@@ -417,7 +418,9 @@ impl Parser {
             && self.check_seek_inline_whitespace()
         {
             if let Ok(text) = self.parse_text() {
-                quote.add_text(text);
+                if text.subtext.len() > 0 {
+                    quote.add_text(text);
+                }
             } else {
                 break;
             }
