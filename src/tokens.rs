@@ -16,14 +16,19 @@ pub(crate) const PLUS: char = '+';
 pub(crate) const HASH: char = '#';
 pub(crate) const O: char = 'o';
 pub(crate) const X: char = 'x';
+pub(crate) const GT: char = '>';
 
 // aliases
 
 pub(crate) const SPECIAL_ESCAPE: char = BACKSLASH;
+pub(crate) const META_OPEN: char = R_BRACKET;
+pub(crate) const META_CLOSE: char = L_BRACKET;
+pub(crate) const QUOTE_START: char = GT;
 
 // groups
 
-pub(crate) const BLOCK_SPECIAL_CHARS: [char; 4] = [HASH, MINUS, BACKTICK, PIPE];
+pub(crate) const BLOCK_SPECIAL_CHARS: [char; 6] =
+    [HASH, MINUS, BACKTICK, PIPE, QUOTE_START, META_OPEN];
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 6] = [LB, ASTERISK, UNDERSCR, TILDE, PIPE, BACKTICK];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];

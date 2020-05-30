@@ -54,7 +54,7 @@ impl Parser {
 
     /// Increments the current index and returns the
     /// char at the indexes position
-    pub fn next_char(&mut self) -> Option<char> {
+    fn next_char(&mut self) -> Option<char> {
         self.index += 1;
 
         self.current_char = self.text.get(self.index)?.clone();
@@ -63,7 +63,7 @@ impl Parser {
     }
 
     /// Returns to an index position
-    pub fn revert_to(&mut self, index: usize) -> Result<(), ParseError> {
+    fn revert_to(&mut self, index: usize) -> Result<(), ParseError> {
         if let Some(char) = self.text.get(index) {
             self.index = index;
             self.current_char = char.clone();
@@ -75,7 +75,7 @@ impl Parser {
 
     /// Skips characters until it encounters a character
     /// that isn't an inline whitespace character
-    pub fn seek_inline_whitespace(&mut self) {
+    fn seek_inline_whitespace(&mut self) {
         if self.current_char.is_whitespace() && !self.check_linebreak() {
             while let Some(next_char) = self.next_char() {
                 if !next_char.is_whitespace() || self.check_linebreak() {
@@ -87,7 +87,7 @@ impl Parser {
 
     /// Skips characters until it encounters a character
     /// that isn't a whitespace character
-    pub fn seek_whitespace(&mut self) {
+    fn seek_whitespace(&mut self) {
         if self.current_char.is_whitespace() {
             while let Some(next_char) = self.next_char() {
                 if !next_char.is_whitespace() {
@@ -98,7 +98,7 @@ impl Parser {
     }
 
     /// checks if the input character is escaped
-    pub fn check_escaped(&self) -> bool {
+    fn check_escaped(&self) -> bool {
         if self.index == 0 {
             return false;
         }
@@ -111,23 +111,31 @@ impl Parser {
     }
 
     /// checks if the current character is the given input character and not escaped
-    pub fn check_special(&self, character: &char) -> bool {
+    fn check_special(&self, character: &char) -> bool {
         self.current_char == *character && !self.check_escaped()
     }
 
     /// checks if the current character is part of the given group
-    pub fn check_special_group(&self, chars: &[char]) -> bool {
+    fn check_special_group(&self, chars: &[char]) -> bool {
         chars.contains(&self.current_char) && !self.check_escaped()
     }
 
     /// returns if the current character is a linebreak character
     /// Note: No one likes CRLF
-    pub fn check_linebreak(&self) -> bool {
+    fn check_linebreak(&self) -> bool {
         self.current_char == LB && !self.check_escaped()
     }
 
+    /// seeks inline whitespaces and returns if there
+    /// were seeked whitespaces
+    fn check_seek_inline_whitespace(&mut self) -> bool {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+        self.index > start_index
+    }
+
     /// checks if the next characters match a special sequence
-    pub fn check_special_sequence(&mut self, sequence: &[char]) -> Result<(), ParseError> {
+    fn check_special_sequence(&mut self, sequence: &[char]) -> Result<(), ParseError> {
         let start_index = self.index;
         self.seek_whitespace();
         for sq_character in sequence {
@@ -181,6 +189,8 @@ impl Parser {
             Block::Table(table)
         } else if let Ok(code_block) = self.parse_code_block() {
             Block::CodeBlock(code_block)
+        } else if let Ok(quote) = self.parse_quote() {
+            Block::Quote(quote)
         } else if let Ok(paragraph) = self.parse_paragraph() {
             Block::Paragraph(paragraph)
         } else {
@@ -260,6 +270,66 @@ impl Parser {
             language,
             code: text,
         })
+    }
+
+    /// parses a quote
+    fn parse_quote(&mut self) -> Result<Quote, ParseError> {
+        let start_index = self.index;
+        self.seek_whitespace();
+        let metadata = if let Ok(meta) = self.parse_inline_metadata() {
+            Some(meta)
+        } else {
+            None
+        };
+        if self.check_special(&META_CLOSE) {
+            if self.next_char() == None {
+                let err = ParseError::new(start_index);
+                self.revert_to(start_index)?;
+                return Err(err);
+            }
+        }
+        let mut quote = Quote::new(metadata);
+
+        while self.check_special(&QUOTE_START)
+            && self.next_char() != None
+            && self.check_seek_inline_whitespace()
+        {
+            if let Ok(text) = self.parse_text() {
+                quote.add_text(text);
+            } else {
+                break;
+            }
+        }
+        if quote.text.len() == 0 {
+            let err = ParseError::new(self.index);
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+
+        Ok(quote)
+    }
+
+    /// Parses metadata
+    /// TODO: Metadata object instead of raw string
+    fn parse_inline_metadata(&mut self) -> Result<InlineMetadata, ParseError> {
+        let start_index = self.index;
+        if !self.check_special(&META_OPEN) {
+            return Err(ParseError::new(self.index));
+        }
+        let mut text = String::new();
+        while let Some(character) = self.next_char() {
+            if self.check_special(&META_CLOSE) || self.check_linebreak() {
+                break;
+            }
+            text.push(character);
+        }
+        if self.check_linebreak() || text.len() == 0 {
+            let err = ParseError::new(self.index);
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+
+        Ok(InlineMetadata { data: text })
     }
 
     /// Parses a paragraph

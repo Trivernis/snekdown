@@ -5,6 +5,7 @@ pub enum Block {
     List(List),
     Table(Table),
     CodeBlock(CodeBlock),
+    Quote(Quote),
 }
 
 #[derive(Clone, Debug)]
@@ -77,6 +78,17 @@ pub struct CodeBlock {
 #[derive(Clone, Debug)]
 pub struct Code {
     code: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Quote {
+    pub(crate) metadata: Option<InlineMetadata>,
+    pub(crate) text: Vec<Text>,
+}
+
+#[derive(Clone, Debug)]
+pub struct InlineMetadata {
+    pub(crate) data: String,
 }
 
 #[derive(Clone, Debug)]
@@ -241,6 +253,19 @@ impl Row {
 impl Url {
     pub fn new(title: String, url: String) -> Self {
         Self { title, url }
+    }
+}
+
+impl Quote {
+    pub fn new(metadata: Option<InlineMetadata>) -> Self {
+        Self {
+            metadata,
+            text: Vec::new(),
+        }
+    }
+
+    pub fn add_text(&mut self, text: Text) {
+        self.text.push(text)
     }
 }
 
