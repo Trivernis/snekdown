@@ -235,7 +235,7 @@ impl ToHtml for Image {
 
 impl ToHtml for BoldText {
     fn to_html(&self) -> String {
-        format!("<u>{}</u>", self.value.to_html())
+        format!("<b>{}</b>", self.value.to_html())
     }
 }
 
