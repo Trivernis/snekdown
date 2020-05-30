@@ -18,10 +18,51 @@ img {
     height: auto;
 }
 
+code pre {
+    font-family: "Fira Code", monospace;
+    padding: 0.8em 0.2em;
+    background-color: #DDD;
+    border-radius: 0.25em;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+table tr:nth-child(odd) {
+    background-color: #DDD;
+}
+
+table tr:nth-child(1) {
+    background-color: white;
+    font-weight: bold;
+    border-bottom: 1px solid black;
+}
+
+table td, table th {
+    border-left: 1px solid black;
+    padding: 0.2em
+}
+
+table tr td:first-child, table tr th:first-child {
+    border-left: none;
+}
+
 blockquote {
+    margin-left: 0
+}
+
+.quote {
     border-left: 0.3em solid gray;
     border-radius: 0.2em;
+    padding-left: 1em;
+    margin-left: 0
+}
+
+.quote .metadata {
+    font-style: italic;
     padding-left: 0.5em;
+    color: #444
 }
 
 .figure {

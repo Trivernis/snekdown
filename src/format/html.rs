@@ -1,4 +1,5 @@
 use crate::elements::*;
+use minify::html::minify;
 
 macro_rules! combine_with_lb {
     ($a:expr, $b:expr) => {
@@ -60,9 +61,9 @@ impl ToHtml for Document {
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
         if self.is_root {
-            let style = std::include_str!("assets/style.css");
+            let style = minify(std::include_str!("assets/style.css"));
             format!(
-                "<html><head><style>{}</style></head><body><div class='content'>{}</div></body></html>",
+                "<!DOCTYPE html>\n<html><head><style>{}</style></head><body><div class='content'>{}</div></body></html>",
                 style, inner
             )
         } else {
@@ -107,7 +108,7 @@ impl ToHtml for Paragraph {
             .elements
             .iter()
             .fold("".to_string(), |a, b| combine_with_lb!(a, b));
-        format!("<p>{}</p>", inner)
+        minify(format!("<p>{}</p>", inner).as_str())
     }
 }
 
@@ -190,11 +191,11 @@ impl ToHtml for Quote {
             .fold("".to_string(), |a, b| combine_with_lb!(a, b));
         if let Some(meta) = self.metadata.clone() {
             format!(
-                "<div><blockquote>{}</blockquote><span>- {}</span></div>",
+                "<div class='quote'><blockquote>{}</blockquote><span class='metadata'>{}</span></div>",
                 text, meta.data
             )
         } else {
-            format!("<blockquote>{}</blockquote>", text)
+            format!("<div class='quote'><blockquote>{}</blockquote></div>", text)
         }
     }
 }
