@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 #[derive(Clone, Debug)]
 pub enum Block {
     Section(Section),
@@ -6,6 +8,7 @@ pub enum Block {
     Table(Table),
     CodeBlock(CodeBlock),
     Quote(Quote),
+    Import(Import),
 }
 
 #[derive(Clone, Debug)]
@@ -84,6 +87,17 @@ pub struct Code {
 pub struct Quote {
     pub(crate) metadata: Option<InlineMetadata>,
     pub(crate) text: Vec<Text>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Import {
+    pub(crate) path: String,
+    pub(crate) anchor: Arc<Mutex<ImportAnchor>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct ImportAnchor {
+    pub(crate) document: Option<Document>,
 }
 
 #[derive(Clone, Debug)]
@@ -271,4 +285,12 @@ impl Quote {
     }
 }
 
-// TODO: Images, URIs
+impl ImportAnchor {
+    pub fn new() -> Self {
+        Self { document: None }
+    }
+
+    pub fn set_document(&mut self, document: Document) {
+        self.document = Some(document);
+    }
+}

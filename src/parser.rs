@@ -1,8 +1,13 @@
 use crate::elements::*;
 use crate::tokens::*;
+use crossbeam_utils::sync::WaitGroup;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
+use std::fs::read_to_string;
+use std::path::Path;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 macro_rules! parse_option {
     ($option:expr, $index:expr) => {
@@ -35,20 +40,33 @@ pub struct Parser {
     current_char: char,
     section_nesting: u8,
     section_return: Option<u8>,
+    path: Option<String>,
+    paths: Arc<Mutex<Vec<String>>>,
+    wg: WaitGroup,
 }
 
 impl Parser {
-    pub fn new(text: String) -> Self {
+    pub fn new(text: String, path: Option<String>) -> Self {
+        Parser::new_as_child(text, path, Arc::new(Mutex::new(Vec::new())))
+    }
+
+    pub fn new_as_child(
+        text: String,
+        path: Option<String>,
+        paths: Arc<Mutex<Vec<String>>>,
+    ) -> Self {
         let mut text: Vec<char> = text.chars().collect();
         text.append(&mut vec!['\n', ' ', '\n']); // push space and newline of eof. it fixes stuff and I don't know why.
         let current_char = text.get(0).unwrap().clone();
-
         Self {
             index: 0,
             text,
             current_char,
             section_nesting: 0,
             section_return: None,
+            path,
+            paths,
+            wg: WaitGroup::new(),
         }
     }
 
@@ -164,6 +182,54 @@ impl Parser {
         Ok(())
     }
 
+    fn transform_path(&mut self, path: String) -> String {
+        let mut path = path;
+        if let Some(selfpath) = &self.path {
+            let path_info = Path::new(&selfpath);
+            if path_info.is_file() {
+                if let Some(dir) = path_info.parent() {
+                    path = format!("{}/{}", dir.to_str().unwrap(), path);
+                }
+            }
+        }
+        return path;
+    }
+
+    /// starts up a new thread to parse the imported document
+    fn import_document(&mut self, path: String) -> Result<Arc<Mutex<ImportAnchor>>, ParseError> {
+        let mut path = self.transform_path(path);
+        let path_info = Path::new(&path);
+        if !path_info.exists() || !path_info.is_file() {
+            println!("Import of \"{}\" failed: The file doesn't exist.", path);
+            return Err(ParseError::new(self.index));
+        }
+        path = path_info.to_str().unwrap().to_string();
+        {
+            let mut paths = self.paths.lock().unwrap();
+            if paths.iter().find(|item| **item == path) != None {
+                println!("Import of \"{}\" failed: Cyclic reference.", path);
+                return Err(ParseError::new(self.index));
+            }
+            paths.push(path.clone());
+        }
+        let anchor = Arc::new(Mutex::new(ImportAnchor::new()));
+        let anchor_clone = Arc::clone(&anchor);
+        let wg = self.wg.clone();
+        let paths = Arc::clone(&self.paths);
+
+        let _ = thread::spawn(move || {
+            let text = read_to_string(path.clone()).unwrap();
+
+            let mut parser = Parser::new_as_child(text.to_string(), Some(path), paths);
+            let document = parser.parse();
+            anchor_clone.lock().unwrap().set_document(document);
+
+            drop(wg);
+        });
+
+        Ok(anchor)
+    }
+
     /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
         let mut document = Document::new();
@@ -173,6 +239,9 @@ impl Parser {
             }
         }
 
+        let wg = self.wg.clone();
+        self.wg = WaitGroup::new();
+        wg.wait();
         document
     }
 
@@ -197,6 +266,8 @@ impl Parser {
             Block::CodeBlock(code_block)
         } else if let Ok(quote) = self.parse_quote() {
             Block::Quote(quote)
+        } else if let Ok(import) = self.parse_import() {
+            Block::Import(import)
         } else if let Ok(paragraph) = self.parse_paragraph() {
             Block::Paragraph(paragraph)
         } else {
@@ -330,6 +401,33 @@ impl Parser {
         }
 
         Ok(InlineMetadata { data: text })
+    }
+
+    /// parses an import and starts a new task to parse the document of the import
+    fn parse_import(&mut self) -> Result<Import, ParseError> {
+        let start_index = self.index;
+        if !self.check_special(&IMPORT_START)
+            || self.next_char() == None
+            || !self.check_special(&IMPORT_OPEN)
+        {
+            return Err(self.revert_with_error(start_index));
+        }
+        let mut path = String::new();
+        while let Some(character) = self.next_char() {
+            if self.check_linebreak() || self.check_special(&IMPORT_CLOSE) {
+                break;
+            }
+            path.push(character);
+        }
+        if self.check_linebreak() || path.is_empty() {
+            return Err(self.revert_with_error(start_index));
+        }
+
+        if let Ok(anchor) = self.import_document(path.clone()) {
+            Ok(Import { path, anchor })
+        } else {
+            Err(ParseError::new(self.index))
+        }
     }
 
     /// Parses a paragraph

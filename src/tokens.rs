@@ -17,6 +17,7 @@ pub(crate) const HASH: char = '#';
 pub(crate) const O: char = 'o';
 pub(crate) const X: char = 'x';
 pub(crate) const GT: char = '>';
+pub(crate) const LT: char = '<';
 pub(crate) const BANG: char = '!';
 
 // aliases
@@ -30,11 +31,21 @@ pub(crate) const DESC_CLOSE: char = L_BRACKET;
 pub(crate) const IMG_START: char = BANG;
 pub(crate) const URL_OPEN: char = R_PARENTH;
 pub(crate) const URL_CLOSE: char = L_PARENTH;
+pub(crate) const IMPORT_START: char = LT;
+pub(crate) const IMPORT_OPEN: char = R_BRACKET;
+pub(crate) const IMPORT_CLOSE: char = L_BRACKET;
 
 // groups
 
-pub(crate) const BLOCK_SPECIAL_CHARS: [char; 6] =
-    [HASH, MINUS, BACKTICK, PIPE, QUOTE_START, META_OPEN];
+pub(crate) const BLOCK_SPECIAL_CHARS: [char; 7] = [
+    HASH,
+    MINUS,
+    BACKTICK,
+    PIPE,
+    QUOTE_START,
+    META_OPEN,
+    IMPORT_START,
+];
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 6] = [LB, ASTERISK, UNDERSCR, TILDE, PIPE, BACKTICK];
 pub(crate) const INLINE_SPECIAL_CHARS_SECOND: [char; 3] = [DESC_OPEN, IMG_START, URL_OPEN];
 
