@@ -18,48 +18,43 @@ pub enum Inline {
 
 #[derive(Clone, Debug)]
 pub struct Document {
-    elements: Vec<Block>,
+    pub(crate) elements: Vec<Block>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Section {
-    header: Header,
-    elements: Vec<Block>,
+    pub(crate) header: Header,
+    pub(crate) elements: Vec<Block>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Header {
-    pub size: u8,
-    pub line: Inline,
-}
-
-#[derive(Clone, Debug)]
-pub struct BlockQuote {
-    paragraph: Paragraph,
+    pub(crate) size: u8,
+    pub(crate) line: Inline,
 }
 
 #[derive(Clone, Debug)]
 pub struct Paragraph {
-    pub elements: Vec<Inline>,
+    pub(crate) elements: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct List {
-    pub ordered: bool,
-    pub items: Vec<ListItem>,
+    pub(crate) ordered: bool,
+    pub(crate) items: Vec<ListItem>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ListItem {
-    text: Inline,
+    pub(crate) text: Inline,
     pub(crate) level: u16,
     pub(crate) children: Vec<ListItem>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Table {
-    header: Row,
-    pub rows: Vec<Row>,
+    pub(crate) header: Row,
+    pub(crate) rows: Vec<Row>,
 }
 
 #[derive(Clone, Debug)]
@@ -155,8 +150,8 @@ pub struct MonospaceText {
 
 #[derive(Clone, Debug)]
 pub struct Url {
-    description: Option<String>,
-    url: String,
+    pub description: Option<String>,
+    pub url: String,
 }
 
 #[derive(Clone, Debug)]

@@ -1,3 +1,4 @@
+use markdown_rs::format::html::ToHtml;
 use markdown_rs::parser::Parser;
 use std::fs::{read_to_string, write};
 use std::time::Instant;
@@ -12,4 +13,5 @@ fn main() {
     let document = parser.parse();
     println!("Total duration: {:?}", start.elapsed());
     write("test/document.ast", format!("{:#?}", document)).unwrap();
+    write("test/document.html", document.to_html()).unwrap()
 }
