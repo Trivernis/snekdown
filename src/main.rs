@@ -1,5 +1,5 @@
-use markdown_rs::format::html::ToHtml;
-use markdown_rs::parser::Parser;
+use snekdown::format::html::ToHtml;
+use snekdown::parser::Parser;
 use std::fs::write;
 use std::time::Instant;
 

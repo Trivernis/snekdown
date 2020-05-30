@@ -1,5 +1,5 @@
 [package]
-name = "markdown-rs"
+name = "snekdown"
 version = "0.1.0"
 authors = ["trivernis <trivernis@gmail.com>"]
 edition = "2018"
