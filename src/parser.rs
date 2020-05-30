@@ -27,7 +27,13 @@ pub struct ParseError {
 }
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "parse error at index {}", self.index)
+        write!(
+            f,
+            "{} Parse Error at index {}{}",
+            Fg(color::Red),
+            self.index,
+            style::Reset
+        )
     }
 }
 impl Error for ParseError {}
@@ -46,6 +52,7 @@ pub struct Parser {
     path: Option<String>,
     paths: Arc<Mutex<Vec<String>>>,
     wg: WaitGroup,
+    is_child: bool,
 }
 
 impl Parser {
@@ -55,13 +62,18 @@ impl Parser {
     }
 
     pub fn new(text: String, path: Option<String>) -> Self {
-        Parser::new_as_child(text, path, Arc::new(Mutex::new(Vec::new())))
+        Parser::create(text, path, Arc::new(Mutex::new(Vec::new())), false)
     }
 
-    pub fn new_as_child(
+    pub fn new_as_child(text: String, path: String, paths: Arc<Mutex<Vec<String>>>) -> Self {
+        Self::create(text, Some(path), paths, true)
+    }
+
+    fn create(
         text: String,
         path: Option<String>,
         paths: Arc<Mutex<Vec<String>>>,
+        is_child: bool,
     ) -> Self {
         let mut text: Vec<char> = text.chars().collect();
         text.append(&mut vec!['\n', ' ', '\n']); // push space and newline of eof. it fixes stuff and I don't know why.
@@ -82,6 +94,7 @@ impl Parser {
             path,
             paths,
             wg: WaitGroup::new(),
+            is_child,
         }
     }
 
@@ -197,6 +210,7 @@ impl Parser {
         Ok(())
     }
 
+    /// transform an import path to be relative to the current parsers file
     fn transform_path(&mut self, path: String) -> String {
         let mut path = path;
         let first_path_info = Path::new(&path);
@@ -249,7 +263,7 @@ impl Parser {
         let _ = thread::spawn(move || {
             let text = read_to_string(path.clone()).unwrap();
 
-            let mut parser = Parser::new_as_child(text.to_string(), Some(path), paths);
+            let mut parser = Parser::new_as_child(text.to_string(), path, paths);
             let document = parser.parse();
             anchor_clone.lock().unwrap().set_document(document);
 
@@ -261,10 +275,18 @@ impl Parser {
 
     /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
-        let mut document = Document::new();
+        let mut document = Document::new(!self.is_child);
         while self.index < self.text.len() {
-            if let Ok(token) = self.parse_block() {
-                document.add_element(token);
+            match self.parse_block() {
+                Ok(block) => document.add_element(block),
+                Err(err) => {
+                    if let Some(path) = &self.path {
+                        println!("{} Error in File {}: {}", Fg(color::Red), path, err);
+                    } else {
+                        println!("{}", err);
+                    }
+                    break;
+                }
             }
         }
 

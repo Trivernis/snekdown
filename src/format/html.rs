@@ -49,7 +49,14 @@ impl ToHtml for Document {
             .elements
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
-        format!("<html><body>{}</body></html>", inner)
+        if self.is_root {
+            format!("<html><body>{}</body></html>", inner)
+        } else {
+            format!(
+                "<div class='documentImport' document-import=true>{}</div>",
+                inner
+            )
+        }
     }
 }
 

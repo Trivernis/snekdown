@@ -20,6 +20,7 @@ pub enum Inline {
 #[derive(Clone, Debug)]
 pub struct Document {
     pub(crate) elements: Vec<Block>,
+    pub(crate) is_root: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -168,9 +169,10 @@ pub struct Image {
 // implementations
 
 impl Document {
-    pub fn new() -> Self {
+    pub fn new(is_root: bool) -> Self {
         Self {
             elements: Vec::new(),
+            is_root,
         }
     }
 
