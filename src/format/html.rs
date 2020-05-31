@@ -97,9 +97,8 @@ impl ToHtml for Section {
     fn to_html(&self) -> String {
         let inner = self
             .elements
-            .par_iter()
-            .map(|e| e.to_html())
-            .reduce(|| "".to_string(), |a, b| format!("{}{}", a, b));
+            .iter()
+            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
         format!("<section>{}{}</section>", self.header.to_html(), inner)
     }
 }
