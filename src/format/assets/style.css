@@ -22,14 +22,12 @@ img {
 code pre {
     font-family: "Fira Code", monospace;
     padding: 0.8em 0.2em;
-    background-color: #DDD;
+    background-color: #EEE !important;
     border-radius: 0.25em;
 }
 
 code {
     font-family: "Fira Code", monospace;
-    padding: 0 0.1em;
-    background-color: #DDD;
     border-radius: 0.1em;
 }
 

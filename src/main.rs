@@ -48,5 +48,5 @@ fn main() {
         _ => println!("Unknown format {}", opt.format),
     }
     println!("Rendering took:   {:?}", start_render.elapsed());
-    println!("Total:            {:?}{}", start.elapsed(), style::Reset)
+    println!("Total:            {:?}{}", start.elapsed(), style::Reset);
 }

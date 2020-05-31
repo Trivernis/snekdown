@@ -1,6 +1,10 @@
 use crate::elements::*;
-use htmlescape::encode_minimal;
+use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
+use rayon::prelude::*;
+use syntect::highlighting::ThemeSet;
+use syntect::html::highlighted_html_for_string;
+use syntect::parsing::SyntaxSet;
 
 macro_rules! combine_with_lb {
     ($a:expr, $b:expr) => {
@@ -59,8 +63,9 @@ impl ToHtml for Document {
     fn to_html(&self) -> String {
         let inner = self
             .elements
-            .iter()
-            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
+            .par_iter()
+            .map(|e| e.to_html())
+            .reduce(|| "".to_string(), |a, b| format!("{}{}", a, b));
         if self.is_root {
             let style = minify(std::include_str!("assets/style.css"));
             format!(
@@ -91,8 +96,9 @@ impl ToHtml for Section {
     fn to_html(&self) -> String {
         let inner = self
             .elements
-            .iter()
-            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
+            .par_iter()
+            .map(|e| e.to_html())
+            .reduce(|| "".to_string(), |a, b| format!("{}{}", a, b));
         format!("<section>{}{}</section>", self.header.to_html(), inner)
     }
 }
@@ -179,11 +185,30 @@ impl ToHtml for Cell {
 
 impl ToHtml for CodeBlock {
     fn to_html(&self) -> String {
-        format!(
-            "<div><code lang='{}'><pre>{}</pre></code></div>",
-            self.language.clone(),
-            self.code.clone()
-        )
+        if self.language.len() > 0 {
+            let ps = SyntaxSet::load_defaults_nonewlines();
+            let ts = ThemeSet::load_defaults();
+            if let Some(syntax) = ps.find_syntax_by_token(self.language.as_str()) {
+                format!(
+                    "<div><code lang='{}'>{}</code></div>",
+                    encode_attribute(self.language.clone().as_str()),
+                    highlighted_html_for_string(
+                        self.code.as_str(),
+                        &ps,
+                        syntax,
+                        &ts.themes["InspiredGitHub"]
+                    )
+                )
+            } else {
+                format!(
+                    "<div><code lang='{}'><pre>{}</pre></code></div>",
+                    encode_attribute(self.language.clone().as_str()),
+                    self.code.clone()
+                )
+            }
+        } else {
+            format!("<div><code><pre>{}</pre></code></div>", self.code.clone())
+        }
     }
 }
 
@@ -229,8 +254,8 @@ impl ToHtml for Image {
                      </a>\
                      <label class='imageDescription'>{1}</label>\
                      </div>",
-                    encode_minimal(self.url.url.clone().as_str()),
-                    encode_minimal(description.as_str())
+                    encode_attribute(self.url.url.clone().as_str()),
+                    encode_attribute(description.as_str())
                 )
                 .as_str(),
             )
