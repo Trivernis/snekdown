@@ -26,9 +26,11 @@ code pre {
     border-radius: 0.25em;
 }
 
-code {
+code.inlineCode {
     font-family: "Fira Code", monospace;
     border-radius: 0.1em;
+    background-color: #EEE;
+    padding: 0 0.1em
 }
 
 .tableWrapper {

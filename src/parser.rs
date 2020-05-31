@@ -417,7 +417,7 @@ impl Parser {
 
         while self.check_special(&QUOTE_START)
             && self.next_char() != None
-            && self.check_seek_inline_whitespace()
+            && (self.check_seek_inline_whitespace() || self.check_special(&LB))
         {
             if let Ok(text) = self.parse_text() {
                 if text.subtext.len() > 0 {

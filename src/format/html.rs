@@ -301,7 +301,7 @@ impl ToHtml for StrikedText {
 
 impl ToHtml for MonospaceText {
     fn to_html(&self) -> String {
-        format!("<code>{}</code>", self.value.to_html())
+        format!("<code class='inlineCode'>{}</code>", self.value.to_html())
     }
 }
 

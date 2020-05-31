@@ -444,7 +444,7 @@ dependencies = [
 
 [[package]]
 name = "snekdown"
-version = "0.2.3"
+version = "0.2.4"
 dependencies = [
  "crossbeam-utils 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "htmlescape 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
