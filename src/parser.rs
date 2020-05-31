@@ -478,7 +478,10 @@ impl Parser {
         if self.check_linebreak() || path.is_empty() {
             return Err(self.revert_with_error(start_index));
         }
-        parse_option!(self.next_char(), self.index);
+        if self.check_special(&IMPORT_CLOSE) {
+            parse_option!(self.next_char(), self.index);
+        }
+        self.seek_whitespace();
 
         if let Ok(anchor) = self.import_document(path.clone()) {
             Ok(Import { path, anchor })
