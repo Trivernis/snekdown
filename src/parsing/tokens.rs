@@ -45,14 +45,15 @@ pub(crate) const PHOLDER_CLOSE: char = L_BRACKET;
 
 pub(crate) const QUOTES: [char; 2] = [SINGLE_QUOTE, DOUBLE_QUOTE];
 
-pub(crate) const BLOCK_SPECIAL_CHARS: [char; 7] = [
-    HASH,
-    MINUS,
-    BACKTICK,
-    PIPE,
-    QUOTE_START,
-    META_OPEN,
-    IMPORT_START,
+pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 8] = [
+    &[HASH],
+    &[HASH, META_OPEN],
+    &[MINUS, SPACE],
+    &[BACKTICK, BACKTICK, BACKTICK],
+    &[PIPE],
+    &[QUOTE_START],
+    &[META_OPEN],
+    &[IMPORT_START, IMPORT_OPEN],
 ];
 
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 5] = [LB, ASTERISK, UNDERSCR, TILDE, BACKTICK];

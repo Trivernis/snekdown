@@ -104,6 +104,8 @@ pub struct Parser {
 }
 
 impl Parser {
+    /// TODO fn get_until(until: &[char], err_when: &[]) -> String
+
     pub fn new_from_file(path: String) -> Result<Self, io::Error> {
         let content = read_to_string(path.clone())?;
         Ok(Self::new(content, Some(path)))
@@ -234,6 +236,17 @@ impl Parser {
         chars.contains(&self.current_char) && !self.check_escaped()
     }
 
+    /// checks if the next chars are a special sequence
+    fn check_special_group_sequence(&mut self, sequences: &[&[char]]) -> bool {
+        for sequence in sequences {
+            if let Ok(_) = self.check_special_sequence(sequence) {
+                return true;
+            }
+        }
+
+        false
+    }
+
     /// returns if the current character is a linebreak character
     /// Note: No one likes CRLF
     fn check_linebreak(&self) -> bool {
@@ -252,8 +265,11 @@ impl Parser {
     fn check_special_sequence(&mut self, sequence: &[char]) -> Result<(), ParseError> {
         let start_index = self.index;
         self.seek_whitespace();
+        if self.check_escaped() {
+            return Err(self.revert_with_error(start_index));
+        }
         for sq_character in sequence {
-            if !self.check_special(sq_character) {
+            if self.current_char != *sq_character {
                 return Err(self.revert_with_error(start_index));
             }
             if self.next_char() == None {
@@ -265,6 +281,30 @@ impl Parser {
         }
 
         Ok(())
+    }
+
+    /// returns the string until a specific
+    fn get_string_until(
+        &mut self,
+        break_at: &[char],
+        err_at: &[char],
+    ) -> Result<String, ParseError> {
+        let start_index = self.index;
+        let mut result = String::new();
+        result.push(self.current_char);
+
+        while let Some(ch) = self.next_char() {
+            if self.check_special_group(&break_at) || self.check_special_group(&err_at) {
+                break;
+            }
+            result.push(ch);
+        }
+
+        if self.check_special_group(&err_at) {
+            Err(self.revert_with_error(start_index))
+        } else {
+            Ok(result)
+        }
     }
 
     /// transform an import path to be relative to the current parsers file
@@ -487,6 +527,9 @@ impl Parser {
             }
             text.push(character);
         }
+        for _ in 0..2 {
+            let _ = self.next_char();
+        }
 
         Ok(CodeBlock {
             language,
@@ -659,7 +702,7 @@ impl Parser {
         while let Ok(token) = self.parse_inline() {
             paragraph.add_element(token);
             let start_index = self.index;
-            if self.check_special_group(&BLOCK_SPECIAL_CHARS) {
+            if self.check_special_group_sequence(&BLOCK_SPECIAL_CHARS) {
                 self.revert_to(start_index)?;
                 break;
             }
@@ -957,11 +1000,11 @@ impl Parser {
             }
             BACKTICK if !self.check_escaped() => {
                 parse_option!(self.next_char(), self.index);
-                let plain_text = self.parse_plain_text()?;
+                let content = self.get_string_until(&[BACKTICK, LB], &[])?;
                 if self.check_special(&BACKTICK) {
                     parse_option!(self.next_char(), self.index)
                 }
-                Ok(SubText::Monospace(MonospaceText { value: plain_text }))
+                Ok(SubText::Monospace(MonospaceText { value: content }))
             }
             PIPE if !self.check_escaped() => Err(ParseError::new(self.index)), // handling of table cells
             _ => Ok(SubText::Plain(self.parse_plain_text()?)),

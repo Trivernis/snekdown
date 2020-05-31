@@ -192,7 +192,7 @@ pub struct StrikedText {
 
 #[derive(Clone, Debug)]
 pub struct MonospaceText {
-    pub(crate) value: PlainText,
+    pub(crate) value: String,
 }
 
 #[derive(Clone, Debug)]
