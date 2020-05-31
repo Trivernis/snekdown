@@ -601,16 +601,15 @@ impl Parser {
         let header = self.parse_row()?;
         self.seek_whitespace();
         let mut table = Table::new(header);
-        if self.check_special_group(&[MINUS, PIPE])
-            && self.next_char() != None
-            && self.check_special_group(&[MINUS, PIPE])
-        {
-            while let Some(char) = self.next_char() {
-                if char == '\n' {
-                    break;
-                }
+        let seek_start = self.index;
+        while let Some(char) = self.next_char() {
+            self.seek_inline_whitespace();
+            if char == '\n' || !self.check_special_group(&[MINUS, PIPE]) {
+                break;
             }
-        } else {
+        }
+        if !self.current_char.is_whitespace() || self.check_special_group(&[MINUS, PIPE]) {
+            self.revert_to(seek_start)?;
             return Ok(table);
         }
 

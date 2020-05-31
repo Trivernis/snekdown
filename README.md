@@ -58,6 +58,20 @@ Quote with metadata (e.g. Author)
 Imports can be used to import a different document to be attached to the main document.
 Imports are parsed via multithreading.
 
+### Tables
+
+Tables MUST start with a pipe character `|`
+
+```
+Standalone header:
+| header | header | header
+
+Header with rows
+| header | header | header
+|--------|--------|-------
+| row    | row    | row
+```
+
 ```
 <[path]
 ```
