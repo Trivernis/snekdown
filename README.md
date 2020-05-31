@@ -25,7 +25,7 @@ ARGS:
 
 ### Images
 
-```
+```md
 Simple Syntax
 !(url)
 
@@ -39,9 +39,10 @@ Extended syntax with metadata and no description
 !(url)[metadata]
 ```
 
+
 ### Quotes
 
-```
+```md
 Simple (default) Syntax
 > This is a quote
 
@@ -53,16 +54,22 @@ Quote with metadata (e.g. Author)
 [Trivernis - 2020]> This is a quote with metadata
 ```
 
+
 ### Imports
 
 Imports can be used to import a different document to be attached to the main document.
 Imports are parsed via multithreading.
 
+```md
+<[path]
+```
+
+
 ### Tables
 
 Tables MUST start with a pipe character `|`
 
-```
+```md
 Standalone header:
 | header | header | header
 
@@ -70,8 +77,4 @@ Header with rows
 | header | header | header
 |--------|--------|-------
 | row    | row    | row
-```
-
-```
-<[path]
 ```

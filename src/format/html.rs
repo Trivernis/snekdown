@@ -199,7 +199,7 @@ impl ToHtml for CodeBlock {
                             "<div><code lang='{}'>{}</code></div>",
                             encode_attribute(self.language.clone().as_str()),
                             highlighted_html_for_string(
-                                encode_minimal(self.code.as_str()).as_str(),
+                                self.code.as_str(),
                                 &ps,
                                 syntax,
                                 &ts.themes["InspiredGitHub"]
