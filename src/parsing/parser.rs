@@ -549,7 +549,7 @@ impl Parser {
         if self.check_special(&META_CLOSE) {
             let _ = self.next_char();
         }
-        if self.check_linebreak() || values.len() == 0 {
+        if values.len() == 0 {
             // if there was a linebreak (the metadata wasn't closed) or there is no inner data
             // return an error
             return Err(self.revert_with_error(start_index));
@@ -978,9 +978,6 @@ impl Parser {
         }
         if let Ok(url) = self.parse_url(true) {
             let metadata = if let Ok(meta) = self.parse_inline_metadata() {
-                if self.check_special(&META_CLOSE) && self.next_char() == None {
-                    return Err(self.revert_with_error(start_index));
-                }
                 Some(meta)
             } else {
                 None
