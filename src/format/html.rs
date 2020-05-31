@@ -2,6 +2,7 @@ use crate::elements::*;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
 use rayon::prelude::*;
+use std::cell::RefCell;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
@@ -183,31 +184,41 @@ impl ToHtml for Cell {
     }
 }
 
+thread_local! {static PS: RefCell<SyntaxSet> = RefCell::new(SyntaxSet::load_defaults_nonewlines());}
+thread_local! {static TS: RefCell<ThemeSet> = RefCell::new(ThemeSet::load_defaults());}
+
 impl ToHtml for CodeBlock {
     fn to_html(&self) -> String {
         if self.language.len() > 0 {
-            let ps = SyntaxSet::load_defaults_nonewlines();
-            let ts = ThemeSet::load_defaults();
-            if let Some(syntax) = ps.find_syntax_by_token(self.language.as_str()) {
-                format!(
-                    "<div><code lang='{}'>{}</code></div>",
-                    encode_attribute(self.language.clone().as_str()),
-                    highlighted_html_for_string(
-                        self.code.as_str(),
-                        &ps,
-                        syntax,
-                        &ts.themes["InspiredGitHub"]
+            PS.with(|ps_cell| {
+                let ps = ps_cell.borrow();
+                if let Some(syntax) = ps.find_syntax_by_token(self.language.as_str()) {
+                    TS.with(|ts_cell| {
+                        let ts = ts_cell.borrow();
+                        format!(
+                            "<div><code lang='{}'>{}</code></div>",
+                            encode_attribute(self.language.clone().as_str()),
+                            highlighted_html_for_string(
+                                encode_minimal(self.code.as_str()).as_str(),
+                                &ps,
+                                syntax,
+                                &ts.themes["InspiredGitHub"]
+                            )
+                        )
+                    })
+                } else {
+                    format!(
+                        "<div><code lang='{}'><pre>{}</pre></code></div>",
+                        encode_attribute(self.language.clone().as_str()),
+                        encode_minimal(self.code.as_str())
                     )
-                )
-            } else {
-                format!(
-                    "<div><code lang='{}'><pre>{}</pre></code></div>",
-                    encode_attribute(self.language.clone().as_str()),
-                    self.code.clone()
-                )
-            }
+                }
+            })
         } else {
-            format!("<div><code><pre>{}</pre></code></div>", self.code.clone())
+            format!(
+                "<div><code><pre>{}</pre></code></div>",
+                encode_minimal(self.code.as_str())
+            )
         }
     }
 }
