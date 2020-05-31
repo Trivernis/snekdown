@@ -1,5 +1,5 @@
 use snekdown::format::html::ToHtml;
-use snekdown::parser::Parser;
+use snekdown::Parser;
 use std::fs::write;
 use std::time::Instant;
 use termion::style;

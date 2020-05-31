@@ -1,5 +1,6 @@
-use crate::elements::*;
-use crate::tokens::*;
+use super::elements::*;
+use super::tokens::*;
+use crate::parsing::placeholders::ProcessPlaceholders;
 use crossbeam_utils::sync::WaitGroup;
 use std::error::Error;
 use std::fmt;
@@ -362,8 +363,8 @@ impl Parser {
 
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
-        self.document.parse_placeholders();
         wg.wait();
+        self.document.process_placeholders();
         let document = self.document.clone();
         self.document = Document::new(!self.is_child);
 

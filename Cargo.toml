@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.3.0"
+version = "0.3.1"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -25,3 +25,4 @@ termion = "1.5.5"
 minify = "1.1.1"
 htmlescape = "0.3.1"
 syntect = "4.2.0"
+chrono = "0.4.11"

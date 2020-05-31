@@ -244,27 +244,22 @@ impl Document {
     pub fn create_toc(&self) -> List {
         let mut list = List::new();
         list.ordered = true;
-        self.elements.iter().for_each(|e| {
-            if let Block::Section(sec) = e {
+        self.elements.iter().for_each(|e| match e {
+            Block::Section(sec) => {
                 let mut item = ListItem::new(sec.header.line.clone(), 1, true);
                 item.children.append(&mut sec.get_toc_list().items);
                 list.add_item(item);
             }
+            Block::Import(imp) => {
+                let anchor = imp.anchor.lock().unwrap();
+                if let Some(doc) = &anchor.document {
+                    list.items.append(&mut doc.create_toc().items)
+                }
+            }
+            _ => {}
         });
 
         list
-    }
-
-    pub fn parse_placeholders(&mut self) {
-        self.placeholders.iter().for_each(|p| {
-            let mut pholder = p.lock().unwrap();
-            match pholder.name.to_ascii_lowercase().as_str() {
-                "toc" => {
-                    pholder.set_value(Element::Block(Box::new(Block::List(self.create_toc()))))
-                }
-                _ => {}
-            }
-        })
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::elements::*;
+use crate::parsing::elements::*;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
 use std::cell::RefCell;

@@ -1,4 +1,3 @@
-pub mod elements;
 pub mod format;
-pub mod parser;
-pub mod tokens;
+pub mod parsing;
+pub use parsing::parser::Parser;
