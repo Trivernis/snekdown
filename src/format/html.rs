@@ -287,22 +287,36 @@ impl ToHtml for Text {
 
 impl ToHtml for Image {
     fn to_html(&self) -> String {
+        let mut style = String::new();
+        if let Some(meta) = &self.metadata {
+            if let Some(width) = meta.data.get("width") {
+                style = format!("{}width: {};", style, width.to_html())
+            }
+            if let Some(height) = meta.data.get("height") {
+                style = format!("{}height: {};", style, height.to_html())
+            }
+        }
         if let Some(description) = self.url.description.clone() {
             minify(
                 format!(
                     "<div class='figure'>\
                      <a href={0}>\
-                     <img src='{0}' alt='{1}'/>\
+                     <img src='{0}' alt='{1}' style='{2}'/>\
                      </a>\
                      <label class='imageDescription'>{1}</label>\
                      </div>",
                     encode_attribute(self.url.url.clone().as_str()),
-                    encode_attribute(description.as_str())
+                    encode_attribute(description.as_str()),
+                    style
                 )
                 .as_str(),
             )
         } else {
-            format!("<a href={0}><img src='{0}'/></a>", self.url.url.clone(),)
+            format!(
+                "<a href={0}><img src='{0}' style='{1}'/></a>",
+                self.url.url.clone(),
+                style
+            )
         }
     }
 }

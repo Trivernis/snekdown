@@ -108,3 +108,16 @@ Placeholder
 Formatting
 [author = "The Great snek" date = [[date]] time = [[time]] display = "author - date at time"]
 ```
+
+#### Usage
+
+```
+Hide a section (including subsections) in the TOC
+#[toc-hidden] Section
+
+Set the size of an image
+!(url)[width = 42% height=auto]
+
+Set the source of a quote
+[author=Me date=[[date]] display="author - date"]> It's me
+```

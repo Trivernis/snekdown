@@ -71,6 +71,7 @@ pub struct Document {
 pub struct Section {
     pub(crate) header: Header,
     pub(crate) elements: Vec<Block>,
+    pub(crate) metadata: Option<InlineMetadata>,
 }
 
 #[derive(Clone, Debug)]
@@ -264,9 +265,11 @@ impl Document {
         list.ordered = true;
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
-                let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
-                item.children.append(&mut sec.get_toc_list().items);
-                list.add_item(item);
+                if !sec.get_hide_in_toc() {
+                    let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
+                    item.children.append(&mut sec.get_toc_list().items);
+                    list.add_item(item);
+                }
             }
             Block::Import(imp) => {
                 let anchor = imp.anchor.lock().unwrap();
@@ -286,6 +289,7 @@ impl Section {
         Self {
             header,
             elements: Vec::new(),
+            metadata: None,
         }
     }
 
@@ -317,13 +321,23 @@ impl Section {
         let mut list = List::new();
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
-                let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
-                item.children.append(&mut sec.get_toc_list().items);
-                list.add_item(item);
+                if !sec.get_hide_in_toc() {
+                    let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
+                    item.children.append(&mut sec.get_toc_list().items);
+                    list.add_item(item);
+                }
             }
         });
 
         list
+    }
+
+    pub(crate) fn get_hide_in_toc(&self) -> bool {
+        if let Some(meta) = &self.metadata {
+            meta.get_bool("toc-hidden")
+        } else {
+            false
+        }
     }
 }
 
@@ -461,5 +475,15 @@ impl Placeholder {
 
     pub fn set_value(&mut self, value: Element) {
         self.value = Some(value);
+    }
+}
+
+impl InlineMetadata {
+    pub fn get_bool(&self, key: &str) -> bool {
+        if let Some(MetadataValue::Bool(value)) = self.data.get(key) {
+            *value
+        } else {
+            false
+        }
     }
 }

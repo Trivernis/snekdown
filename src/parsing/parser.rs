@@ -418,11 +418,14 @@ impl Parser {
         if self.check_special(&HASH) {
             let mut size = 1;
             while let Some(_) = self.next_char() {
-                if self.check_special(&HASH) {
-                    size += 1;
-                } else {
+                if !self.check_special(&HASH) {
                     break;
                 }
+                size += 1;
+            }
+            let mut metadata = None;
+            if let Ok(meta) = self.parse_inline_metadata() {
+                metadata = Some(meta);
             }
             if size <= self.section_nesting || !self.current_char.is_whitespace() {
                 if size <= self.section_nesting {
@@ -436,6 +439,7 @@ impl Parser {
             self.section_nesting = size;
             self.sections.push(size);
             let mut section = Section::new(header);
+            section.metadata = metadata;
             self.seek_whitespace();
 
             while let Ok(block) = self.parse_block() {
@@ -541,6 +545,9 @@ impl Parser {
                 // abort the parsing of the inner content when encountering a closing tag or linebreak
                 break;
             }
+        }
+        if self.check_special(&META_CLOSE) {
+            let _ = self.next_char();
         }
         if self.check_linebreak() || values.len() == 0 {
             // if there was a linebreak (the metadata wasn't closed) or there is no inner data
