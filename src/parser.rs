@@ -53,6 +53,7 @@ pub struct Parser {
     paths: Arc<Mutex<Vec<String>>>,
     wg: WaitGroup,
     is_child: bool,
+    subtext_break_at: Vec<char>,
 }
 
 impl Parser {
@@ -95,6 +96,7 @@ impl Parser {
             paths,
             wg: WaitGroup::new(),
             is_child,
+            subtext_break_at: Vec::new(),
         }
     }
 
@@ -487,6 +489,7 @@ impl Parser {
 
     /// Parses a paragraph
     fn parse_paragraph(&mut self) -> Result<Paragraph, ParseError> {
+        self.seek_whitespace();
         let mut paragraph = Paragraph::new();
         while let Ok(token) = self.parse_inline() {
             paragraph.add_element(token);
@@ -595,22 +598,23 @@ impl Parser {
 
     /// parses a markdown table
     fn parse_table(&mut self) -> Result<Table, ParseError> {
-        let header = self.parse_row()?; // TODO: Fix this row not being included
-        let start_index = self.index;
-        self.seek_whitespace();
-        if self.check_special(&MINUS) {
-            if self.next_char() != Some(PIPE) {
-                return Err(self.revert_with_error(start_index));
-            }
-        }
-        while let Some(char) = self.next_char() {
-            if char == '\n' {
-                break;
-            }
-        }
+        let header = self.parse_row()?;
         self.seek_whitespace();
         let mut table = Table::new(header);
+        if self.check_special_group(&[MINUS, PIPE])
+            && self.next_char() != None
+            && self.check_special_group(&[MINUS, PIPE])
+        {
+            while let Some(char) = self.next_char() {
+                if char == '\n' {
+                    break;
+                }
+            }
+        } else {
+            return Ok(table);
+        }
 
+        self.seek_whitespace();
         while let Ok(row) = self.parse_row() {
             table.add_row(row);
             self.seek_whitespace();
@@ -623,14 +627,18 @@ impl Parser {
     pub fn parse_row(&mut self) -> Result<Row, ParseError> {
         let start_index = self.index;
         self.seek_inline_whitespace();
+        self.subtext_break_at.push(PIPE);
 
         if self.check_special(&PIPE) {
             if self.next_char() == None {
+                self.subtext_break_at.clear();
                 return Err(self.revert_with_error(start_index));
             }
         } else {
+            self.subtext_break_at.clear();
             return Err(self.revert_with_error(start_index));
         }
+        self.seek_inline_whitespace();
         let mut row = Row::new();
         while let Ok(element) = self.parse_inline() {
             row.add_cell(Cell { text: element });
@@ -642,7 +650,9 @@ impl Parser {
             if self.check_linebreak() {
                 break;
             }
+            self.seek_inline_whitespace();
         }
+        self.subtext_break_at.clear();
 
         if row.cells.len() > 0 {
             Ok(row)
@@ -843,6 +853,7 @@ impl Parser {
         loop {
             if self.check_special_group(&INLINE_SPECIAL_CHARS)
                 || (count > 0 && self.check_special_group(&INLINE_SPECIAL_CHARS_SECOND))
+                || (count > 0 && self.check_special_group(&self.subtext_break_at))
             {
                 break;
             } else if !self.check_special(&SPECIAL_ESCAPE) {

@@ -3,6 +3,24 @@
 This projects goal is to implement a fast markdown parser with an extended syntax fitted
 for my needs.
 
+## Usage
+
+```
+USAGE:
+    snekdown [OPTIONS] <input> <output>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -f, --format <format>     [default: html]
+
+ARGS:
+    <input>     
+    <output>
+```
+
 ## Syntax
 
 ### Images

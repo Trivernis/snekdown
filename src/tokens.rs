@@ -48,7 +48,7 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [char; 7] = [
     IMPORT_START,
 ];
 
-pub(crate) const INLINE_SPECIAL_CHARS: [char; 6] = [LB, ASTERISK, UNDERSCR, TILDE, PIPE, BACKTICK];
+pub(crate) const INLINE_SPECIAL_CHARS: [char; 5] = [LB, ASTERISK, UNDERSCR, TILDE, BACKTICK];
 pub(crate) const INLINE_SPECIAL_CHARS_SECOND: [char; 3] = [DESC_OPEN, IMG_START, URL_OPEN];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
