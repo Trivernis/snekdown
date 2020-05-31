@@ -24,22 +24,65 @@ macro_rules! parse_option {
 #[derive(Debug)]
 pub struct ParseError {
     index: usize,
+    message: Option<String>,
 }
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{} Parse Error at index {}{}",
-            Fg(color::Red),
-            self.index,
-            style::Reset
-        )
+        if let Some(message) = &self.message {
+            write!(
+                f,
+                "{} Parse Error at index {}: {}{}",
+                Fg(color::Red),
+                self.index,
+                message,
+                style::Reset
+            )
+        } else {
+            write!(
+                f,
+                "{} Parse Error at index {}{}",
+                Fg(color::Red),
+                self.index,
+                style::Reset
+            )
+        }
     }
 }
 impl Error for ParseError {}
 impl ParseError {
     pub fn new(index: usize) -> Self {
-        Self { index }
+        Self {
+            index,
+            message: None,
+        }
+    }
+
+    pub fn new_with_message(index: usize, message: &str) -> Self {
+        Self {
+            index,
+            message: Some(message.to_string()),
+        }
+    }
+
+    pub fn set_message(&mut self, message: &str) {
+        self.message = Some(message.to_string());
+    }
+
+    pub fn get_position(&self, content: &str) -> Option<(usize, usize)> {
+        if content.len() <= self.index {
+            return None;
+        }
+        let split_content = content.split_at(self.index);
+        let line_number = split_content.0.matches("\n").count() as usize;
+        let overshoot_position = self.index as isize - split_content.0.len() as isize;
+
+        if let Some(line) = split_content.0.lines().last() {
+            let inline_position = (line.len() as isize + overshoot_position) as usize;
+
+            Some((line_number, inline_position))
+        } else {
+            None
+        }
     }
 }
 
@@ -48,6 +91,7 @@ pub struct Parser {
     text: Vec<char>,
     current_char: char,
     section_nesting: u8,
+    sections: Vec<u8>,
     section_return: Option<u8>,
     path: Option<String>,
     paths: Arc<Mutex<Vec<String>>>,
@@ -90,6 +134,7 @@ impl Parser {
             index: 0,
             text,
             current_char,
+            sections: Vec::new(),
             section_nesting: 0,
             section_return: None,
             path,
@@ -98,6 +143,12 @@ impl Parser {
             is_child,
             subtext_break_at: Vec::new(),
         }
+    }
+
+    fn get_text(&self) -> String {
+        self.text
+            .iter()
+            .fold("".to_string(), |a, b| format!("{}{}", a, b))
     }
 
     /// Increments the current index and returns the
@@ -117,7 +168,7 @@ impl Parser {
             self.current_char = char.clone();
             Ok(())
         } else {
-            Err(ParseError::new(index))
+            Err(ParseError::new_with_message(index, "failed to revert"))
         }
     }
 
@@ -242,18 +293,21 @@ impl Parser {
                 path,
                 style::Reset
             );
-            return Err(ParseError::new(self.index));
+            return Err(ParseError::new_with_message(
+                self.index,
+                "file does not exist",
+            ));
         }
         {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
                 println!(
-                    "{}Import of \"{}\" failed: Cyclic reference.{}",
+                    "{}Import of \"{}\" failed: Cyclic import.{}",
                     Fg(color::Yellow),
                     path,
                     style::Reset
                 );
-                return Err(ParseError::new(self.index));
+                return Err(ParseError::new_with_message(self.index, "cyclic import"));
             }
             paths.push(path.clone());
         }
@@ -283,7 +337,18 @@ impl Parser {
                 Ok(block) => document.add_element(block),
                 Err(err) => {
                     if let Some(path) = &self.path {
-                        println!("{} Error in File {}: {}", Fg(color::Red), path, err);
+                        if let Some(position) = err.get_position(&self.get_text()) {
+                            println!(
+                                "{} Error in File {}:{}:{} - {}",
+                                Fg(color::Red),
+                                path,
+                                position.0,
+                                position.1,
+                                err
+                            );
+                        } else {
+                            println!("{} Error in File {}: {}", Fg(color::Red), path, err);
+                        }
                     } else {
                         println!("{}", err);
                     }
@@ -302,7 +367,10 @@ impl Parser {
     pub fn parse_block(&mut self) -> Result<Block, ParseError> {
         if let Some(section) = self.section_return {
             if section <= self.section_nesting {
-                return Err(ParseError::new(self.index));
+                return Err(ParseError::new_with_message(
+                    self.index,
+                    "invalid section nesting",
+                ));
             } else {
                 self.section_return = None;
             }
@@ -353,6 +421,7 @@ impl Parser {
             let mut header = self.parse_header()?;
             header.size = size;
             self.section_nesting = size;
+            self.sections.push(size);
             let mut section = Section::new(header);
             self.seek_whitespace();
 
@@ -360,7 +429,12 @@ impl Parser {
                 section.add_element(block);
             }
 
-            self.section_nesting -= 1;
+            self.sections.pop();
+            if let Some(sec) = self.sections.last() {
+                self.section_nesting = *sec
+            } else {
+                self.section_nesting = 0;
+            }
             Ok(section)
         } else {
             return Err(self.revert_with_error(start_index));
