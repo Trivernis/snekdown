@@ -1,7 +1,6 @@
 use crate::elements::*;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
-use rayon::prelude::*;
 use std::cell::RefCell;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
@@ -19,6 +18,16 @@ macro_rules! combine_with_lb {
 
 pub trait ToHtml {
     fn to_html(&self) -> String;
+}
+
+impl ToHtml for Element {
+    fn to_html(&self) -> String {
+        match self {
+            Element::Block(block) => block.to_html(),
+            Element::Inline(inline) => inline.to_html(),
+            Element::SubText(sub) => sub.to_html(),
+        }
+    }
 }
 
 impl ToHtml for Inline {
@@ -41,7 +50,7 @@ impl ToHtml for SubText {
             SubText::Underlined(under) => under.to_html(),
             SubText::Bold(bold) => bold.to_html(),
             SubText::Image(img) => img.to_html(),
-            _ => "".to_string(),
+            SubText::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
         }
     }
 }
@@ -56,6 +65,7 @@ impl ToHtml for Block {
             Block::Quote(quote) => quote.to_html(),
             Block::Section(section) => section.to_html(),
             Block::Import(import) => import.to_html(),
+            Block::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
         }
     }
 }
@@ -64,19 +74,23 @@ impl ToHtml for Document {
     fn to_html(&self) -> String {
         let inner = self
             .elements
-            .par_iter()
-            .map(|e| e.to_html())
-            .reduce(|| "".to_string(), |a, b| format!("{}{}", a, b));
+            .iter()
+            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
+        let path = if let Some(path) = &self.path {
+            format!("path='{}'", encode_attribute(path.as_str()))
+        } else {
+            "".to_string()
+        };
         if self.is_root {
             let style = minify(std::include_str!("assets/style.css"));
             format!(
-                "<!DOCTYPE html>\n<html><head><style>{}</style></head><body><div class='content'>{}</div></body></html>",
-                style, inner
+                "<!DOCTYPE html>\n<html><head {}><style>{}</style></head><body><div class='content'>{}</div></body></html>",
+                path, style, inner
             )
         } else {
             format!(
-                "<div class='documentImport' document-import=true>{}</div>",
-                inner
+                "<div class='documentImport' document-import=true {}>{}</div>",
+                path, inner
             )
         }
     }
@@ -326,5 +340,15 @@ impl ToHtml for Url {
 impl ToHtml for PlainText {
     fn to_html(&self) -> String {
         encode_minimal(self.value.clone().as_str())
+    }
+}
+
+impl ToHtml for Placeholder {
+    fn to_html(&self) -> String {
+        if let Some(value) = &self.value {
+            value.to_html()
+        } else {
+            format!("Unknown placeholder '{}'!", encode_minimal(&self.name))
+        }
     }
 }

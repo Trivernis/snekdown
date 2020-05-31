@@ -23,7 +23,14 @@ macro_rules! test_block {
     };
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
+pub enum Element {
+    Block(Box<Block>),
+    Inline(Box<Inline>),
+    SubText(Box<SubText>),
+}
+
+#[derive(Clone, Debug)]
 pub enum Block {
     Section(Section),
     Paragraph(Paragraph),
@@ -32,44 +39,47 @@ pub enum Block {
     CodeBlock(CodeBlock),
     Quote(Quote),
     Import(Import),
+    Placeholder(Arc<Mutex<Placeholder>>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Inline {
     Text(Text),
     Ruler(Ruler),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Document {
     pub(crate) elements: Vec<Block>,
     pub(crate) is_root: bool,
+    pub(crate) path: Option<String>,
+    pub(crate) placeholders: Vec<Arc<Mutex<Placeholder>>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Section {
     pub(crate) header: Header,
     pub(crate) elements: Vec<Block>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Header {
     pub(crate) size: u8,
     pub(crate) line: Inline,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Paragraph {
     pub(crate) elements: Vec<Inline>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct List {
     pub(crate) ordered: bool,
     pub(crate) items: Vec<ListItem>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ListItem {
     pub(crate) text: Inline,
     pub(crate) level: u16,
@@ -77,34 +87,29 @@ pub struct ListItem {
     pub(crate) children: Vec<ListItem>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Table {
     pub(crate) header: Row,
     pub(crate) rows: Vec<Row>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Row {
     pub(crate) cells: Vec<Cell>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Cell {
     pub(crate) text: Inline,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct CodeBlock {
     pub(crate) language: String,
     pub(crate) code: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct Code {
-    code: String,
-}
-
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Quote {
     pub(crate) metadata: Option<InlineMetadata>,
     pub(crate) text: Vec<Text>,
@@ -116,28 +121,27 @@ pub struct Import {
     pub(crate) anchor: Arc<Mutex<ImportAnchor>>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ImportAnchor {
     pub(crate) document: Option<Document>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct InlineMetadata {
     pub(crate) data: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Ruler {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Text {
     pub subtext: Vec<SubText>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum SubText {
     Plain(PlainText),
-    Code(Code),
     Bold(BoldText),
     Italic(ItalicText),
     Underlined(UnderlinedText),
@@ -145,48 +149,55 @@ pub enum SubText {
     Monospace(MonospaceText),
     Url(Url),
     Image(Image),
+    Placeholder(Arc<Mutex<Placeholder>>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PlainText {
     pub(crate) value: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct BoldText {
     pub(crate) value: Box<SubText>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct ItalicText {
     pub(crate) value: Box<SubText>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct UnderlinedText {
     pub(crate) value: Box<SubText>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct StrikedText {
     pub(crate) value: Box<SubText>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct MonospaceText {
     pub(crate) value: PlainText,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Url {
     pub description: Option<String>,
     pub url: String,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Image {
     pub(crate) url: Url,
     pub(crate) metadata: Option<InlineMetadata>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Placeholder {
+    pub(crate) name: String,
+    pub(crate) value: Option<Element>,
 }
 
 // implementations
@@ -196,11 +207,17 @@ impl Document {
         Self {
             elements: Vec::new(),
             is_root,
+            path: None,
+            placeholders: Vec::new(),
         }
     }
 
     pub fn add_element(&mut self, element: Block) {
         self.elements.push(element)
+    }
+
+    pub fn add_placeholder(&mut self, placeholder: Arc<Mutex<Placeholder>>) {
+        self.placeholders.push(placeholder);
     }
 
     pub fn find(&self, block_type: &str, nested: bool) -> Vec<&Block> {
@@ -222,6 +239,32 @@ impl Document {
         found.append(&mut found_self);
 
         found
+    }
+
+    pub fn create_toc(&self) -> List {
+        let mut list = List::new();
+        list.ordered = true;
+        self.elements.iter().for_each(|e| {
+            if let Block::Section(sec) = e {
+                let mut item = ListItem::new(sec.header.line.clone(), 1, true);
+                item.children.append(&mut sec.get_toc_list().items);
+                list.add_item(item);
+            }
+        });
+
+        list
+    }
+
+    pub fn parse_placeholders(&mut self) {
+        self.placeholders.iter().for_each(|p| {
+            let mut pholder = p.lock().unwrap();
+            match pholder.name.to_ascii_lowercase().as_str() {
+                "toc" => {
+                    pholder.set_value(Element::Block(Box::new(Block::List(self.create_toc()))))
+                }
+                _ => {}
+            }
+        })
     }
 }
 
@@ -255,6 +298,19 @@ impl Section {
         found.append(&mut found_self);
 
         found
+    }
+
+    pub fn get_toc_list(&self) -> List {
+        let mut list = List::new();
+        self.elements.iter().for_each(|e| {
+            if let Block::Section(sec) = e {
+                let mut item = ListItem::new(sec.header.line.clone(), 1, true);
+                item.children.append(&mut sec.get_toc_list().items);
+                list.add_item(item);
+            }
+        });
+
+        list
     }
 }
 
@@ -365,5 +421,15 @@ impl ImportAnchor {
 impl PartialEq for Import {
     fn eq(&self, other: &Self) -> bool {
         self.path == other.path
+    }
+}
+
+impl Placeholder {
+    pub fn new(name: String) -> Self {
+        Self { name, value: None }
+    }
+
+    pub fn set_value(&mut self, value: Element) {
+        self.value = Some(value);
     }
 }

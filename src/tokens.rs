@@ -35,6 +35,8 @@ pub(crate) const URL_CLOSE: char = L_PARENTH;
 pub(crate) const IMPORT_START: char = LT;
 pub(crate) const IMPORT_OPEN: char = R_BRACKET;
 pub(crate) const IMPORT_CLOSE: char = L_BRACKET;
+pub(crate) const PHOLDER_OPEN: char = R_BRACKET;
+pub(crate) const PHOLDER_CLOSE: char = L_BRACKET;
 
 // groups
 
@@ -57,6 +59,8 @@ pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
 
 pub(crate) const SQ_CODE_BLOCK: [char; 3] = [BACKTICK, BACKTICK, BACKTICK];
 pub(crate) const SQ_RULER: [char; 5] = [MINUS, SPACE, MINUS, SPACE, MINUS];
+pub(crate) const SQ_PHOLDER_START: [char; 2] = [PHOLDER_OPEN, PHOLDER_OPEN];
+pub(crate) const SQ_PHOLDER_STOP: [char; 2] = [PHOLDER_CLOSE, PHOLDER_CLOSE];
 
 // expressions
 

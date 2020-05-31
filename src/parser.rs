@@ -98,6 +98,7 @@ pub struct Parser {
     wg: WaitGroup,
     is_child: bool,
     subtext_break_at: Vec<char>,
+    document: Document,
 }
 
 impl Parser {
@@ -142,6 +143,7 @@ impl Parser {
             wg: WaitGroup::new(),
             is_child,
             subtext_break_at: Vec::new(),
+            document: Document::new(!is_child),
         }
     }
 
@@ -331,10 +333,11 @@ impl Parser {
 
     /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
-        let mut document = Document::new(!self.is_child);
+        self.document.path = self.path.clone();
+
         while self.index < self.text.len() {
             match self.parse_block() {
-                Ok(block) => document.add_element(block),
+                Ok(block) => self.document.add_element(block),
                 Err(err) => {
                     if let Some(path) = &self.path {
                         if let Some(position) = err.get_position(&self.get_text()) {
@@ -359,14 +362,18 @@ impl Parser {
 
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
+        self.document.parse_placeholders();
         wg.wait();
+        let document = self.document.clone();
+        self.document = Document::new(!self.is_child);
+
         document
     }
 
     /// Parses a block Token
     pub fn parse_block(&mut self) -> Result<Block, ParseError> {
         if let Some(section) = self.section_return {
-            if section <= self.section_nesting {
+            if section <= self.section_nesting && (self.section_nesting > 0) {
                 return Err(ParseError::new_with_message(
                     self.index,
                     "invalid section nesting",
@@ -389,6 +396,10 @@ impl Parser {
             Block::Quote(quote)
         } else if let Ok(import) = self.parse_import() {
             Block::Import(import)
+        } else if let Some(_) = self.section_return {
+            return Err(ParseError::new(self.index));
+        } else if let Ok(pholder) = self.parse_placeholder() {
+            Block::Placeholder(pholder)
         } else if let Ok(paragraph) = self.parse_paragraph() {
             Block::Paragraph(paragraph)
         } else {
@@ -555,6 +566,15 @@ impl Parser {
         if self.check_special(&IMPORT_CLOSE) {
             parse_option!(self.next_char(), self.index);
         }
+        // parsing success
+
+        if self.section_nesting > 0 {
+            self.section_return = Some(0);
+            let err = ParseError::new_with_message(self.index, "import section nesting error");
+            self.revert_to(start_index)?;
+            return Err(err);
+        }
+
         self.seek_whitespace();
 
         if let Ok(anchor) = self.import_document(path.clone()) {
@@ -751,6 +771,30 @@ impl Parser {
         }
     }
 
+    /// parses a placeholder element
+    fn parse_placeholder(&mut self) -> Result<Arc<Mutex<Placeholder>>, ParseError> {
+        let start_index = self.index;
+        self.check_special_sequence(&SQ_PHOLDER_START)?;
+        let mut name = String::new();
+
+        while let Some(char) = self.next_char() {
+            if self.check_special_group(&SQ_PHOLDER_STOP) || self.check_linebreak() {
+                break;
+            }
+            name.push(char);
+        }
+        if self.check_special(&PHOLDER_CLOSE) {
+            let _ = self.next_char();
+            let _ = self.next_char();
+        } else {
+            return Err(self.revert_with_error(start_index));
+        }
+        let placeholder = Arc::new(Mutex::new(Placeholder::new(name)));
+        self.document.add_placeholder(Arc::clone(&placeholder));
+
+        Ok(placeholder)
+    }
+
     /// parses a ruler
     fn parse_ruler(&mut self) -> Result<Ruler, ParseError> {
         let start_index = self.index;
@@ -797,6 +841,9 @@ impl Parser {
         }
         if let Ok(url) = self.parse_url(false) {
             return Ok(SubText::Url(url));
+        }
+        if let Ok(pholder) = self.parse_placeholder() {
+            return Ok(SubText::Placeholder(pholder));
         }
         match self.current_char {
             ASTERISK if !self.check_escaped() => {
