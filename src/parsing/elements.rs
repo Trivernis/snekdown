@@ -46,6 +46,7 @@ pub enum Block {
 pub enum Inline {
     Text(Text),
     Ruler(Ruler),
+    Anchor(Anchor),
 }
 
 #[derive(Clone, Debug)]
@@ -66,6 +67,7 @@ pub struct Section {
 pub struct Header {
     pub(crate) size: u8,
     pub(crate) line: Inline,
+    pub(crate) anchor: String,
 }
 
 #[derive(Clone, Debug)]
@@ -200,6 +202,12 @@ pub struct Placeholder {
     pub(crate) value: Option<Element>,
 }
 
+#[derive(Clone, Debug)]
+pub struct Anchor {
+    pub(crate) description: Box<Inline>,
+    pub(crate) reference: String,
+}
+
 // implementations
 
 impl Document {
@@ -246,7 +254,7 @@ impl Document {
         list.ordered = true;
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
-                let mut item = ListItem::new(sec.header.line.clone(), 1, true);
+                let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
                 item.children.append(&mut sec.get_toc_list().items);
                 list.add_item(item);
             }
@@ -299,13 +307,30 @@ impl Section {
         let mut list = List::new();
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
-                let mut item = ListItem::new(sec.header.line.clone(), 1, true);
+                let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
                 item.children.append(&mut sec.get_toc_list().items);
                 list.add_item(item);
             }
         });
 
         list
+    }
+}
+
+impl Header {
+    pub fn new(content: Inline, anchor: String) -> Self {
+        Self {
+            size: 0,
+            anchor,
+            line: content,
+        }
+    }
+
+    pub fn get_anchor(&self) -> Anchor {
+        Anchor {
+            description: Box::new(self.line.clone()),
+            reference: self.anchor.clone(),
+        }
     }
 }
 

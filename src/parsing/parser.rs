@@ -455,10 +455,14 @@ impl Parser {
 
     /// parses the header of a section
     fn parse_header(&mut self) -> Result<Header, ParseError> {
-        Ok(Header {
-            size: 0,
-            line: self.parse_inline()?,
-        })
+        let start_index = self.index;
+        let line = self.parse_inline()?;
+        let mut anchor = String::new();
+        self.text[start_index..self.index]
+            .iter()
+            .for_each(|e| anchor.push(*e));
+        anchor.retain(|c| !c.is_whitespace());
+        Ok(Header::new(line, anchor))
     }
 
     /// parses a code block

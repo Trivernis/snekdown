@@ -35,6 +35,7 @@ impl ToHtml for Inline {
         match self {
             Inline::Text(text) => text.to_html(),
             Inline::Ruler(ruler) => ruler.to_html(),
+            Inline::Anchor(anchor) => anchor.to_html(),
         }
     }
 }
@@ -119,7 +120,12 @@ impl ToHtml for Section {
 
 impl ToHtml for Header {
     fn to_html(&self) -> String {
-        format!("<h{0}>{1}</h{0}>", self.size, self.line.to_html())
+        format!(
+            "<h{0} id='{1}'>{2}</h{0}>",
+            self.size,
+            encode_attribute(self.anchor.as_str()),
+            self.line.to_html()
+        )
     }
 }
 
@@ -350,5 +356,15 @@ impl ToHtml for Placeholder {
         } else {
             format!("Unknown placeholder '{}'!", encode_minimal(&self.name))
         }
+    }
+}
+
+impl ToHtml for Anchor {
+    fn to_html(&self) -> String {
+        format!(
+            "<a href='#{}'>{}</a>",
+            encode_attribute(self.reference.as_str()),
+            self.description.to_html()
+        )
     }
 }
