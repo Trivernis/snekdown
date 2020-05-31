@@ -20,6 +20,9 @@ pub(crate) const GT: char = '>';
 pub(crate) const LT: char = '<';
 pub(crate) const BANG: char = '!';
 pub(crate) const SPACE: char = ' ';
+pub(crate) const EQ: char = '=';
+pub(crate) const DOUBLE_QUOTE: char = '"';
+pub(crate) const SINGLE_QUOTE: char = '\'';
 
 // aliases
 
@@ -39,6 +42,8 @@ pub(crate) const PHOLDER_OPEN: char = R_BRACKET;
 pub(crate) const PHOLDER_CLOSE: char = L_BRACKET;
 
 // groups
+
+pub(crate) const QUOTES: [char; 2] = [SINGLE_QUOTE, DOUBLE_QUOTE];
 
 pub(crate) const BLOCK_SPECIAL_CHARS: [char; 7] = [
     HASH,

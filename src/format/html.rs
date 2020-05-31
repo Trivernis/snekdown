@@ -71,6 +71,18 @@ impl ToHtml for Block {
     }
 }
 
+impl ToHtml for MetadataValue {
+    fn to_html(&self) -> String {
+        match self {
+            MetadataValue::String(string) => encode_minimal(string),
+            MetadataValue::Integer(num) => format!("{}", num),
+            MetadataValue::Placeholder(ph) => ph.lock().unwrap().to_html(),
+            MetadataValue::Bool(b) => format!("{}", b),
+            MetadataValue::Float(f) => format!("{}", f),
+        }
+    }
+}
+
 impl ToHtml for Document {
     fn to_html(&self) -> String {
         let inner = self
@@ -251,7 +263,7 @@ impl ToHtml for Quote {
         if let Some(meta) = self.metadata.clone() {
             format!(
                 "<div class='quote'><blockquote>{}</blockquote><span class='metadata'>{}</span></div>",
-                text, encode_minimal(meta.data.as_str())
+                text, meta.to_html()
             )
         } else {
             format!("<div class='quote'><blockquote>{}</blockquote></div>", text)
@@ -366,5 +378,22 @@ impl ToHtml for Anchor {
             encode_attribute(self.reference.as_str()),
             self.description.to_html()
         )
+    }
+}
+
+impl ToHtml for InlineMetadata {
+    fn to_html(&self) -> String {
+        if let Some(MetadataValue::String(format)) = self.data.get("display") {
+            let mut format = format.clone();
+            self.data
+                .iter()
+                .for_each(|(k, v)| format = format.replace(k, v.to_html().as_str()));
+
+            format
+        } else {
+            self.data.iter().fold("".to_string(), |s, (k, v)| {
+                format!("{} {}={},", s, k, v.to_html())
+            })
+        }
     }
 }

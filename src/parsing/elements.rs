@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 pub const SECTION: &str = "section";
@@ -21,6 +22,15 @@ macro_rules! test_block {
             _ => false,
         }
     };
+}
+
+#[derive(Clone, Debug)]
+pub enum MetadataValue {
+    String(String),
+    Integer(i64),
+    Float(f64),
+    Bool(bool),
+    Placeholder(Arc<Mutex<Placeholder>>),
 }
 
 #[derive(Clone, Debug)]
@@ -130,7 +140,7 @@ pub struct ImportAnchor {
 
 #[derive(Clone, Debug)]
 pub struct InlineMetadata {
-    pub(crate) data: String,
+    pub(crate) data: HashMap<String, MetadataValue>,
 }
 
 #[derive(Clone, Debug)]

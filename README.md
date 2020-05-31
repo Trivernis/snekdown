@@ -78,3 +78,33 @@ Header with rows
 |--------|--------|-------
 | row    | row    | row
 ```
+
+### Metadata
+
+Additional metadata can be provided for some elements.
+
+```md
+String value
+[key = value]
+
+String value
+[key = "String value"]
+
+Integer value
+[key = 123]
+
+Float value
+[key = 1.23]
+
+Boolean
+[key] 
+
+Boolean
+[key = false]
+
+Placeholder
+[key = [[placeholder]]]
+
+Formatting
+[author = "The Great snek" date = [[date]] time = [[time]] display = "author - date at time"]
+```

@@ -2,6 +2,7 @@ use super::elements::*;
 use super::tokens::*;
 use crate::parsing::placeholders::ProcessPlaceholders;
 use crossbeam_utils::sync::WaitGroup;
+use std::collections::HashMap;
 use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
@@ -532,21 +533,76 @@ impl Parser {
             // if no meta open tag is present, the parsing has failed
             return Err(ParseError::new(self.index));
         }
-        let mut text = String::new();
-        while let Some(character) = self.next_char() {
+        let mut values = HashMap::new();
+        let _ = self.next_char();
+        while let Ok((key, value)) = self.parse_metadata_pair() {
+            values.insert(key, value);
             if self.check_special(&META_CLOSE) || self.check_linebreak() {
                 // abort the parsing of the inner content when encountering a closing tag or linebreak
                 break;
             }
-            text.push(character);
         }
-        if self.check_linebreak() || text.len() == 0 {
+        if self.check_linebreak() || values.len() == 0 {
             // if there was a linebreak (the metadata wasn't closed) or there is no inner data
             // return an error
             return Err(self.revert_with_error(start_index));
         }
 
-        Ok(InlineMetadata { data: text })
+        Ok(InlineMetadata { data: values })
+    }
+
+    fn parse_metadata_pair(&mut self) -> Result<(String, MetadataValue), ParseError> {
+        self.seek_inline_whitespace();
+        let mut name = String::new();
+        name.push(self.current_char);
+        while let Some(char) = self.next_char() {
+            if self.check_special_group(&[META_CLOSE, EQ, SPACE, LB]) {
+                break;
+            }
+            name.push(char);
+        }
+        self.seek_inline_whitespace();
+        let mut value = MetadataValue::Bool(true);
+        if self.check_special(&EQ) {
+            let _ = self.next_char();
+            self.seek_inline_whitespace();
+            if let Ok(ph) = self.parse_placeholder() {
+                value = MetadataValue::Placeholder(ph);
+            } else {
+                let quoted_string = self.check_special_group(&QUOTES);
+                let mut raw_value = String::new();
+                if !quoted_string {
+                    raw_value.push(self.current_char);
+                }
+                while let Some(char) = self.next_char() {
+                    if self.check_special_group(&[META_CLOSE, LB])
+                        || (quoted_string && self.check_special_group(&QUOTES))
+                        || (!quoted_string && self.check_special(&SPACE))
+                    {
+                        break;
+                    }
+                    raw_value.push(char);
+                }
+                if self.check_special_group(&QUOTES) {
+                    let _ = self.next_char();
+                }
+                value = if quoted_string {
+                    MetadataValue::String(raw_value)
+                } else if raw_value.to_lowercase().as_str() == "true" {
+                    MetadataValue::Bool(true)
+                } else if raw_value.to_lowercase().as_str() == "false" {
+                    MetadataValue::Bool(false)
+                } else if let Ok(num) = raw_value.parse::<i64>() {
+                    MetadataValue::Integer(num)
+                } else if let Ok(num) = raw_value.parse::<f64>() {
+                    MetadataValue::Float(num)
+                } else {
+                    MetadataValue::String(raw_value)
+                }
+            }
+        }
+
+        Ok((name, value))
     }
 
     /// parses an import and starts a new task to parse the document of the import
