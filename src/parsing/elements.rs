@@ -36,8 +36,8 @@ pub enum MetadataValue {
 #[derive(Clone, Debug)]
 pub enum Element {
     Block(Box<Block>),
+    Line(Box<Line>),
     Inline(Box<Inline>),
-    SubText(Box<SubText>),
 }
 
 #[derive(Clone, Debug)]
@@ -53,8 +53,8 @@ pub enum Block {
 }
 
 #[derive(Clone, Debug)]
-pub enum Inline {
-    Text(Text),
+pub enum Line {
+    Text(TextLine),
     Ruler(Ruler),
     Anchor(Anchor),
 }
@@ -77,13 +77,13 @@ pub struct Section {
 #[derive(Clone, Debug)]
 pub struct Header {
     pub(crate) size: u8,
-    pub(crate) line: Inline,
+    pub(crate) line: Line,
     pub(crate) anchor: String,
 }
 
 #[derive(Clone, Debug)]
 pub struct Paragraph {
-    pub(crate) elements: Vec<Inline>,
+    pub(crate) elements: Vec<Line>,
 }
 
 #[derive(Clone, Debug)]
@@ -94,7 +94,7 @@ pub struct List {
 
 #[derive(Clone, Debug)]
 pub struct ListItem {
-    pub(crate) text: Inline,
+    pub(crate) text: Line,
     pub(crate) level: u16,
     pub(crate) ordered: bool,
     pub(crate) children: Vec<ListItem>,
@@ -113,7 +113,7 @@ pub struct Row {
 
 #[derive(Clone, Debug)]
 pub struct Cell {
-    pub(crate) text: Inline,
+    pub(crate) text: Line,
 }
 
 #[derive(Clone, Debug)]
@@ -125,7 +125,7 @@ pub struct CodeBlock {
 #[derive(Clone, Debug)]
 pub struct Quote {
     pub(crate) metadata: Option<InlineMetadata>,
-    pub(crate) text: Vec<Text>,
+    pub(crate) text: Vec<TextLine>,
 }
 
 #[derive(Clone, Debug)]
@@ -148,12 +148,12 @@ pub struct InlineMetadata {
 pub struct Ruler {}
 
 #[derive(Clone, Debug)]
-pub struct Text {
-    pub subtext: Vec<SubText>,
+pub struct TextLine {
+    pub subtext: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]
-pub enum SubText {
+pub enum Inline {
     Plain(PlainText),
     Bold(BoldText),
     Italic(ItalicText),
@@ -172,22 +172,22 @@ pub struct PlainText {
 
 #[derive(Clone, Debug)]
 pub struct BoldText {
-    pub(crate) value: Box<SubText>,
+    pub(crate) value: Box<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ItalicText {
-    pub(crate) value: Box<SubText>,
+    pub(crate) value: Box<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct UnderlinedText {
-    pub(crate) value: Box<SubText>,
+    pub(crate) value: Box<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct StrikedText {
-    pub(crate) value: Box<SubText>,
+    pub(crate) value: Box<Inline>,
 }
 
 #[derive(Clone, Debug)]
@@ -215,7 +215,7 @@ pub struct Placeholder {
 
 #[derive(Clone, Debug)]
 pub struct Anchor {
-    pub(crate) description: Box<Inline>,
+    pub(crate) description: Box<Line>,
     pub(crate) reference: String,
 }
 
@@ -266,7 +266,7 @@ impl Document {
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
                 if !sec.get_hide_in_toc() {
-                    let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
+                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, true);
                     item.children.append(&mut sec.get_toc_list().items);
                     list.add_item(item);
                 }
@@ -322,7 +322,7 @@ impl Section {
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
                 if !sec.get_hide_in_toc() {
-                    let mut item = ListItem::new(Inline::Anchor(sec.header.get_anchor()), 1, true);
+                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, true);
                     item.children.append(&mut sec.get_toc_list().items);
                     list.add_item(item);
                 }
@@ -342,7 +342,7 @@ impl Section {
 }
 
 impl Header {
-    pub fn new(content: Inline, anchor: String) -> Self {
+    pub fn new(content: Line, anchor: String) -> Self {
         Self {
             size: 0,
             anchor,
@@ -365,7 +365,7 @@ impl Paragraph {
         }
     }
 
-    pub fn add_element(&mut self, element: Inline) {
+    pub fn add_element(&mut self, element: Line) {
         self.elements.push(element)
     }
 }
@@ -384,7 +384,7 @@ impl List {
 }
 
 impl ListItem {
-    pub fn new(text: Inline, level: u16, ordered: bool) -> Self {
+    pub fn new(text: Line, level: u16, ordered: bool) -> Self {
         Self {
             text,
             level,
@@ -398,14 +398,14 @@ impl ListItem {
     }
 }
 
-impl Text {
+impl TextLine {
     pub fn new() -> Self {
         Self {
             subtext: Vec::new(),
         }
     }
 
-    pub fn add_subtext(&mut self, subtext: SubText) {
+    pub fn add_subtext(&mut self, subtext: Inline) {
         self.subtext.push(subtext)
     }
 }
@@ -447,7 +447,7 @@ impl Quote {
         }
     }
 
-    pub fn add_text(&mut self, text: Text) {
+    pub fn add_text(&mut self, text: TextLine) {
         self.text.push(text)
     }
 }

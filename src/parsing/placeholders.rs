@@ -8,15 +8,15 @@ macro_rules! block {
 }
 
 #[allow(unused)]
-macro_rules! inline {
+macro_rules! line {
     ($inner:expr) => {
-        Element::Inline(Box::new($inner))
+        Element::Line(Box::new($inner))
     };
 }
 
-macro_rules! subtext {
+macro_rules! inline {
     ($inner:expr) => {
-        Element::SubText(Box::new($inner))
+        Element::Inline(Box::new($inner))
     };
 }
 
@@ -36,13 +36,13 @@ impl ProcessPlaceholders for Document {
             let mut pholder = p.lock().unwrap();
             match pholder.name.to_ascii_lowercase().as_str() {
                 P_TOC => pholder.set_value(block!(Block::List(self.create_toc()))),
-                P_DATE => pholder.set_value(subtext!(SubText::Plain(PlainText {
+                P_DATE => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: get_date_string()
                 }))),
-                P_TIME => pholder.set_value(subtext!(SubText::Plain(PlainText {
+                P_TIME => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: get_time_string()
                 }))),
-                P_DATETIME => pholder.set_value(subtext!(SubText::Plain(PlainText {
+                P_DATETIME => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: format!("{} {}", get_date_string(), get_time_string())
                 }))),
                 _ => {}

@@ -42,6 +42,12 @@ pub(crate) const IMPORT_CLOSE: char = L_BRACKET;
 pub(crate) const PHOLDER_OPEN: char = R_BRACKET;
 pub(crate) const PHOLDER_CLOSE: char = L_BRACKET;
 
+pub(crate) const ITALIC: char = ASTERISK;
+pub(crate) const MONOSPACE: char = BACKTICK;
+pub(crate) const STRIKED: char = TILDE;
+pub(crate) const UNDERLINED: char = UNDERSCR;
+pub(crate) const BOLD: [char; 2] = [ASTERISK, ASTERISK];
+
 // groups
 
 pub(crate) const QUOTES: [char; 2] = [SINGLE_QUOTE, DOUBLE_QUOTE];
@@ -57,8 +63,9 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 8] = [
     &[IMPORT_START, IMPORT_OPEN],
 ];
 
-pub(crate) const INLINE_SPECIAL_CHARS: [char; 5] = [LB, ASTERISK, UNDERSCR, TILDE, BACKTICK];
-pub(crate) const INLINE_SPECIAL_CHARS_SECOND: [char; 3] = [DESC_OPEN, IMG_START, URL_OPEN];
+pub(crate) const INLINE_SPECIAL_CHARS: [char; 8] = [
+    BACKTICK, TILDE, UNDERSCR, ASTERISK, DESC_OPEN, IMG_START, URL_OPEN, LB,
+];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [
     MINUS, PLUS, ASTERISK, O, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',

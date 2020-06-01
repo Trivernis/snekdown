@@ -2,6 +2,7 @@ use super::elements::*;
 use super::tokens::*;
 use crate::parsing::charstate::CharStateMachine;
 use crate::parsing::placeholders::ProcessPlaceholders;
+use crate::parsing::subtext::ParseInline;
 use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
 use std::error::Error;
@@ -100,7 +101,7 @@ pub struct Parser {
     paths: Arc<Mutex<Vec<String>>>,
     wg: WaitGroup,
     is_child: bool,
-    subtext_break_at: Vec<char>,
+    pub(crate) inline_break_at: Vec<char>,
     document: Document,
 }
 
@@ -147,7 +148,7 @@ impl Parser {
             paths,
             wg: WaitGroup::new(),
             is_child,
-            subtext_break_at: Vec::new(),
+            inline_break_at: Vec::new(),
             document: Document::new(!is_child),
         }
     }
@@ -352,7 +353,7 @@ impl Parser {
     /// parses the header of a section
     fn parse_header(&mut self) -> Result<Header, ParseError> {
         let start_index = self.index;
-        let line = self.parse_inline()?;
+        let line = self.parse_line()?;
         let mut anchor = String::new();
         self.text[start_index..self.index]
             .iter()
@@ -399,7 +400,7 @@ impl Parser {
             && self.next_char() != None
             && (self.check_seek_inline_whitespace() || self.check_special(&LB))
         {
-            if let Ok(text) = self.parse_text() {
+            if let Ok(text) = self.parse_text_line() {
                 if text.subtext.len() > 0 {
                     quote.add_text(text);
                 }
@@ -415,7 +416,7 @@ impl Parser {
     }
 
     /// Parses metadata
-    fn parse_inline_metadata(&mut self) -> Result<InlineMetadata, ParseError> {
+    pub(crate) fn parse_inline_metadata(&mut self) -> Result<InlineMetadata, ParseError> {
         let start_index = self.index;
         self.assert_special(&META_OPEN, start_index)?;
         self.skip_char();
@@ -523,7 +524,7 @@ impl Parser {
     fn parse_paragraph(&mut self) -> Result<Paragraph, ParseError> {
         self.seek_whitespace();
         let mut paragraph = Paragraph::new();
-        while let Ok(token) = self.parse_inline() {
+        while let Ok(token) = self.parse_line() {
             paragraph.add_element(token);
             let start_index = self.index;
             if self.check_special_sequence_group(&BLOCK_SPECIAL_CHARS) {
@@ -623,7 +624,7 @@ impl Parser {
             return Err(self.revert_with_error(start_index));
         }
 
-        let item = ListItem::new(self.parse_inline()?, level as u16, ordered);
+        let item = ListItem::new(self.parse_line()?, level as u16, ordered);
 
         Ok(item)
     }
@@ -663,11 +664,11 @@ impl Parser {
         self.seek_inline_whitespace();
         self.assert_special(&PIPE, start_index)?;
         self.skip_char();
-        self.subtext_break_at.push(PIPE);
+        self.inline_break_at.push(PIPE);
 
         self.seek_inline_whitespace();
         let mut row = Row::new();
-        while let Ok(element) = self.parse_inline() {
+        while let Ok(element) = self.parse_line() {
             row.add_cell(Cell { text: element });
             if self.check_special(&PIPE) {
                 if self.next_char() == None {
@@ -679,7 +680,7 @@ impl Parser {
             }
             self.seek_inline_whitespace();
         }
-        self.subtext_break_at.clear();
+        self.inline_break_at.clear();
 
         if row.cells.len() > 0 {
             Ok(row)
@@ -689,21 +690,21 @@ impl Parser {
     }
 
     /// parses inline definitions
-    fn parse_inline(&mut self) -> Result<Inline, ParseError> {
+    fn parse_line(&mut self) -> Result<Line, ParseError> {
         if self.index > self.text.len() {
             Err(ParseError::new(self.index))
         } else {
             if let Ok(ruler) = self.parse_ruler() {
-                return Ok(Inline::Ruler(ruler));
-            } else if let Ok(text) = self.parse_text() {
-                return Ok(Inline::Text(text));
+                return Ok(Line::Ruler(ruler));
+            } else if let Ok(text) = self.parse_text_line() {
+                return Ok(Line::Text(text));
             }
             return Err(ParseError::new(self.index));
         }
     }
 
     /// parses a placeholder element
-    fn parse_placeholder(&mut self) -> Result<Arc<Mutex<Placeholder>>, ParseError> {
+    pub(crate) fn parse_placeholder(&mut self) -> Result<Arc<Mutex<Placeholder>>, ParseError> {
         let start_index = self.index;
         self.assert_special_sequence(&SQ_PHOLDER_START, self.index)?;
         self.skip_char();
@@ -731,9 +732,9 @@ impl Parser {
     }
 
     /// Parses a line of text
-    fn parse_text(&mut self) -> Result<Text, ParseError> {
-        let mut text = Text::new();
-        while let Ok(subtext) = self.parse_subtext() {
+    fn parse_text_line(&mut self) -> Result<TextLine, ParseError> {
+        let mut text = TextLine::new();
+        while let Ok(subtext) = self.parse_inline() {
             text.add_subtext(subtext);
             let current_index = self.index;
             if self.next_char() == None {
@@ -747,159 +748,5 @@ impl Parser {
         }
 
         Ok(text)
-    }
-
-    /// parses subtext, the formatting parts of a line (Text)
-    fn parse_subtext(&mut self) -> Result<SubText, ParseError> {
-        if self.check_linebreak() {
-            return Err(ParseError::new(self.index));
-        }
-        if let Ok(image) = self.parse_image() {
-            return Ok(SubText::Image(image));
-        }
-        if let Ok(url) = self.parse_url(false) {
-            return Ok(SubText::Url(url));
-        }
-        if let Ok(pholder) = self.parse_placeholder() {
-            return Ok(SubText::Placeholder(pholder));
-        }
-        match self.current_char {
-            ASTERISK if !self.check_escaped() => {
-                parse_option!(self.next_char(), self.index);
-
-                if self.check_special(&ASTERISK) {
-                    parse_option!(self.next_char(), self.index);
-                    let subtext = self.parse_subtext()?;
-                    if self.check_special(&ASTERISK) {
-                        self.skip_char();
-                        if self.check_special(&ASTERISK) {
-                            self.skip_char();
-                        }
-                    }
-                    Ok(SubText::Bold(BoldText {
-                        value: Box::new(subtext),
-                    }))
-                } else {
-                    let subtext = self.parse_subtext()?;
-                    if self.check_special(&ASTERISK) {
-                        self.skip_char();
-                    }
-                    Ok(SubText::Italic(ItalicText {
-                        value: Box::new(subtext),
-                    }))
-                }
-            }
-            UNDERSCR if !self.check_escaped() => {
-                parse_option!(self.next_char(), self.index);
-                let subtext = self.parse_subtext()?;
-                parse_option!(self.next_char(), self.index);
-                Ok(SubText::Underlined(UnderlinedText {
-                    value: Box::new(subtext),
-                }))
-            }
-            TILDE if !self.check_escaped() => {
-                parse_option!(self.next_char(), self.index);
-                let subtext = self.parse_subtext()?;
-                if self.check_special(&TILDE) {
-                    parse_option!(self.next_char(), self.index);
-                }
-                Ok(SubText::Striked(StrikedText {
-                    value: Box::new(subtext),
-                }))
-            }
-            BACKTICK if !self.check_escaped() => {
-                parse_option!(self.next_char(), self.index);
-                let content = self.get_string_until(&[BACKTICK, LB], &[])?;
-                if self.check_special(&BACKTICK) {
-                    parse_option!(self.next_char(), self.index)
-                }
-                Ok(SubText::Monospace(MonospaceText { value: content }))
-            }
-            PIPE if !self.check_escaped() => Err(ParseError::new(self.index)), // handling of table cells
-            _ => Ok(SubText::Plain(self.parse_plain_text()?)),
-        }
-    }
-
-    /// parses an image url
-    fn parse_image(&mut self) -> Result<Image, ParseError> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        self.assert_special(&IMG_START, start_index)?;
-        self.skip_char();
-
-        if let Ok(url) = self.parse_url(true) {
-            let metadata = if let Ok(meta) = self.parse_inline_metadata() {
-                Some(meta)
-            } else {
-                None
-            };
-            Ok(Image { url, metadata })
-        } else {
-            Err(self.revert_with_error(start_index))
-        }
-    }
-
-    // parses an url
-    fn parse_url(&mut self, short_syntax: bool) -> Result<Url, ParseError> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-
-        let mut description = String::new();
-        if self.check_special(&DESC_OPEN) {
-            self.skip_char();
-            description = if let Ok(desc) = self.get_string_until(&[DESC_CLOSE], &[LB]) {
-                desc
-            } else {
-                return Err(self.revert_with_error(start_index));
-            };
-        } else if !short_syntax {
-            return Err(self.revert_with_error(start_index));
-        }
-        self.skip_char();
-        self.assert_special(&URL_OPEN, start_index)?;
-        self.skip_char();
-        self.seek_inline_whitespace();
-
-        let url = if let Ok(url_str) = self.get_string_until(&[URL_CLOSE], &[LB]) {
-            url_str
-        } else {
-            return Err(self.revert_with_error(start_index));
-        };
-        self.skip_char();
-
-        if description.is_empty() {
-            Ok(Url::new(None, url))
-        } else {
-            Ok(Url::new(Some(description), url))
-        }
-    }
-
-    /// parses plain text as a string until it encounters an unescaped special inline char
-    fn parse_plain_text(&mut self) -> Result<PlainText, ParseError> {
-        let mut current_char = self.current_char;
-        let mut characters = String::new();
-        let mut count = 0;
-        loop {
-            if self.check_special_group(&INLINE_SPECIAL_CHARS)
-                || (count > 0 && self.check_special_group(&INLINE_SPECIAL_CHARS_SECOND))
-                || (count > 0 && self.check_special_group(&self.subtext_break_at))
-            {
-                break;
-            } else if !self.check_special(&SPECIAL_ESCAPE) {
-                characters.push(current_char)
-            }
-            if let Some(character) = self.next_char() {
-                current_char = character;
-            } else {
-                break;
-            }
-            count += 1;
-        }
-
-        if characters.len() > 0 {
-            Ok(PlainText { value: characters })
-        } else {
-            Err(ParseError::new(self.index))
-        }
     }
 }

@@ -25,7 +25,17 @@ impl ToHtml for Element {
         match self {
             Element::Block(block) => block.to_html(),
             Element::Inline(inline) => inline.to_html(),
-            Element::SubText(sub) => sub.to_html(),
+            Element::Line(line) => line.to_html(),
+        }
+    }
+}
+
+impl ToHtml for Line {
+    fn to_html(&self) -> String {
+        match self {
+            Line::Text(text) => text.to_html(),
+            Line::Ruler(ruler) => ruler.to_html(),
+            Line::Anchor(anchor) => anchor.to_html(),
         }
     }
 }
@@ -33,25 +43,15 @@ impl ToHtml for Element {
 impl ToHtml for Inline {
     fn to_html(&self) -> String {
         match self {
-            Inline::Text(text) => text.to_html(),
-            Inline::Ruler(ruler) => ruler.to_html(),
-            Inline::Anchor(anchor) => anchor.to_html(),
-        }
-    }
-}
-
-impl ToHtml for SubText {
-    fn to_html(&self) -> String {
-        match self {
-            SubText::Url(url) => url.to_html(),
-            SubText::Monospace(mono) => mono.to_html(),
-            SubText::Striked(striked) => striked.to_html(),
-            SubText::Plain(plain) => plain.to_html(),
-            SubText::Italic(italic) => italic.to_html(),
-            SubText::Underlined(under) => under.to_html(),
-            SubText::Bold(bold) => bold.to_html(),
-            SubText::Image(img) => img.to_html(),
-            SubText::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
+            Inline::Url(url) => url.to_html(),
+            Inline::Monospace(mono) => mono.to_html(),
+            Inline::Striked(striked) => striked.to_html(),
+            Inline::Plain(plain) => plain.to_html(),
+            Inline::Italic(italic) => italic.to_html(),
+            Inline::Underlined(under) => under.to_html(),
+            Inline::Bold(bold) => bold.to_html(),
+            Inline::Image(img) => img.to_html(),
+            Inline::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
         }
     }
 }
@@ -277,7 +277,7 @@ impl ToHtml for Ruler {
     }
 }
 
-impl ToHtml for Text {
+impl ToHtml for TextLine {
     fn to_html(&self) -> String {
         self.subtext
             .iter()

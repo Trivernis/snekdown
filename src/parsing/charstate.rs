@@ -281,6 +281,7 @@ impl CharStateMachine for Parser {
         }
     }
 
+    /// seeks until it encounters a linebreak character
     fn seek_until_linebreak(&mut self) {
         if self.check_special(&LB) {
             self.skip_char();
