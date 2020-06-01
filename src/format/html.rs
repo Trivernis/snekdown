@@ -37,6 +37,7 @@ impl ToHtml for Line {
             Line::Ruler(ruler) => ruler.to_html(),
             Line::Anchor(anchor) => anchor.to_html(),
             Line::Centered(centered) => centered.to_html(),
+            Line::ReferenceEntry(ref_entry) => ref_entry.to_html(),
         }
     }
 }
@@ -53,6 +54,7 @@ impl ToHtml for Inline {
             Inline::Bold(bold) => bold.to_html(),
             Inline::Image(img) => img.to_html(),
             Inline::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
+            Inline::Reference(reference) => reference.to_html(),
         }
     }
 }
@@ -419,5 +421,33 @@ impl ToHtml for InlineMetadata {
 impl ToHtml for Centered {
     fn to_html(&self) -> String {
         format!("<div class='centered'>{}</div>", self.line.to_html())
+    }
+}
+
+impl ToHtml for Reference {
+    fn to_html(&self) -> String {
+        if let Some(value) = &self.value {
+            value.to_html()
+        } else {
+            "Unknown reference".to_string()
+        }
+    }
+}
+
+impl ToHtml for RefValue {
+    fn to_html(&self) -> String {
+        match self {
+            RefValue::BibEntry(bib) => encode_minimal(bib.lock().unwrap().get_formatted().as_str()),
+        }
+    }
+}
+
+impl ToHtml for ReferenceEntry {
+    fn to_html(&self) -> String {
+        if let Some(val) = &self.value {
+            val.to_html()
+        } else {
+            "Unknown reference".to_string()
+        }
     }
 }
