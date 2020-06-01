@@ -35,7 +35,14 @@ impl ProcessPlaceholders for Document {
         self.placeholders.iter().for_each(|p| {
             let mut pholder = p.lock().unwrap();
             match pholder.name.to_ascii_lowercase().as_str() {
-                P_TOC => pholder.set_value(block!(Block::List(self.create_toc()))),
+                P_TOC => {
+                    let ordered = if let Some(meta) = &pholder.metadata {
+                        meta.get_bool("ordered")
+                    } else {
+                        false
+                    };
+                    pholder.set_value(block!(Block::List(self.create_toc(ordered))))
+                }
                 P_DATE => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: get_date_string()
                 }))),
@@ -53,7 +60,7 @@ impl ProcessPlaceholders for Document {
 
 fn get_time_string() -> String {
     let now = Local::now();
-    format!("{:02}:{:02}:{02}", now.hour(), now.minute(), now.second())
+    format!("{:02}:{:02}:{:02}", now.hour(), now.minute(), now.second())
 }
 
 fn get_date_string() -> String {

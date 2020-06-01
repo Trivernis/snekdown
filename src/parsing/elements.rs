@@ -211,6 +211,7 @@ pub struct Image {
 pub struct Placeholder {
     pub(crate) name: String,
     pub(crate) value: Option<Element>,
+    pub(crate) metadata: Option<InlineMetadata>,
 }
 
 #[derive(Clone, Debug)]
@@ -260,21 +261,21 @@ impl Document {
         found
     }
 
-    pub fn create_toc(&self) -> List {
+    pub fn create_toc(&self, ordered: bool) -> List {
         let mut list = List::new();
-        list.ordered = true;
+        list.ordered = ordered;
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
                 if !sec.get_hide_in_toc() {
-                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, true);
-                    item.children.append(&mut sec.get_toc_list().items);
+                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, ordered);
+                    item.children.append(&mut sec.get_toc_list(ordered).items);
                     list.add_item(item);
                 }
             }
             Block::Import(imp) => {
                 let anchor = imp.anchor.lock().unwrap();
                 if let Some(doc) = &anchor.document {
-                    list.items.append(&mut doc.create_toc().items)
+                    list.items.append(&mut doc.create_toc(ordered).items)
                 }
             }
             _ => {}
@@ -317,13 +318,13 @@ impl Section {
         found
     }
 
-    pub fn get_toc_list(&self) -> List {
+    pub fn get_toc_list(&self, ordered: bool) -> List {
         let mut list = List::new();
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
                 if !sec.get_hide_in_toc() {
-                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, true);
-                    item.children.append(&mut sec.get_toc_list().items);
+                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, ordered);
+                    item.children.append(&mut sec.get_toc_list(ordered).items);
                     list.add_item(item);
                 }
             }
@@ -469,8 +470,12 @@ impl PartialEq for Import {
 }
 
 impl Placeholder {
-    pub fn new(name: String) -> Self {
-        Self { name, value: None }
+    pub fn new(name: String, metadata: Option<InlineMetadata>) -> Self {
+        Self {
+            name,
+            value: None,
+            metadata,
+        }
     }
 
     pub fn set_value(&mut self, value: Element) {

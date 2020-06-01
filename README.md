@@ -79,6 +79,21 @@ Header with rows
 | row    | row    | row
 ```
 
+### Placeholders
+
+Placeholders can be used to insert special elements in a specific place.
+
+```md
+Insert the table of contents
+[[TOC]]
+
+Insert the current date
+[[date]]
+
+Insert the current time
+[[time]]
+```
+
 ### Metadata
 
 Additional metadata can be provided for some elements.
@@ -120,4 +135,7 @@ Set the size of an image
 
 Set the source of a quote
 [author=Me date=[[date]] display="author - date"]> It's me
+
+Set options for placeholders
+[[toc]][ordered]
 ```

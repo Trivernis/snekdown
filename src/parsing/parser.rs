@@ -106,8 +106,6 @@ pub struct Parser {
 }
 
 impl Parser {
-    /// TODO fn get_until(until: &[char], err_when: &[]) -> String
-
     pub fn new_from_file(path: String) -> Result<Self, io::Error> {
         let content = read_to_string(path.clone())?;
         Ok(Self::new(content, Some(path)))
@@ -716,7 +714,13 @@ impl Parser {
         };
         self.skip_char();
 
-        let placeholder = Arc::new(Mutex::new(Placeholder::new(name)));
+        let metadata = if let Ok(meta) = self.parse_inline_metadata() {
+            Some(meta)
+        } else {
+            None
+        };
+
+        let placeholder = Arc::new(Mutex::new(Placeholder::new(name, metadata)));
         self.document.add_placeholder(Arc::clone(&placeholder));
 
         Ok(placeholder)
