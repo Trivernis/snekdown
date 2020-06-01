@@ -39,7 +39,7 @@ const B_NOTES: &str = "notes";
 
 #[derive(Clone, Debug)]
 pub struct BibEntry {
-    key: String,
+    pub(crate) key: String,
     author: Option<String>,
     date: Option<String>,
     url: Option<String>,
@@ -50,30 +50,38 @@ pub struct BibEntry {
 }
 
 impl BibEntry {
+    pub fn get_template(&self) -> Template {
+        let mut template = Template::empty();
+        template.add_replacement("key", &self.key);
+
+        if let Some(author) = &self.author {
+            template.add_replacement(B_AUTHOR, author.as_str());
+        }
+        if let Some(date) = &self.date {
+            template.add_replacement(B_DATE, date.as_str());
+        }
+        if let Some(url) = &self.url {
+            template.add_replacement(B_URL, url.as_str());
+        }
+        if let Some(title) = &self.title {
+            template.add_replacement(B_TITLE, title.as_str());
+        }
+        if let Some(publisher) = &self.publisher {
+            template.add_replacement(B_PUBLISHER, publisher.as_str());
+        }
+        if let Some(notes) = &self.notes {
+            template.add_replacement(B_NOTES, notes.as_str());
+        }
+
+        template
+    }
+
     pub fn get_formatted(&self) -> String {
         if let Some(display) = &self.display {
             let value = display.lock().unwrap();
             if let MetadataValue::String(format) = &value.value {
-                let mut template = Template::new(format.clone());
-
-                if let Some(author) = &self.author {
-                    template.add_replacement(B_AUTHOR, author.as_str());
-                }
-                if let Some(date) = &self.date {
-                    template.add_replacement(B_DATE, date.as_str());
-                }
-                if let Some(url) = &self.url {
-                    template.add_replacement(B_URL, url.as_str());
-                }
-                if let Some(title) = &self.title {
-                    template.add_replacement(B_TITLE, title.as_str());
-                }
-                if let Some(publisher) = &self.publisher {
-                    template.add_replacement(B_PUBLISHER, publisher.as_str());
-                }
-                if let Some(notes) = &self.notes {
-                    template.add_replacement(B_NOTES, notes.as_str());
-                }
+                let mut template = self.get_template();
+                template.set_value(format.clone());
 
                 template.render()
             } else {
@@ -104,12 +112,14 @@ impl ProcessPlaceholders for Document {
                     if let Some(entry) = self.bib_entries.get(key.as_str()) {
                         pholder.value = Some(inline!(Inline::Reference(Reference {
                             value: Some(RefValue::BibEntry(entry.clone())),
-                            metadata: pholder.metadata.clone()
+                            metadata: pholder.metadata.clone(),
+                            display: self.get_config_param("ref-display")
                         })))
                     } else {
                         pholder.value = Some(inline!(Inline::Reference(Reference {
                             value: None,
-                            metadata: pholder.metadata.clone()
+                            metadata: pholder.metadata.clone(),
+                            display: self.get_config_param("ref-display")
                         })))
                     }
                 }

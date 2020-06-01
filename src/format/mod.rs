@@ -9,11 +9,19 @@ pub struct Template {
 }
 
 impl Template {
+    pub fn empty() -> Self {
+        Self::new(String::new())
+    }
+
     pub fn new(value: String) -> Self {
         Self {
             value,
             replacements: HashMap::new(),
         }
+    }
+
+    pub fn set_value(&mut self, value: String) {
+        self.value = value;
     }
 
     pub fn add_replacement(&mut self, name: &str, val: &str) {
@@ -24,7 +32,7 @@ impl Template {
         self.replacements = replacements;
     }
 
-    pub fn render(&mut self) -> String {
+    pub fn render(&self) -> String {
         lazy_static::lazy_static! { static ref RE_REP: Regex = Regex::new(r"\{\{([^}]*)}}").unwrap(); }
         let mut ret_string = self.value.clone();
         RE_REP.find_iter(&self.value).for_each(|m| {

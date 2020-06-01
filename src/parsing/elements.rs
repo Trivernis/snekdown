@@ -235,6 +235,7 @@ pub struct Centered {
 pub struct Reference {
     pub(crate) value: Option<RefValue>,
     pub(crate) metadata: Option<InlineMetadata>,
+    pub(crate) display: Option<Arc<Mutex<ConfigValue>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -266,7 +267,15 @@ impl Document {
         config.insert(
             "bib-display".to_string(),
             Arc::new(Mutex::new(ConfigValue {
-                value: MetadataValue::String("title - author - year - (notes)".to_string()),
+                value: MetadataValue::String(
+                    "{{title}} - {{author}} - {{date}} - {{url}} - ({{notes}})".to_string(),
+                ),
+            })),
+        );
+        config.insert(
+            "ref-display".to_string(),
+            Arc::new(Mutex::new(ConfigValue {
+                value: MetadataValue::String("[{{key}}]".to_string()),
             })),
         );
 
@@ -572,6 +581,20 @@ impl InlineMetadata {
             Some(value.clone())
         } else {
             None
+        }
+    }
+}
+
+impl RefValue {
+    pub fn get_ref_id(&self) -> String {
+        match self {
+            RefValue::BibEntry(bib) => {
+                let bib = bib.lock().unwrap();
+                let mut key = bib.key.clone();
+                key.retain(|c| !c.is_whitespace());
+
+                key
+            }
         }
     }
 }

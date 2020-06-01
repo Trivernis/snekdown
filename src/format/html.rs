@@ -428,7 +428,20 @@ impl ToHtml for Centered {
 impl ToHtml for Reference {
     fn to_html(&self) -> String {
         if let Some(value) = &self.value {
-            value.to_html()
+            let ref_id = value.get_ref_id();
+            if let Some(display) = &self.display {
+                match value {
+                    RefValue::BibEntry(bib) => {
+                        let bib = bib.lock().unwrap();
+                        let mut template = bib.get_template();
+                        template.set_value(display.lock().unwrap().value.to_html());
+
+                        format!("<a href='#{}'>{}</a>", ref_id, template.render())
+                    }
+                }
+            } else {
+                format!("<a href='#{}'>{}</a>", ref_id, value.to_html())
+            }
         } else {
             "Unknown reference".to_string()
         }
@@ -446,7 +459,11 @@ impl ToHtml for RefValue {
 impl ToHtml for ReferenceEntry {
     fn to_html(&self) -> String {
         if let Some(val) = &self.value {
-            val.to_html()
+            format!(
+                "<div id='{}'>{}</div>",
+                encode_attribute(val.get_ref_id().as_str()),
+                val.to_html()
+            )
         } else {
             "Unknown reference".to_string()
         }
