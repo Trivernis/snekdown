@@ -117,3 +117,7 @@ blockquote {
     color: #444;
     font-style: italic;
 }
+
+.centered {
+    text-align: center;
+}

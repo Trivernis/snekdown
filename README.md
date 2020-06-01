@@ -82,6 +82,7 @@ Header with rows
 ### Placeholders
 
 Placeholders can be used to insert special elements in a specific place.
+Placeholders are always case insensitive.
 
 ```md
 Insert the table of contents
@@ -138,4 +139,11 @@ Set the source of a quote
 
 Set options for placeholders
 [[toc]][ordered]
+```
+
+### Centered Text
+
+```
+|| These two lines
+|| are centered
 ```

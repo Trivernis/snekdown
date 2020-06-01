@@ -57,6 +57,7 @@ pub enum Line {
     Text(TextLine),
     Ruler(Ruler),
     Anchor(Anchor),
+    Centered(Centered),
 }
 
 #[derive(Clone, Debug)]
@@ -218,6 +219,11 @@ pub struct Placeholder {
 pub struct Anchor {
     pub(crate) description: Box<Line>,
     pub(crate) reference: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Centered {
+    pub(crate) line: TextLine,
 }
 
 // implementations

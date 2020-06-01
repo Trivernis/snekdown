@@ -52,15 +52,16 @@ pub(crate) const BOLD: [char; 2] = [ASTERISK, ASTERISK];
 
 pub(crate) const QUOTES: [char; 2] = [SINGLE_QUOTE, DOUBLE_QUOTE];
 
-pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 8] = [
+pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 9] = [
     &[HASH],
     &[HASH, META_OPEN],
     &[MINUS, SPACE],
-    &[BACKTICK, BACKTICK, BACKTICK],
+    &SQ_CODE_BLOCK,
     &[PIPE],
     &[QUOTE_START],
     &[META_OPEN],
     &[IMPORT_START, IMPORT_OPEN],
+    &SQ_CENTERED_START,
 ];
 
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 8] = [
@@ -77,6 +78,7 @@ pub(crate) const SQ_CODE_BLOCK: [char; 3] = [BACKTICK, BACKTICK, BACKTICK];
 pub(crate) const SQ_RULER: [char; 5] = [MINUS, SPACE, MINUS, SPACE, MINUS];
 pub(crate) const SQ_PHOLDER_START: [char; 2] = [PHOLDER_OPEN, PHOLDER_OPEN];
 pub(crate) const SQ_PHOLDER_STOP: [char; 2] = [PHOLDER_CLOSE, PHOLDER_CLOSE];
+pub(crate) const SQ_CENTERED_START: [char; 2] = [PIPE, PIPE];
 
 // expressions
 

@@ -36,6 +36,7 @@ impl ToHtml for Line {
             Line::Text(text) => text.to_html(),
             Line::Ruler(ruler) => ruler.to_html(),
             Line::Anchor(anchor) => anchor.to_html(),
+            Line::Centered(centered) => centered.to_html(),
         }
     }
 }
@@ -147,7 +148,7 @@ impl ToHtml for Paragraph {
             .elements
             .iter()
             .fold("".to_string(), |a, b| combine_with_lb!(a, b));
-        format!("<p>{}</p>", inner)
+        format!("<div class='paragraph'>{}</div>", inner)
     }
 }
 
@@ -412,5 +413,11 @@ impl ToHtml for InlineMetadata {
                 format!("{} {}={},", s, k, v.to_html())
             })
         }
+    }
+}
+
+impl ToHtml for Centered {
+    fn to_html(&self) -> String {
+        format!("<div class='centered'>{}</div>", self.line.to_html())
     }
 }

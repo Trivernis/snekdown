@@ -650,7 +650,6 @@ impl Parser {
         self.seek_whitespace();
         while let Ok(row) = self.parse_row() {
             table.add_row(row);
-            self.seek_whitespace();
         }
 
         Ok(table)
@@ -662,16 +661,26 @@ impl Parser {
         self.seek_inline_whitespace();
         self.assert_special(&PIPE, start_index)?;
         self.skip_char();
+        if self.check_special(&PIPE) {
+            return Err(self.revert_with_error(start_index));
+        }
         self.inline_break_at.push(PIPE);
 
         self.seek_inline_whitespace();
         let mut row = Row::new();
-        while let Ok(element) = self.parse_line() {
-            row.add_cell(Cell { text: element });
-            if self.check_special(&PIPE) {
-                if self.next_char() == None {
+        loop {
+            let mut element = TextLine::new();
+            while let Ok(inline) = self.parse_inline() {
+                element.subtext.push(inline);
+                if self.check_linebreak() || self.check_special(&PIPE) {
                     break;
                 }
+            }
+            row.add_cell(Cell {
+                text: Line::Text(element),
+            });
+            if self.check_special(&PIPE) {
+                self.skip_char();
             }
             if self.check_linebreak() {
                 break;
@@ -679,6 +688,12 @@ impl Parser {
             self.seek_inline_whitespace();
         }
         self.inline_break_at.clear();
+        if self.check_special(&PIPE) {
+            self.skip_char();
+            self.skip_char();
+        } else {
+            self.skip_char();
+        }
 
         if row.cells.len() > 0 {
             Ok(row)
@@ -693,12 +708,25 @@ impl Parser {
             Err(ParseError::new(self.index))
         } else {
             if let Ok(ruler) = self.parse_ruler() {
-                return Ok(Line::Ruler(ruler));
+                Ok(Line::Ruler(ruler))
+            } else if let Ok(centered) = self.parse_centered() {
+                Ok(Line::Centered(centered))
             } else if let Ok(text) = self.parse_text_line() {
-                return Ok(Line::Text(text));
+                Ok(Line::Text(text))
+            } else {
+                Err(ParseError::new(self.index))
             }
-            return Err(ParseError::new(self.index));
         }
+    }
+
+    /// parses centered text
+    fn parse_centered(&mut self) -> Result<Centered, ParseError> {
+        let start_index = self.index;
+        self.assert_special_sequence(&SQ_CENTERED_START, start_index)?;
+        self.skip_char();
+        let line = self.parse_text_line()?;
+
+        Ok(Centered { line })
     }
 
     /// parses a placeholder element
