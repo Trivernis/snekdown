@@ -1,4 +1,5 @@
 use super::elements::*;
+use crate::format::Template;
 use chrono::prelude::*;
 use regex::Regex;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -53,27 +54,28 @@ impl BibEntry {
         if let Some(display) = &self.display {
             let value = display.lock().unwrap();
             if let MetadataValue::String(format) = &value.value {
-                let mut format = format.clone();
+                let mut template = Template::new(format.clone());
+
                 if let Some(author) = &self.author {
-                    format = format.replace("author", author);
+                    template.add_replacement(B_AUTHOR, author.as_str());
                 }
                 if let Some(date) = &self.date {
-                    format = format.replace("date", date);
+                    template.add_replacement(B_DATE, date.as_str());
                 }
                 if let Some(url) = &self.url {
-                    format = format.replace("url", url)
+                    template.add_replacement(B_URL, url.as_str());
                 }
                 if let Some(title) = &self.title {
-                    format = format.replace("title", title);
+                    template.add_replacement(B_TITLE, title.as_str());
                 }
                 if let Some(publisher) = &self.publisher {
-                    format = format.replace("publisher", publisher);
+                    template.add_replacement(B_PUBLISHER, publisher.as_str());
                 }
                 if let Some(notes) = &self.notes {
-                    format = format.replace("notes", notes);
+                    template.add_replacement(B_NOTES, notes.as_str());
                 }
 
-                format
+                template.render()
             } else {
                 format!("'Invalid formatter!' {:?}", self)
             }

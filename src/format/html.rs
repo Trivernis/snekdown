@@ -1,3 +1,4 @@
+use crate::format::Template;
 use crate::parsing::elements::*;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
@@ -404,12 +405,12 @@ impl ToHtml for Anchor {
 impl ToHtml for InlineMetadata {
     fn to_html(&self) -> String {
         if let Some(MetadataValue::String(format)) = self.data.get("display") {
-            let mut format = format.clone();
+            let mut template = Template::new(format.clone());
             self.data
                 .iter()
-                .for_each(|(k, v)| format = format.replace(k, v.to_html().as_str()));
+                .for_each(|(k, v)| template.add_replacement(k, v.to_html().as_str()));
 
-            format
+            template.render()
         } else {
             self.data.iter().fold("".to_string(), |s, (k, v)| {
                 format!("{} {}={},", s, k, v.to_html())

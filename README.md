@@ -135,7 +135,7 @@ Set the size of an image
 !(url)[width = 42% height=auto]
 
 Set the source of a quote
-[author=Me date=[[date]] display="author - date"]> It's me
+[author=Me date=[[date]] display="{{author}} - {{date}}"]> It's me
 
 Set options for placeholders
 [[toc]][ordered]
