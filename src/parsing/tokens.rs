@@ -23,6 +23,7 @@ pub(crate) const SPACE: char = ' ';
 pub(crate) const EQ: char = '=';
 pub(crate) const DOUBLE_QUOTE: char = '"';
 pub(crate) const SINGLE_QUOTE: char = '\'';
+pub(crate) const DOT: char = '.';
 
 // aliases
 
@@ -59,7 +60,9 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 8] = [
 pub(crate) const INLINE_SPECIAL_CHARS: [char; 5] = [LB, ASTERISK, UNDERSCR, TILDE, BACKTICK];
 pub(crate) const INLINE_SPECIAL_CHARS_SECOND: [char; 3] = [DESC_OPEN, IMG_START, URL_OPEN];
 
-pub(crate) const LIST_SPECIAL_CHARS: [char; 4] = [MINUS, PLUS, ASTERISK, O];
+pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [
+    MINUS, PLUS, ASTERISK, O, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
+];
 
 // sequences
 
