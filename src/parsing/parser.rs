@@ -255,7 +255,9 @@ impl Parser {
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
         wg.wait();
-        self.document.process_placeholders();
+        if !self.is_child {
+            self.document.process_placeholders();
+        }
         let document = self.document.clone();
         self.document = Document::new(!self.is_child);
 
@@ -453,13 +455,14 @@ impl Parser {
                 value = MetadataValue::Placeholder(ph);
             } else {
                 let quoted_string = self.check_special_group(&QUOTES);
-                let parse_until: &[char] = if quoted_string {
+                let parse_until = if quoted_string {
+                    let quote_start = self.current_char;
                     self.skip_char();
-                    &[SINGLE_QUOTE, DOUBLE_QUOTE, META_CLOSE, LB]
+                    vec![quote_start, META_CLOSE, LB]
                 } else {
-                    &[META_CLOSE, LB, SPACE]
+                    vec![META_CLOSE, LB, SPACE]
                 };
-                let raw_value = self.get_string_until(parse_until, &[])?;
+                let raw_value = self.get_string_until(&parse_until, &[])?;
                 if self.check_special_group(&QUOTES) {
                     self.skip_char();
                 }
