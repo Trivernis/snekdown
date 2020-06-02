@@ -1,6 +1,7 @@
 body {
     background-color: #DDD;
     overflow-x: hidden;
+    color: #000;
 }
 
 .content {
@@ -41,6 +42,10 @@ img {
     max-width: 100%;
     max-height: 100vh;
     height: auto;
+}
+
+code {
+    color: #000;
 }
 
 code pre {
@@ -90,14 +95,16 @@ table tr td:first-child, table tr th:first-child {
 }
 
 blockquote {
-    margin-left: 0
+    margin-left: 0;
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .quote {
     border-left: 0.3em solid gray;
     border-radius: 0.2em;
     padding-left: 1em;
-    margin-left: 0
+    margin-left: 0;
+    background-color: #EEE;
 }
 
 .quote .metadata {
