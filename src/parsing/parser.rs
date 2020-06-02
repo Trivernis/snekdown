@@ -1,8 +1,8 @@
 use super::elements::*;
 use super::tokens::*;
 use crate::parsing::charstate::CharStateMachine;
+use crate::parsing::inline::ParseInline;
 use crate::parsing::placeholders::ProcessPlaceholders;
-use crate::parsing::subtext::ParseInline;
 use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
 use std::error::Error;

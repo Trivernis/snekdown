@@ -184,6 +184,7 @@ impl ProcessPlaceholders for Document {
                     pholder.value = Some(Element::Line(Box::new(Line::ReferenceEntry(
                         ReferenceEntry {
                             value: Some(RefValue::BibEntry(entry)),
+                            reference_count: 0,
                         },
                     ))));
                 }

@@ -24,6 +24,7 @@ pub(crate) const EQ: char = '=';
 pub(crate) const DOUBLE_QUOTE: char = '"';
 pub(crate) const SINGLE_QUOTE: char = '\'';
 pub(crate) const DOT: char = '.';
+pub(crate) const UP: char = '^';
 
 // aliases
 
@@ -46,6 +47,7 @@ pub(crate) const ITALIC: char = ASTERISK;
 pub(crate) const MONOSPACE: char = BACKTICK;
 pub(crate) const STRIKED: char = TILDE;
 pub(crate) const UNDERLINED: char = UNDERSCR;
+pub(crate) const SUPER: char = UP;
 pub(crate) const BOLD: [char; 2] = [ASTERISK, ASTERISK];
 
 // groups
@@ -64,8 +66,8 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 9] = [
     &SQ_CENTERED_START,
 ];
 
-pub(crate) const INLINE_SPECIAL_CHARS: [char; 8] = [
-    BACKTICK, TILDE, UNDERSCR, ASTERISK, DESC_OPEN, IMG_START, URL_OPEN, LB,
+pub(crate) const INLINE_SPECIAL_CHARS: [char; 9] = [
+    BACKTICK, TILDE, UNDERSCR, ASTERISK, DESC_OPEN, IMG_START, URL_OPEN, LB, SUPER,
 ];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [

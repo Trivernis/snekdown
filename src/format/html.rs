@@ -56,6 +56,7 @@ impl ToHtml for Inline {
             Inline::Image(img) => img.to_html(),
             Inline::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
             Inline::Reference(reference) => reference.to_html(),
+            Inline::Superscript(superscript) => superscript.to_html(),
         }
     }
 }
@@ -346,6 +347,12 @@ impl ToHtml for ItalicText {
 impl ToHtml for StrikedText {
     fn to_html(&self) -> String {
         format!("<del>{}</del>", self.value.to_html())
+    }
+}
+
+impl ToHtml for SuperscriptText {
+    fn to_html(&self) -> String {
+        format!("<sup>{}</sup>", self.value.to_html())
     }
 }
 

@@ -147,3 +147,30 @@ Set options for placeholders
 || These two lines
 || are centered
 ```
+
+### Inline
+
+```md
+*Italic*
+**Bold**
+~Striked~
+_Underlined_
+^Superscript^
+`Monospace`
+```
+
+## Roadmap
+
+The end goal is to have a markdown language similar to LaTeX.
+
+- [] Emojis (\:emoji:)
+- [] Bibliography
+- [] Math
+- [] Figures
+- [] Text sizes
+- [] Colors
+- [] Cross References
+- [] Title pages
+- [] Glossary
+- [] EPUB Rendering (PDF is too hard
+- [] Custom Elements via templates

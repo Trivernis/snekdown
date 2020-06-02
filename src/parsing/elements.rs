@@ -165,6 +165,7 @@ pub enum Inline {
     Underlined(UnderlinedText),
     Striked(StrikedText),
     Monospace(MonospaceText),
+    Superscript(SuperscriptText),
     Url(Url),
     Image(Image),
     Placeholder(Arc<Mutex<Placeholder>>),
@@ -199,6 +200,11 @@ pub struct StrikedText {
 #[derive(Clone, Debug)]
 pub struct MonospaceText {
     pub(crate) value: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct SuperscriptText {
+    pub(crate) value: Box<Inline>,
 }
 
 #[derive(Clone, Debug)]
@@ -241,6 +247,7 @@ pub struct Reference {
 #[derive(Clone, Debug)]
 pub struct ReferenceEntry {
     pub(crate) value: Option<RefValue>,
+    pub(crate) reference_count: usize,
 }
 
 #[derive(Clone, Debug)]

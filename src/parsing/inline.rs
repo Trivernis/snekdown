@@ -13,6 +13,7 @@ pub(crate) trait ParseInline {
     fn parse_striked(&mut self) -> Result<StrikedText, ParseError>;
     fn parse_monospace(&mut self) -> Result<MonospaceText, ParseError>;
     fn parse_underlined(&mut self) -> Result<UnderlinedText, ParseError>;
+    fn parse_superscript(&mut self) -> Result<SuperscriptText, ParseError>;
     fn parse_plain(&mut self) -> Result<PlainText, ParseError>;
     fn parse_surrounded(&mut self, surrounding: &char) -> Result<Inline, ParseError>;
 }
@@ -38,6 +39,8 @@ impl ParseInline for Parser {
             Ok(Inline::Monospace(mono))
         } else if let Ok(striked) = self.parse_striked() {
             Ok(Inline::Striked(striked))
+        } else if let Ok(superscript) = self.parse_superscript() {
+            Ok(Inline::Superscript(superscript))
         } else {
             Ok(Inline::Plain(self.parse_plain()?))
         }
@@ -138,6 +141,12 @@ impl ParseInline for Parser {
     fn parse_underlined(&mut self) -> Result<UnderlinedText, ParseError> {
         Ok(UnderlinedText {
             value: Box::new(self.parse_surrounded(&UNDERLINED)?),
+        })
+    }
+
+    fn parse_superscript(&mut self) -> Result<SuperscriptText, ParseError> {
+        Ok(SuperscriptText {
+            value: Box::new(self.parse_surrounded(&SUPER)?),
         })
     }
 
