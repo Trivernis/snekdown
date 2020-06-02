@@ -29,15 +29,6 @@ fn main() {
         );
         return;
     }
-    if !opt.output.exists() {
-        println!(
-            "{} The output file {} could not be found{}",
-            Fg(Red),
-            opt.output.to_str().unwrap(),
-            style::Reset
-        );
-        return;
-    }
     let start = Instant::now();
     let mut parser = Parser::new_from_file(opt.input.to_str().unwrap().to_string()).unwrap();
     let document = parser.parse();
