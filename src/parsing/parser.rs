@@ -103,6 +103,7 @@ pub struct Parser {
     is_child: bool,
     pub(crate) inline_break_at: Vec<char>,
     document: Document,
+    pub(crate) previous_char: char,
 }
 
 impl Parser {
@@ -126,7 +127,7 @@ impl Parser {
         is_child: bool,
     ) -> Self {
         let mut text: Vec<char> = text.chars().collect();
-        text.append(&mut vec!['\n', ' ', '\n']); // push space and newline of eof. it fixes stuff and I don't know why.
+        text.append(&mut vec!['\n', ' ']); // it fixes stuff and I don't know why.
         let current_char = text.get(0).unwrap().clone();
         if let Some(path) = path.clone() {
             let path_info = Path::new(&path);
@@ -146,6 +147,7 @@ impl Parser {
             paths,
             wg: WaitGroup::new(),
             is_child,
+            previous_char: ' ',
             inline_break_at: Vec::new(),
             document: Document::new(!is_child),
         }
@@ -255,6 +257,8 @@ impl Parser {
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
         wg.wait();
+
+        self.document.postprocess_imports();
         if !self.is_child {
             self.document.process_placeholders();
         }

@@ -163,7 +163,7 @@ _Underlined_
 
 The end goal is to have a markdown language similar to LaTeX.
 
-- [ ] Checkboxes
+- [x] Checkboxes
 - [ ] Emojis (\:emoji:)
 - [ ] Bibliography
 - [ ] Math
@@ -173,5 +173,6 @@ The end goal is to have a markdown language similar to LaTeX.
 - [ ] Cross References
 - [ ] Title pages
 - [ ] Glossary
-- [ ] EPUB Rendering (PDF is too hard
+- [ ] EPUB Rendering (PDF is too hard)
 - [ ] Custom Elements via templates
+- [ ] Custom Stylesheets

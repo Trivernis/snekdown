@@ -42,6 +42,9 @@ pub(crate) const IMPORT_OPEN: char = R_BRACKET;
 pub(crate) const IMPORT_CLOSE: char = L_BRACKET;
 pub(crate) const PHOLDER_OPEN: char = R_BRACKET;
 pub(crate) const PHOLDER_CLOSE: char = L_BRACKET;
+pub(crate) const CHECK_OPEN: char = R_BRACKET;
+pub(crate) const CHECK_CLOSE: char = L_BRACKET;
+pub(crate) const CHECK_CHECKED: char = X;
 
 pub(crate) const ITALIC: char = ASTERISK;
 pub(crate) const MONOSPACE: char = BACKTICK;

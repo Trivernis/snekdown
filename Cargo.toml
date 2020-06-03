@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.9.1"
+version = "0.10.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -15,8 +15,6 @@ crate-type = ["lib"]
 [[bin]]
 name = "snekdown"
 path = "src/main.rs"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 crossbeam-utils = "0.7.2"

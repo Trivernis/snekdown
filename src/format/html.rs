@@ -57,6 +57,7 @@ impl ToHtml for Inline {
             Inline::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
             Inline::Reference(reference) => reference.to_html(),
             Inline::Superscript(superscript) => superscript.to_html(),
+            Inline::Checkbox(checkbox) => checkbox.to_html(),
         }
     }
 }
@@ -473,6 +474,16 @@ impl ToHtml for ReferenceEntry {
             )
         } else {
             "Unknown reference".to_string()
+        }
+    }
+}
+
+impl ToHtml for Checkbox {
+    fn to_html(&self) -> String {
+        if self.value {
+            format!("<input type='checkbox' checked disabled>")
+        } else {
+            format!("<input type='checkbox'disabled>")
         }
     }
 }

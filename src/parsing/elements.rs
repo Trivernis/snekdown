@@ -1,5 +1,6 @@
 use crate::parsing::placeholders::BibEntry;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub const SECTION: &str = "section";
@@ -9,21 +10,6 @@ pub const TABLE: &str = "table";
 pub const CODE_BLOCK: &str = "code_block";
 pub const QUOTE: &str = "quote";
 pub const IMPORT: &str = "import";
-
-macro_rules! test_block {
-    ($block:expr, $block_type:expr) => {
-        match $block {
-            Block::Section(_) if $block_type == SECTION => true,
-            Block::List(_) if $block_type == LIST => true,
-            Block::Table(_) if $block_type == TABLE => true,
-            Block::Paragraph(_) if $block_type == PARAGRAPH => true,
-            Block::CodeBlock(_) if $block_type == CODE_BLOCK => true,
-            Block::Quote(_) if $block_type == QUOTE => true,
-            Block::Import(_) if $block_type == IMPORT => true,
-            _ => false,
-        }
-    };
-}
 
 #[derive(Clone, Debug)]
 pub enum MetadataValue {
@@ -170,6 +156,7 @@ pub enum Inline {
     Image(Image),
     Placeholder(Arc<Mutex<Placeholder>>),
     Reference(Reference),
+    Checkbox(Checkbox),
 }
 
 #[derive(Clone, Debug)]
@@ -205,6 +192,11 @@ pub struct MonospaceText {
 #[derive(Clone, Debug)]
 pub struct SuperscriptText {
     pub(crate) value: Box<Inline>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Checkbox {
+    pub(crate) value: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -308,27 +300,6 @@ impl Document {
         self.placeholders.push(placeholder);
     }
 
-    pub fn find(&self, block_type: &str, nested: bool) -> Vec<&Block> {
-        let mut found = Vec::new();
-        let mut found_self = self
-            .elements
-            .iter()
-            .filter(|e| {
-                if nested {
-                    match e {
-                        Block::Section(sec) => found.append(&mut sec.find(block_type, nested)),
-                        _ => {}
-                    }
-                }
-
-                test_block!(e, block_type)
-            })
-            .collect();
-        found.append(&mut found_self);
-
-        found
-    }
-
     pub fn create_toc(&self, ordered: bool) -> List {
         let mut list = List::new();
         list.ordered = ordered;
@@ -374,6 +345,61 @@ impl Document {
             None
         }
     }
+
+    /// Processes section and import elements
+    ///
+    /// if it encounters a section it checks if the sections is of smaller order than the previous one
+    /// if thats the case it grabs the previous one and adds the section to its children
+    ///
+    /// if it encounters an import, it loads the imports top elements to its own
+    pub fn postprocess_imports(&mut self) {
+        let mut new_order: Vec<Block> = Vec::with_capacity(self.elements.len());
+        self.elements.reverse();
+        let mut count: usize = 0;
+        let mut last_section: Option<(u8, usize)> = None;
+        while let Some(element) = self.elements.pop() {
+            match element {
+                Block::Section(sec) => {
+                    if let Some((last_size, last_pos)) = last_section {
+                        if sec.header.size > last_size {
+                            let last = new_order.get_mut(last_pos).unwrap();
+                            if let Block::Section(p_sec) = last {
+                                p_sec.add_section(sec);
+                                continue;
+                            }
+                        }
+                    }
+                    last_section = Some((sec.header.size, count));
+                    new_order.push(Block::Section(sec));
+                }
+                Block::Import(imp) => {
+                    let arc_anchor = Arc::clone(&imp.anchor);
+                    let anchor = &mut arc_anchor.lock().unwrap();
+                    if let Some(doc) = &mut anchor.document {
+                        self.placeholders.append(&mut doc.placeholders);
+                        doc.elements.reverse();
+                        self.elements.append(&mut doc.elements);
+                        anchor.document = None;
+                        continue;
+                    } else {
+                        new_order.push(Block::Import(imp));
+                    }
+                }
+                _ => {
+                    if let Some((_, last_pos)) = last_section {
+                        let last = new_order.get_mut(last_pos).unwrap();
+                        if let Block::Section(p_sec) = last {
+                            p_sec.add_element(element);
+                            continue;
+                        }
+                    }
+                    new_order.push(element)
+                }
+            }
+            count += 1;
+        }
+        self.elements = new_order;
+    }
 }
 
 impl Section {
@@ -387,26 +413,6 @@ impl Section {
 
     pub fn add_element(&mut self, element: Block) {
         self.elements.push(element)
-    }
-
-    pub fn find(&self, block_type: &str, nested: bool) -> Vec<&Block> {
-        let mut found = Vec::new();
-        let mut found_self = self
-            .elements
-            .iter()
-            .filter(|e| {
-                if nested {
-                    match e {
-                        Block::Section(sec) => found.append(&mut sec.find(block_type, nested)),
-                        _ => {}
-                    }
-                }
-                test_block!(e, block_type)
-            })
-            .collect();
-        found.append(&mut found_self);
-
-        found
     }
 
     pub fn get_toc_list(&self, ordered: bool) -> List {
@@ -429,6 +435,42 @@ impl Section {
             meta.get_bool("toc-hidden")
         } else {
             false
+        }
+    }
+
+    /// adds a child section to the section
+    /// It either adds it directly to its elements or iterates through its children to
+    /// add it to the fitting one
+    pub(crate) fn add_section(&mut self, section: Section) {
+        if section.header.size == self.header.size + 1 {
+            self.elements.push(Block::Section(section))
+        } else {
+            let has_parent = Mutex::new(AtomicBool::new(true));
+            let iterator = self.elements.iter_mut().rev().filter(|e| {
+                if let Block::Section(sec) = e {
+                    if sec.header.size > section.header.size {
+                        has_parent.lock().unwrap().store(true, Ordering::Relaxed);
+                        true
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            });
+
+            if has_parent.lock().unwrap().load(Ordering::Relaxed) {
+                for sec in iterator {
+                    if let Block::Section(sec) = sec {
+                        if sec.header.size < section.header.size {
+                            sec.add_section(section);
+                            break;
+                        }
+                    }
+                }
+            } else {
+                self.elements.push(Block::Section(section));
+            }
         }
     }
 }

@@ -50,7 +50,7 @@ impl CharStateMachine for Parser {
     /// char at the indexes position
     fn next_char(&mut self) -> Option<char> {
         self.index += 1;
-
+        self.previous_char = self.current_char;
         self.current_char = *self.text.get(self.index)?;
 
         Some(self.current_char)
@@ -65,7 +65,12 @@ impl CharStateMachine for Parser {
     fn revert_to(&mut self, index: usize) -> Result<(), ParseError> {
         if let Some(char) = self.text.get(index) {
             self.index = index;
-            self.current_char = char.clone();
+            self.current_char = *char;
+            if index > self.text.len() {
+                if let Some(ch) = self.text.get(index - 1) {
+                    self.previous_char = *ch;
+                }
+            }
             Ok(())
         } else {
             Err(ParseError::new_with_message(index, "failed to revert"))
@@ -112,10 +117,8 @@ impl CharStateMachine for Parser {
         if self.index == 0 {
             return false;
         }
-        if let Some(previous_char) = self.text.get(self.index - 1) {
-            if previous_char == &SPECIAL_ESCAPE {
-                return true;
-            }
+        if self.previous_char == SPECIAL_ESCAPE {
+            return true;
         }
         return false;
     }

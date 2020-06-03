@@ -8,6 +8,7 @@ pub(crate) trait ParseInline {
     fn parse_inline(&mut self) -> Result<Inline, ParseError>;
     fn parse_image(&mut self) -> Result<Image, ParseError>;
     fn parse_url(&mut self, short_syntax: bool) -> Result<Url, ParseError>;
+    fn parse_checkbox(&mut self) -> Result<Checkbox, ParseError>;
     fn parse_bold(&mut self) -> Result<BoldText, ParseError>;
     fn parse_italic(&mut self) -> Result<ItalicText, ParseError>;
     fn parse_striked(&mut self) -> Result<StrikedText, ParseError>;
@@ -41,6 +42,8 @@ impl ParseInline for Parser {
             Ok(Inline::Striked(striked))
         } else if let Ok(superscript) = self.parse_superscript() {
             Ok(Inline::Superscript(superscript))
+        } else if let Ok(checkbox) = self.parse_checkbox() {
+            Ok(Inline::Checkbox(checkbox))
         } else {
             Ok(Inline::Plain(self.parse_plain()?))
         }
@@ -98,6 +101,25 @@ impl ParseInline for Parser {
         } else {
             Ok(Url::new(Some(description), url))
         }
+    }
+
+    /// parses a markdown checkbox
+    fn parse_checkbox(&mut self) -> Result<Checkbox, ParseError> {
+        let start_index = self.index;
+        self.assert_special(&CHECK_OPEN, start_index)?;
+        self.skip_char();
+        let checked = if self.check_special(&CHECK_CHECKED) {
+            true
+        } else if self.check_special(&SPACE) {
+            false
+        } else {
+            return Err(self.revert_with_error(start_index));
+        };
+        self.skip_char();
+        self.assert_special(&CHECK_CLOSE, start_index)?;
+        self.skip_char();
+
+        Ok(Checkbox { value: checked })
     }
 
     /// parses bold text with must start with two asterisks

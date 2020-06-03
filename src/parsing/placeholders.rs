@@ -24,7 +24,6 @@ macro_rules! inline {
 }
 
 pub(crate) trait ProcessPlaceholders {
-    fn combine_placeholders(&mut self);
     fn process_placeholders(&mut self);
     fn process_definitions(&mut self);
     fn add_bib_entry(&mut self, key: String, value: BibEntry) -> Arc<Mutex<BibEntry>>;
@@ -102,22 +101,8 @@ const P_TIME: &str = "time";
 const P_DATETIME: &str = "datetime";
 
 impl ProcessPlaceholders for Document {
-    fn combine_placeholders(&mut self) {
-        let mut placeholders = Vec::new();
-        self.elements.iter().for_each(|e| {
-            if let Block::Import(import) = e {
-                let anchor = import.anchor.lock().unwrap();
-                if let Some(doc) = &anchor.document {
-                    placeholders.append(&mut doc.placeholders.clone())
-                }
-            }
-        });
-        self.placeholders.append(&mut placeholders);
-    }
-
     /// parses all placeholders and assigns values to them
     fn process_placeholders(&mut self) {
-        self.combine_placeholders();
         self.process_definitions();
         lazy_static::lazy_static! {static ref RE_REF: Regex = Regex::new(r"^ref:(.*)$").unwrap();}
         self.placeholders.iter().for_each(|p| {
