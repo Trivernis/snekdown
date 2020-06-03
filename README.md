@@ -51,7 +51,7 @@ Multiline
 > Multiline Quote
 
 Quote with metadata (e.g. Author)
-[Trivernis - 2020]> This is a quote with metadata
+[author=Trivernis year=2020 display='{{author}} - {{year}}']> This is a quote with metadata
 ```
 
 
