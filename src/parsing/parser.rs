@@ -3,6 +3,7 @@ use super::tokens::*;
 use crate::parsing::charstate::CharStateMachine;
 use crate::parsing::inline::ParseInline;
 use crate::parsing::placeholders::ProcessPlaceholders;
+use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
 use std::error::Error;
@@ -13,8 +14,6 @@ use std::io;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
-use termion::color::{self, Fg};
-use termion::style;
 
 macro_rules! parse_option {
     ($option:expr, $index:expr) => {
@@ -35,19 +34,14 @@ impl Display for ParseError {
         if let Some(message) = &self.message {
             write!(
                 f,
-                "{} Parse Error at index {}: {}{}",
-                Fg(color::Red),
-                self.index,
-                message,
-                style::Reset
+                "{}",
+                format!("Parse Error at index {}: {}", self.index, message).red()
             )
         } else {
             write!(
                 f,
-                "{} Parse Error at index {}{}",
-                Fg(color::Red),
-                self.index,
-                style::Reset
+                "{}",
+                format!("Parse Error at index {}", self.index).red()
             )
         }
     }
@@ -184,10 +178,8 @@ impl Parser {
         let path_info = Path::new(&path);
         if !path_info.exists() || !path_info.is_file() {
             println!(
-                "{}Import of \"{}\" failed: The file doesn't exist.{}",
-                Fg(color::Yellow),
-                path,
-                style::Reset
+                "{}",
+                format!("Import of \"{}\" failed: The file doesn't exist.", path,).red()
             );
             return Err(ParseError::new_with_message(
                 self.index,
@@ -198,10 +190,8 @@ impl Parser {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
                 println!(
-                    "{}Import of \"{}\" failed: Cyclic import.{}",
-                    Fg(color::Yellow),
-                    path,
-                    style::Reset
+                    "{}",
+                    format!("Import of \"{}\" failed: Cyclic import.", path).yellow()
                 );
                 return Err(ParseError::new_with_message(self.index, "cyclic import"));
             }
@@ -236,15 +226,15 @@ impl Parser {
                     if let Some(path) = &self.path {
                         if let Some(position) = err.get_position(&self.get_text()) {
                             println!(
-                                "{} Error in File {}:{}:{} - {}",
-                                Fg(color::Red),
-                                path,
-                                position.0,
-                                position.1,
-                                err
+                                "{}",
+                                format!(
+                                    "Error in File {}:{}:{} - {}",
+                                    path, position.0, position.1, err
+                                )
+                                .red()
                             );
                         } else {
-                            println!("{} Error in File {}: {}", Fg(color::Red), path, err);
+                            println!("{}", format!("Error in File {}: {}", path, err).red());
                         }
                     } else {
                         println!("{}", err);
