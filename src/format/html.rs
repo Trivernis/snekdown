@@ -59,6 +59,7 @@ impl ToHtml for Inline {
             Inline::Superscript(superscript) => superscript.to_html(),
             Inline::Checkbox(checkbox) => checkbox.to_html(),
             Inline::Emoji(emoji) => emoji.to_html(),
+            Inline::Colored(colored) => colored.to_html(),
         }
     }
 }
@@ -495,6 +496,16 @@ impl ToHtml for Emoji {
             "<span class='emoji' emoji-name='{}'>{}</span>",
             encode_attribute(self.name.as_str()),
             self.value
+        )
+    }
+}
+
+impl ToHtml for Colored {
+    fn to_html(&self) -> String {
+        format!(
+            "<span class='colored' style='color:{};'>{}</span>",
+            encode_attribute(self.color.as_str()),
+            self.value.to_html()
         )
     }
 }

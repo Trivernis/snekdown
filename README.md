@@ -158,6 +158,7 @@ _Underlined_
 ^Superscript^
 `Monospace`
 :Emoji:
+§[#0C0]Colored text§[] §[red] red §[]
 ```
 
 ## Roadmap
@@ -166,11 +167,12 @@ The end goal is to have a markup language with features similar to LaTeX.
 
 - [x] Checkboxes
 - [x] Emojis (\:emoji:)
+- [x] Colors
+- [ ] Watching and rendering on change
 - [ ] Metadata files
 - [ ] Bibliography
 - [ ] Math
 - [ ] Text sizes
-- [ ] Colors
 - [ ] Title pages
 - [ ] Glossary
 - [ ] Cross References

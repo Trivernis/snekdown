@@ -158,6 +158,7 @@ pub enum Inline {
     Reference(Reference),
     Checkbox(Checkbox),
     Emoji(Emoji),
+    Colored(Colored),
 }
 
 #[derive(Clone, Debug)]
@@ -257,6 +258,12 @@ pub struct ConfigValue {
 pub struct Emoji {
     pub(crate) value: char,
     pub(crate) name: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Colored {
+    pub(crate) value: Box<Inline>,
+    pub(crate) color: String,
 }
 
 // implementations

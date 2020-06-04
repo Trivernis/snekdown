@@ -26,6 +26,8 @@ pub(crate) const SINGLE_QUOTE: char = '\'';
 pub(crate) const DOT: char = '.';
 pub(crate) const UP: char = '^';
 pub(crate) const COLON: char = ':';
+pub(crate) const PARAGRAPH: char = '§';
+pub(crate) const SEMICOLON: char = ';';
 
 // aliases
 
@@ -46,6 +48,9 @@ pub(crate) const PHOLDER_CLOSE: char = L_BRACKET;
 pub(crate) const CHECK_OPEN: char = R_BRACKET;
 pub(crate) const CHECK_CLOSE: char = L_BRACKET;
 pub(crate) const CHECK_CHECKED: char = X;
+pub(crate) const COLOR_START: char = PARAGRAPH;
+pub(crate) const COLOR_OPEN: char = R_BRACKET;
+pub(crate) const COLOR_CLOSE: char = L_BRACKET;
 
 pub(crate) const ITALIC: char = ASTERISK;
 pub(crate) const MONOSPACE: char = BACKTICK;
@@ -71,8 +76,18 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 9] = [
     &SQ_CENTERED_START,
 ];
 
-pub(crate) const INLINE_SPECIAL_CHARS: [char; 10] = [
-    BACKTICK, TILDE, UNDERSCR, ASTERISK, DESC_OPEN, IMG_START, URL_OPEN, LB, SUPER, EMOJI,
+pub(crate) const INLINE_SPECIAL_CHARS: [char; 11] = [
+    BACKTICK,
+    TILDE,
+    UNDERSCR,
+    ASTERISK,
+    DESC_OPEN,
+    IMG_START,
+    URL_OPEN,
+    LB,
+    SUPER,
+    EMOJI,
+    COLOR_START,
 ];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [
@@ -86,6 +101,7 @@ pub(crate) const SQ_RULER: [char; 5] = [MINUS, SPACE, MINUS, SPACE, MINUS];
 pub(crate) const SQ_PHOLDER_START: [char; 2] = [PHOLDER_OPEN, PHOLDER_OPEN];
 pub(crate) const SQ_PHOLDER_STOP: [char; 2] = [PHOLDER_CLOSE, PHOLDER_CLOSE];
 pub(crate) const SQ_CENTERED_START: [char; 2] = [PIPE, PIPE];
+pub(crate) const SQ_COLOR_START: [char; 2] = [COLOR_START, COLOR_OPEN];
 
 // expressions
 

@@ -17,6 +17,7 @@ pub(crate) trait ParseInline {
     fn parse_underlined(&mut self) -> ParseResult<UnderlinedText>;
     fn parse_superscript(&mut self) -> ParseResult<SuperscriptText>;
     fn parse_emoji(&mut self) -> ParseResult<Emoji>;
+    fn parse_colored(&mut self) -> ParseResult<Colored>;
     fn parse_plain(&mut self) -> ParseResult<PlainText>;
 }
 
@@ -47,6 +48,8 @@ impl ParseInline for Parser {
             Ok(Inline::Checkbox(checkbox))
         } else if let Ok(emoji) = self.parse_emoji() {
             Ok(Inline::Emoji(emoji))
+        } else if let Ok(colored) = self.parse_colored() {
+            Ok(Inline::Colored(colored))
         } else {
             Ok(Inline::Plain(self.parse_plain()?))
         }
@@ -214,7 +217,7 @@ impl ParseInline for Parser {
         let start_index = self.index;
         self.assert_special(&EMOJI, start_index)?;
         self.skip_char();
-        let name = self.get_string_until_or_revert(&[EMOJI], &[], start_index)?;
+        let name = self.get_string_until_or_revert(&[EMOJI], &[SPACE, LB], start_index)?;
         self.skip_char();
         if let Some(emoji) = gh_emoji::get(name.as_str()) {
             let emoji_char = *emoji.chars().collect::<Vec<char>>().first().unwrap();
@@ -225,5 +228,22 @@ impl ParseInline for Parser {
         } else {
             Err(self.revert_with_error(start_index))
         }
+    }
+
+    /// parses colored text
+    fn parse_colored(&mut self) -> ParseResult<Colored> {
+        let start_index = self.index;
+        self.assert_special_sequence(&SQ_COLOR_START, start_index)?;
+        self.skip_char();
+        let color =
+            self.get_string_until_or_revert(&[COLOR_CLOSE], &[SPACE, LB, SEMICOLON], start_index)?;
+        self.skip_char();
+        if color.is_empty() {
+            return Err(ParseError::new(self.index));
+        }
+        Ok(Colored {
+            value: Box::new(self.parse_inline()?),
+            color,
+        })
     }
 }
