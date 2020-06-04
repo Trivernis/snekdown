@@ -3,12 +3,10 @@ use super::tokens::*;
 use crate::parsing::charstate::CharStateMachine;
 use crate::parsing::inline::ParseInline;
 use crate::parsing::placeholders::ProcessPlaceholders;
+use crate::parsing::utils::{ParseError, ParseResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
-use std::error::Error;
-use std::fmt;
-use std::fmt::{Display, Formatter};
 use std::fs::read_to_string;
 use std::io;
 use std::path::Path;
@@ -22,66 +20,6 @@ macro_rules! parse_option {
             return Err(ParseError::new($index));
         }
     };
-}
-
-#[derive(Debug)]
-pub struct ParseError {
-    index: usize,
-    message: Option<String>,
-}
-impl Display for ParseError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        if let Some(message) = &self.message {
-            write!(
-                f,
-                "{}",
-                format!("Parse Error at index {}: {}", self.index, message).red()
-            )
-        } else {
-            write!(
-                f,
-                "{}",
-                format!("Parse Error at index {}", self.index).red()
-            )
-        }
-    }
-}
-impl Error for ParseError {}
-impl ParseError {
-    pub fn new(index: usize) -> Self {
-        Self {
-            index,
-            message: None,
-        }
-    }
-
-    pub fn new_with_message(index: usize, message: &str) -> Self {
-        Self {
-            index,
-            message: Some(message.to_string()),
-        }
-    }
-
-    pub fn set_message(&mut self, message: &str) {
-        self.message = Some(message.to_string());
-    }
-
-    pub fn get_position(&self, content: &str) -> Option<(usize, usize)> {
-        if content.len() <= self.index {
-            return None;
-        }
-        let split_content = content.split_at(self.index);
-        let line_number = split_content.0.matches("\n").count() as usize;
-        let overshoot_position = self.index as isize - split_content.0.len() as isize;
-
-        if let Some(line) = split_content.0.lines().last() {
-            let inline_position = (line.len() as isize + overshoot_position) as usize;
-
-            Some((line_number, inline_position))
-        } else {
-            None
-        }
-    }
 }
 
 pub struct Parser {
@@ -173,7 +111,7 @@ impl Parser {
     }
 
     /// starts up a new thread to parse the imported document
-    fn import_document(&mut self, path: String) -> Result<Arc<Mutex<ImportAnchor>>, ParseError> {
+    fn import_document(&mut self, path: String) -> ParseResult<Arc<Mutex<ImportAnchor>>> {
         let path = self.transform_path(path);
         let path_info = Path::new(&path);
         if !path_info.exists() || !path_info.is_file() {

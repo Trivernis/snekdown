@@ -1,4 +1,4 @@
-# Snekdown - A wonderful markdown parser
+# :snake: Snekdown - More than just Markdown
 
 This projects goal is to implement a fast markdown parser with an extended syntax fitted
 for my needs.
@@ -157,22 +157,24 @@ Set options for placeholders
 _Underlined_
 ^Superscript^
 `Monospace`
+:Emoji:
 ```
 
 ## Roadmap
 
-The end goal is to have a markdown language similar to LaTeX.
+The end goal is to have a markup language with features similar to LaTeX.
 
 - [x] Checkboxes
-- [ ] Emojis (\:emoji:)
+- [x] Emojis (\:emoji:)
+- [ ] Metadata files
 - [ ] Bibliography
 - [ ] Math
-- [ ] Figures
 - [ ] Text sizes
 - [ ] Colors
-- [ ] Cross References
 - [ ] Title pages
 - [ ] Glossary
+- [ ] Cross References
+- [ ] Figures
 - [ ] EPUB Rendering (PDF is too hard)
 - [ ] Custom Elements via templates
 - [ ] Custom Stylesheets

@@ -157,6 +157,7 @@ pub enum Inline {
     Placeholder(Arc<Mutex<Placeholder>>),
     Reference(Reference),
     Checkbox(Checkbox),
+    Emoji(Emoji),
 }
 
 #[derive(Clone, Debug)]
@@ -252,10 +253,10 @@ pub struct ConfigValue {
     pub(crate) value: MetadataValue,
 }
 
-impl ConfigValue {
-    fn set_value(&mut self, value: MetadataValue) {
-        self.value = value;
-    }
+#[derive(Clone, Debug)]
+pub struct Emoji {
+    pub(crate) value: char,
+    pub(crate) name: String,
 }
 
 // implementations
@@ -399,6 +400,12 @@ impl Document {
             count += 1;
         }
         self.elements = new_order;
+    }
+}
+
+impl ConfigValue {
+    fn set_value(&mut self, value: MetadataValue) {
+        self.value = value;
     }
 }
 

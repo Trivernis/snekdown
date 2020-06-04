@@ -58,6 +58,7 @@ impl ToHtml for Inline {
             Inline::Reference(reference) => reference.to_html(),
             Inline::Superscript(superscript) => superscript.to_html(),
             Inline::Checkbox(checkbox) => checkbox.to_html(),
+            Inline::Emoji(emoji) => emoji.to_html(),
         }
     }
 }
@@ -485,5 +486,15 @@ impl ToHtml for Checkbox {
         } else {
             format!("<input type='checkbox'disabled>")
         }
+    }
+}
+
+impl ToHtml for Emoji {
+    fn to_html(&self) -> String {
+        format!(
+            "<span class='emoji' emoji-name='{}'>{}</span>",
+            encode_attribute(self.name.as_str()),
+            self.value
+        )
     }
 }

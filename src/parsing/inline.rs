@@ -1,27 +1,28 @@
 use super::charstate::CharStateMachine;
 use super::elements::*;
-use super::parser::ParseError;
 use super::tokens::*;
+use crate::parsing::utils::{ParseError, ParseResult};
 use crate::Parser;
 
 pub(crate) trait ParseInline {
-    fn parse_inline(&mut self) -> Result<Inline, ParseError>;
-    fn parse_image(&mut self) -> Result<Image, ParseError>;
-    fn parse_url(&mut self, short_syntax: bool) -> Result<Url, ParseError>;
-    fn parse_checkbox(&mut self) -> Result<Checkbox, ParseError>;
-    fn parse_bold(&mut self) -> Result<BoldText, ParseError>;
-    fn parse_italic(&mut self) -> Result<ItalicText, ParseError>;
-    fn parse_striked(&mut self) -> Result<StrikedText, ParseError>;
-    fn parse_monospace(&mut self) -> Result<MonospaceText, ParseError>;
-    fn parse_underlined(&mut self) -> Result<UnderlinedText, ParseError>;
-    fn parse_superscript(&mut self) -> Result<SuperscriptText, ParseError>;
-    fn parse_plain(&mut self) -> Result<PlainText, ParseError>;
-    fn parse_surrounded(&mut self, surrounding: &char) -> Result<Inline, ParseError>;
+    fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Inline>;
+    fn parse_inline(&mut self) -> ParseResult<Inline>;
+    fn parse_image(&mut self) -> ParseResult<Image>;
+    fn parse_url(&mut self, short_syntax: bool) -> ParseResult<Url>;
+    fn parse_checkbox(&mut self) -> ParseResult<Checkbox>;
+    fn parse_bold(&mut self) -> ParseResult<BoldText>;
+    fn parse_italic(&mut self) -> ParseResult<ItalicText>;
+    fn parse_striked(&mut self) -> ParseResult<StrikedText>;
+    fn parse_monospace(&mut self) -> ParseResult<MonospaceText>;
+    fn parse_underlined(&mut self) -> ParseResult<UnderlinedText>;
+    fn parse_superscript(&mut self) -> ParseResult<SuperscriptText>;
+    fn parse_emoji(&mut self) -> ParseResult<Emoji>;
+    fn parse_plain(&mut self) -> ParseResult<PlainText>;
 }
 
 impl ParseInline for Parser {
     /// parses Inline, the formatting parts of a line (Text)
-    fn parse_inline(&mut self) -> Result<Inline, ParseError> {
+    fn parse_inline(&mut self) -> ParseResult<Inline> {
         if self.check_special(&PIPE) || self.check_linebreak() {
             Err(ParseError::new(self.index))
         } else if let Ok(image) = self.parse_image() {
@@ -44,13 +45,15 @@ impl ParseInline for Parser {
             Ok(Inline::Superscript(superscript))
         } else if let Ok(checkbox) = self.parse_checkbox() {
             Ok(Inline::Checkbox(checkbox))
+        } else if let Ok(emoji) = self.parse_emoji() {
+            Ok(Inline::Emoji(emoji))
         } else {
             Ok(Inline::Plain(self.parse_plain()?))
         }
     }
 
     /// parses an image url
-    fn parse_image(&mut self) -> Result<Image, ParseError> {
+    fn parse_image(&mut self) -> ParseResult<Image> {
         let start_index = self.index;
         self.seek_inline_whitespace();
         self.assert_special(&IMG_START, start_index)?;
@@ -69,7 +72,7 @@ impl ParseInline for Parser {
     }
 
     // parses an url
-    fn parse_url(&mut self, short_syntax: bool) -> Result<Url, ParseError> {
+    fn parse_url(&mut self, short_syntax: bool) -> ParseResult<Url> {
         let start_index = self.index;
         self.seek_inline_whitespace();
 
@@ -104,7 +107,7 @@ impl ParseInline for Parser {
     }
 
     /// parses a markdown checkbox
-    fn parse_checkbox(&mut self) -> Result<Checkbox, ParseError> {
+    fn parse_checkbox(&mut self) -> ParseResult<Checkbox> {
         let start_index = self.index;
         self.assert_special(&CHECK_OPEN, start_index)?;
         self.skip_char();
@@ -123,7 +126,7 @@ impl ParseInline for Parser {
     }
 
     /// parses bold text with must start with two asterisks
-    fn parse_bold(&mut self) -> Result<BoldText, ParseError> {
+    fn parse_bold(&mut self) -> ParseResult<BoldText> {
         let start_index = self.index;
         self.assert_special_sequence(&BOLD, start_index)?;
         self.skip_char();
@@ -136,20 +139,20 @@ impl ParseInline for Parser {
         })
     }
 
-    fn parse_italic(&mut self) -> Result<ItalicText, ParseError> {
+    fn parse_italic(&mut self) -> ParseResult<ItalicText> {
         Ok(ItalicText {
             value: Box::new(self.parse_surrounded(&ITALIC)?),
         })
     }
 
-    fn parse_striked(&mut self) -> Result<StrikedText, ParseError> {
+    fn parse_striked(&mut self) -> ParseResult<StrikedText> {
         Ok(StrikedText {
             value: Box::new(self.parse_surrounded(&STRIKED)?),
         })
     }
 
     /// parses monospace text (inline-code) that isn't allowed to contain special characters
-    fn parse_monospace(&mut self) -> Result<MonospaceText, ParseError> {
+    fn parse_monospace(&mut self) -> ParseResult<MonospaceText> {
         let start_index = self.index;
         self.assert_special(&BACKTICK, start_index)?;
         self.skip_char();
@@ -160,20 +163,20 @@ impl ParseInline for Parser {
         Ok(MonospaceText { value: content })
     }
 
-    fn parse_underlined(&mut self) -> Result<UnderlinedText, ParseError> {
+    fn parse_underlined(&mut self) -> ParseResult<UnderlinedText> {
         Ok(UnderlinedText {
             value: Box::new(self.parse_surrounded(&UNDERLINED)?),
         })
     }
 
-    fn parse_superscript(&mut self) -> Result<SuperscriptText, ParseError> {
+    fn parse_superscript(&mut self) -> ParseResult<SuperscriptText> {
         Ok(SuperscriptText {
             value: Box::new(self.parse_surrounded(&SUPER)?),
         })
     }
 
     /// parses plain text as a string until it encounters an unescaped special inline char
-    fn parse_plain(&mut self) -> Result<PlainText, ParseError> {
+    fn parse_plain(&mut self) -> ParseResult<PlainText> {
         if self.check_linebreak() {
             return Err(ParseError::new(self.index));
         }
@@ -196,7 +199,7 @@ impl ParseInline for Parser {
     }
 
     /// parses Inline surrounded by characters
-    fn parse_surrounded(&mut self, surrounding: &char) -> Result<Inline, ParseError> {
+    fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Inline> {
         let start_index = self.index;
         self.assert_special(surrounding, start_index)?;
         self.skip_char();
@@ -205,5 +208,22 @@ impl ParseInline for Parser {
         self.skip_char();
 
         Ok(inline)
+    }
+
+    fn parse_emoji(&mut self) -> ParseResult<Emoji> {
+        let start_index = self.index;
+        self.assert_special(&EMOJI, start_index)?;
+        self.skip_char();
+        let name = self.get_string_until_or_revert(&[EMOJI], &[], start_index)?;
+        self.skip_char();
+        if let Some(emoji) = gh_emoji::get(name.as_str()) {
+            let emoji_char = *emoji.chars().collect::<Vec<char>>().first().unwrap();
+            Ok(Emoji {
+                value: emoji_char,
+                name,
+            })
+        } else {
+            Err(self.revert_with_error(start_index))
+        }
     }
 }

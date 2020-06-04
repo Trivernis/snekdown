@@ -1,5 +1,5 @@
-use crate::parsing::parser::ParseError;
 use crate::parsing::tokens::{LB, SPECIAL_ESCAPE};
+use crate::parsing::utils::{ParseError, ParseResult};
 use crate::Parser;
 
 pub trait CharStateMachine {
@@ -43,6 +43,12 @@ pub trait CharStateMachine {
         break_at: &[&[char]],
         err_at: &[char],
     ) -> Result<String, ParseError>;
+    fn get_string_until_or_revert(
+        &mut self,
+        break_et: &[char],
+        err_at: &[char],
+        revert_index: usize,
+    ) -> ParseResult<String>;
 }
 
 impl CharStateMachine for Parser {
@@ -112,6 +118,28 @@ impl CharStateMachine for Parser {
         }
     }
 
+    /// seeks until it encounters a linebreak character
+    fn seek_until_linebreak(&mut self) {
+        if self.check_special(&LB) {
+            self.skip_char();
+            return;
+        }
+        while let Some(_) = self.next_char() {
+            if self.check_special(&LB) {
+                self.skip_char();
+                return;
+            }
+        }
+    }
+
+    /// seeks inline whitespaces and returns if there
+    /// were seeked whitespaces
+    fn check_seek_inline_whitespace(&mut self) -> bool {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+        self.index > start_index
+    }
+
     /// checks if the input character is escaped
     fn check_escaped(&self) -> bool {
         if self.index == 0 {
@@ -131,31 +159,6 @@ impl CharStateMachine for Parser {
     /// checks if the current character is part of the given group
     fn check_special_group(&self, chars: &[char]) -> bool {
         chars.contains(&self.current_char) && !self.check_escaped()
-    }
-
-    /// checks if the next chars are a special sequence
-    fn check_special_sequence_group(&mut self, sequences: &[&[char]]) -> bool {
-        for sequence in sequences {
-            if self.check_special_sequence(*sequence) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// returns if the current character is a linebreak character
-    /// Note: No one likes CRLF
-    fn check_linebreak(&self) -> bool {
-        self.current_char == LB && !self.check_escaped()
-    }
-
-    /// seeks inline whitespaces and returns if there
-    /// were seeked whitespaces
-    fn check_seek_inline_whitespace(&mut self) -> bool {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        self.index > start_index
     }
 
     /// checks if the next characters match a special sequence
@@ -180,6 +183,67 @@ impl CharStateMachine for Parser {
         }
 
         true
+    }
+
+    /// checks if the next chars are a special sequence
+    fn check_special_sequence_group(&mut self, sequences: &[&[char]]) -> bool {
+        for sequence in sequences {
+            if self.check_special_sequence(*sequence) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// returns if the current character is a linebreak character
+    /// Note: No one likes CRLF
+    fn check_linebreak(&self) -> bool {
+        self.current_char == LB && !self.check_escaped()
+    }
+
+    fn assert_special(&mut self, character: &char, revert_index: usize) -> Result<(), ParseError> {
+        if self.check_special(character) {
+            Ok(())
+        } else {
+            Err(self.revert_with_error(revert_index))
+        }
+    }
+
+    fn assert_special_group(
+        &mut self,
+        group: &[char],
+        revert_index: usize,
+    ) -> Result<(), ParseError> {
+        if self.check_special_group(group) {
+            Ok(())
+        } else {
+            Err(self.revert_with_error(revert_index))
+        }
+    }
+
+    fn assert_special_sequence(
+        &mut self,
+        sequence: &[char],
+        revert_index: usize,
+    ) -> Result<(), ParseError> {
+        if self.check_special_sequence(sequence) {
+            Ok(())
+        } else {
+            Err(self.revert_with_error(revert_index))
+        }
+    }
+
+    fn assert_special_sequence_group(
+        &mut self,
+        sequences: &[&[char]],
+        revert_index: usize,
+    ) -> Result<(), ParseError> {
+        if self.check_special_sequence_group(sequences) {
+            Ok(())
+        } else {
+            Err(self.revert_with_error(revert_index))
+        }
     }
 
     /// returns the string until a specific
@@ -240,61 +304,17 @@ impl CharStateMachine for Parser {
         }
     }
 
-    fn assert_special(&mut self, character: &char, revert_index: usize) -> Result<(), ParseError> {
-        if self.check_special(character) {
-            Ok(())
-        } else {
-            Err(self.revert_with_error(revert_index))
-        }
-    }
-
-    fn assert_special_group(
+    /// returns the string until a specific character or reverts back to the given position
+    fn get_string_until_or_revert(
         &mut self,
-        group: &[char],
+        break_at: &[char],
+        err_at: &[char],
         revert_index: usize,
-    ) -> Result<(), ParseError> {
-        if self.check_special_group(group) {
-            Ok(())
+    ) -> ParseResult<String> {
+        if let Ok(string) = self.get_string_until(break_at, err_at) {
+            Ok(string)
         } else {
             Err(self.revert_with_error(revert_index))
-        }
-    }
-
-    fn assert_special_sequence(
-        &mut self,
-        sequence: &[char],
-        revert_index: usize,
-    ) -> Result<(), ParseError> {
-        if self.check_special_sequence(sequence) {
-            Ok(())
-        } else {
-            Err(self.revert_with_error(revert_index))
-        }
-    }
-
-    fn assert_special_sequence_group(
-        &mut self,
-        sequences: &[&[char]],
-        revert_index: usize,
-    ) -> Result<(), ParseError> {
-        if self.check_special_sequence_group(sequences) {
-            Ok(())
-        } else {
-            Err(self.revert_with_error(revert_index))
-        }
-    }
-
-    /// seeks until it encounters a linebreak character
-    fn seek_until_linebreak(&mut self) {
-        if self.check_special(&LB) {
-            self.skip_char();
-            return;
-        }
-        while let Some(_) = self.next_char() {
-            if self.check_special(&LB) {
-                self.skip_char();
-                return;
-            }
         }
     }
 }
