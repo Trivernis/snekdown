@@ -54,6 +54,7 @@ pub trait CharStateMachine {
 impl CharStateMachine for Parser {
     /// Increments the current index and returns the
     /// char at the indexes position
+    #[inline]
     fn next_char(&mut self) -> Option<char> {
         self.index += 1;
         self.previous_char = self.current_char;
@@ -63,11 +64,13 @@ impl CharStateMachine for Parser {
     }
 
     /// skips to the next char
+    #[inline]
     fn skip_char(&mut self) {
         let _ = self.next_char();
     }
 
     /// Returns to an index position
+    #[inline]
     fn revert_to(&mut self, index: usize) -> Result<(), ParseError> {
         if let Some(char) = self.text.get(index) {
             self.index = index;
@@ -84,6 +87,7 @@ impl CharStateMachine for Parser {
     }
 
     /// reverts and returns a parse error
+    #[inline]
     fn revert_with_error(&mut self, index: usize) -> ParseError {
         let err = ParseError::new(self.index);
 
@@ -141,6 +145,7 @@ impl CharStateMachine for Parser {
     }
 
     /// checks if the input character is escaped
+    #[inline]
     fn check_escaped(&self) -> bool {
         if self.index == 0 {
             return false;
@@ -152,6 +157,7 @@ impl CharStateMachine for Parser {
     }
 
     /// checks if the current character is the given input character and not escaped
+    #[inline]
     fn check_special(&self, character: &char) -> bool {
         self.current_char == *character && !self.check_escaped()
     }
@@ -198,10 +204,12 @@ impl CharStateMachine for Parser {
 
     /// returns if the current character is a linebreak character
     /// Note: No one likes CRLF
+    #[inline]
     fn check_linebreak(&self) -> bool {
         self.current_char == LB && !self.check_escaped()
     }
 
+    #[inline]
     fn assert_special(&mut self, character: &char, revert_index: usize) -> Result<(), ParseError> {
         if self.check_special(character) {
             Ok(())
@@ -210,6 +218,7 @@ impl CharStateMachine for Parser {
         }
     }
 
+    #[inline]
     fn assert_special_group(
         &mut self,
         group: &[char],
