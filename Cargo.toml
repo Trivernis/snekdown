@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.12.0"
+version = "0.12.1"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -27,3 +27,4 @@ regex = "1.3.9"
 lazy_static = "1.4.0"
 colored = "1.9.3"
 gh-emoji = "1.0.3"
+notify = "4.0.12"

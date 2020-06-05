@@ -7,18 +7,23 @@ for my needs.
 
 ```
 USAGE:
-    snekdown [OPTIONS] <input> <output>
+    snekdown [OPTIONS] <input> <output> [SUBCOMMAND]
 
 FLAGS:
     -h, --help       Prints help information
     -V, --version    Prints version information
 
 OPTIONS:
-    -f, --format <format>     [default: html]
+    -f, --format <format>    the output format [default: html]
 
 ARGS:
-    <input>     
-    <output>
+    <input>     Path to the input file
+    <output>    Path for the output file
+
+SUBCOMMANDS:
+    help      Prints this message or the help of the given subcommand(s)
+    render    Default. Parse and render the document
+    watch     Watch the document and its imports and render on change
 ```
 
 ## Syntax
@@ -168,7 +173,7 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [x] Checkboxes
 - [x] Emojis (\:emoji:)
 - [x] Colors
-- [ ] Watching and rendering on change
+- [x] Watching and rendering on change
 - [ ] Metadata files
 - [ ] Bibliography
 - [ ] Math

@@ -85,10 +85,16 @@ impl Parser {
         }
     }
 
+    /// Returns the text of the parser as a string
     fn get_text(&self) -> String {
         self.text
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b))
+    }
+
+    /// Returns the import paths of the parser
+    pub fn get_paths(&self) -> Vec<String> {
+        self.paths.lock().unwrap().clone()
     }
 
     /// transform an import path to be relative to the current parsers file
