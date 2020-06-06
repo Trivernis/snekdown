@@ -50,7 +50,7 @@ pub enum Line {
 
 #[derive(Clone, Debug)]
 pub struct Document {
-    pub(crate) elements: Vec<Block>,
+    pub elements: Vec<Block>,
     pub(crate) is_root: bool,
     pub(crate) path: Option<String>,
     pub(crate) placeholders: Vec<Arc<Mutex<Placeholder>>>,
@@ -80,7 +80,7 @@ pub struct Paragraph {
 #[derive(Clone, Debug)]
 pub struct List {
     pub(crate) ordered: bool,
-    pub(crate) items: Vec<ListItem>,
+    pub items: Vec<ListItem>,
 }
 
 #[derive(Clone, Debug)]

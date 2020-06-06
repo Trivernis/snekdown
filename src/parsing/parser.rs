@@ -50,7 +50,11 @@ impl Parser {
         is_child: bool,
     ) -> Self {
         let text: Vec<char> = text.chars().collect();
-        let current_char = text.get(0).unwrap().clone();
+        let current_char = if text.len() > 0 {
+            text.get(0).unwrap().clone()
+        } else {
+            ' '
+        };
         if let Some(path) = path.clone() {
             let path_info = Path::new(&path);
             paths
@@ -463,7 +467,9 @@ impl Parser {
                 self.revert_to(start_index)?;
                 break;
             }
-            self.revert_to(start_index)?;
+            if !self.check_eof() {
+                self.revert_to(start_index)?;
+            }
         }
 
         if paragraph.elements.len() > 0 {

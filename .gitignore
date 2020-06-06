@@ -2,5 +2,5 @@
 **/*.rs.bk
 .idea
 .ast
-test
+test-files
 perf.data

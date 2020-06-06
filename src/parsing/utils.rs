@@ -3,6 +3,13 @@ use std::error::Error;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
+#[macro_export]
+macro_rules! parse {
+    ($str:expr) => {
+        Parser::new($str.to_string(), None).parse()
+    };
+}
+
 pub type ParseResult<T> = Result<T, ParseError>;
 
 #[derive(Debug)]
