@@ -1,0 +1,4 @@
+[bibliography]
+entry_display = "{{number}}: {{author}} - {{title}} - {{date}} - {{url}}"
+reference_display = "{{number}}"
+hide_unused = true

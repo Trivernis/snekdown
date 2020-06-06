@@ -1,8 +1,8 @@
 use super::elements::*;
 use super::tokens::*;
+use crate::parsing::bibliography::BibEntry;
 use crate::parsing::charstate::CharStateMachine;
 use crate::parsing::inline::ParseInline;
-use crate::parsing::placeholders::ProcessPlaceholders;
 use crate::parsing::utils::{ParseError, ParseResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
@@ -26,7 +26,7 @@ pub struct Parser {
     wg: WaitGroup,
     is_child: bool,
     pub(crate) inline_break_at: Vec<char>,
-    document: Document,
+    pub(crate) document: Document,
     pub(crate) previous_char: char,
     pub(crate) reader: Box<dyn BufRead>,
 }
@@ -230,11 +230,7 @@ impl Parser {
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
         wg.wait();
-
-        self.document.postprocess_imports();
-        if !self.is_child {
-            self.document.process_placeholders();
-        }
+        self.document.post_process();
         let document = self.document.clone();
         self.document = Document::new(!self.is_child);
 
@@ -693,12 +689,38 @@ impl Parser {
                 Ok(Line::Ruler(ruler))
             } else if let Ok(centered) = self.parse_centered() {
                 Ok(Line::Centered(centered))
+            } else if let Ok(bib) = self.parse_bib_entry() {
+                Ok(Line::BibEntry(bib))
             } else if let Ok(text) = self.parse_text_line() {
                 Ok(Line::Text(text))
             } else {
                 Err(ParseError::new(self.index))
             }
         }
+    }
+
+    fn parse_bib_entry(&mut self) -> ParseResult<Arc<Mutex<BibEntry>>> {
+        let start_index = self.index;
+        self.seek_inline_whitespace();
+        self.assert_special(&BIB_KEY_OPEN, start_index)?;
+        self.skip_char();
+        let key = self.get_string_until_or_revert(&[BIB_KEY_CLOSE], &[LB, SPACE], start_index)?;
+        self.skip_char();
+        self.assert_special(&BIB_DATA_START, start_index)?;
+        self.skip_char();
+        self.seek_inline_whitespace();
+        let entry = if let Ok(meta) = self.parse_inline_metadata() {
+            BibEntry::from_metadata(key, Box::new(meta), &self.document.config)
+        } else {
+            let url = self.get_string_until_or_revert(&[LB], &[], start_index)?;
+            BibEntry::from_url(key, url, &self.document.config)
+        };
+        let entry_ref = Arc::new(Mutex::new(entry));
+        self.document
+            .bibliography
+            .add_bib_entry(Arc::clone(&entry_ref));
+
+        Ok(entry_ref)
     }
 
     /// parses centered text

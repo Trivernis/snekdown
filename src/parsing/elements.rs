@@ -1,4 +1,6 @@
-use crate::parsing::placeholders::BibEntry;
+use crate::parsing::bibliography::{BibEntry, BibReference, Bibliography};
+use crate::parsing::configuration::Configuration;
+use crate::parsing::placeholders::ProcessPlaceholders;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -45,7 +47,7 @@ pub enum Line {
     Ruler(Ruler),
     Anchor(Anchor),
     Centered(Centered),
-    ReferenceEntry(ReferenceEntry),
+    BibEntry(Arc<Mutex<BibEntry>>),
 }
 
 #[derive(Clone, Debug)]
@@ -54,8 +56,8 @@ pub struct Document {
     pub(crate) is_root: bool,
     pub(crate) path: Option<String>,
     pub(crate) placeholders: Vec<Arc<Mutex<Placeholder>>>,
-    pub bib_entries: HashMap<String, Arc<Mutex<BibEntry>>>,
-    pub config_settings: HashMap<String, Arc<Mutex<ConfigValue>>>,
+    pub config: Configuration,
+    pub bibliography: Bibliography,
 }
 
 #[derive(Clone, Debug)]
@@ -155,10 +157,10 @@ pub enum Inline {
     Url(Url),
     Image(Image),
     Placeholder(Arc<Mutex<Placeholder>>),
-    Reference(Reference),
     Checkbox(Checkbox),
     Emoji(Emoji),
     Colored(Colored),
+    BibReference(Arc<Mutex<BibReference>>),
 }
 
 #[derive(Clone, Debug)]
@@ -232,29 +234,6 @@ pub struct Centered {
 }
 
 #[derive(Clone, Debug)]
-pub struct Reference {
-    pub(crate) value: Option<RefValue>,
-    pub(crate) metadata: Option<InlineMetadata>,
-    pub(crate) display: Option<Arc<Mutex<ConfigValue>>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct ReferenceEntry {
-    pub(crate) value: Option<RefValue>,
-    pub(crate) reference_count: usize,
-}
-
-#[derive(Clone, Debug)]
-pub enum RefValue {
-    BibEntry(Arc<Mutex<BibEntry>>),
-}
-
-#[derive(Clone, Debug)]
-pub struct ConfigValue {
-    pub(crate) value: MetadataValue,
-}
-
-#[derive(Clone, Debug)]
 pub struct Emoji {
     pub(crate) value: char,
     pub(crate) name: String,
@@ -269,34 +248,14 @@ pub struct Colored {
 // implementations
 
 impl Document {
-    fn get_default_config() -> HashMap<String, Arc<Mutex<ConfigValue>>> {
-        let mut config: HashMap<String, Arc<Mutex<ConfigValue>>> = HashMap::new();
-        config.insert(
-            "bib-display".to_string(),
-            Arc::new(Mutex::new(ConfigValue {
-                value: MetadataValue::String(
-                    "{{title}} - {{author}} - {{date}} - {{url}} - ({{notes}})".to_string(),
-                ),
-            })),
-        );
-        config.insert(
-            "ref-display".to_string(),
-            Arc::new(Mutex::new(ConfigValue {
-                value: MetadataValue::String("[{{key}}]".to_string()),
-            })),
-        );
-
-        config
-    }
-
     pub fn new(is_root: bool) -> Self {
         Self {
             elements: Vec::new(),
             is_root,
             path: None,
             placeholders: Vec::new(),
-            bib_entries: HashMap::new(),
-            config_settings: Self::get_default_config(),
+            config: Configuration::default(),
+            bibliography: Bibliography::new(),
         }
     }
 
@@ -331,29 +290,6 @@ impl Document {
         list
     }
 
-    pub fn set_config_param(
-        &mut self,
-        key: String,
-        value: ConfigValue,
-    ) -> Option<Arc<Mutex<ConfigValue>>> {
-        if let Some(arc_val) = self.config_settings.get(&key) {
-            arc_val.lock().unwrap().set_value(value.value);
-
-            Some(Arc::clone(&arc_val))
-        } else {
-            self.config_settings
-                .insert(key, Arc::new(Mutex::new(value)))
-        }
-    }
-
-    pub fn get_config_param(&self, key: &str) -> Option<Arc<Mutex<ConfigValue>>> {
-        if let Some(val) = self.config_settings.get(key) {
-            Some(Arc::clone(val))
-        } else {
-            None
-        }
-    }
-
     /// Processes section and import elements
     ///
     /// if it encounters a section it checks if the sections is of smaller order than the previous one
@@ -385,6 +321,7 @@ impl Document {
                     let anchor = &mut arc_anchor.lock().unwrap();
                     if let Some(doc) = &mut anchor.document {
                         self.placeholders.append(&mut doc.placeholders);
+                        self.bibliography.combine(&mut doc.bibliography);
                         doc.elements.reverse();
                         self.elements.append(&mut doc.elements);
                         anchor.document = None;
@@ -408,11 +345,14 @@ impl Document {
         }
         self.elements = new_order;
     }
-}
 
-impl ConfigValue {
-    fn set_value(&mut self, value: MetadataValue) {
-        self.value = value;
+    pub fn post_process(&mut self) {
+        self.postprocess_imports();
+        if self.is_root {
+            self.process_definitions();
+            self.bibliography.assign_entry_data();
+            self.process_placeholders();
+        }
     }
 }
 
@@ -630,8 +570,13 @@ impl Placeholder {
     }
 }
 
-impl InlineMetadata {
-    pub fn get_bool(&self, key: &str) -> bool {
+pub trait Metadata {
+    fn get_bool(&self, key: &str) -> bool;
+    fn get_string(&self, key: &str) -> Option<String>;
+}
+
+impl Metadata for InlineMetadata {
+    fn get_bool(&self, key: &str) -> bool {
         if let Some(MetadataValue::Bool(value)) = self.data.get(key) {
             *value
         } else {
@@ -639,25 +584,11 @@ impl InlineMetadata {
         }
     }
 
-    pub fn get_string(&self, key: &str) -> Option<String> {
+    fn get_string(&self, key: &str) -> Option<String> {
         if let Some(MetadataValue::String(value)) = self.data.get(key) {
             Some(value.clone())
         } else {
             None
-        }
-    }
-}
-
-impl RefValue {
-    pub fn get_ref_id(&self) -> String {
-        match self {
-            RefValue::BibEntry(bib) => {
-                let bib = bib.lock().unwrap();
-                let mut key = bib.key.clone();
-                key.retain(|c| !c.is_whitespace());
-
-                key
-            }
         }
     }
 }

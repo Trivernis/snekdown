@@ -1,4 +1,5 @@
 use crate::format::Template;
+use crate::parsing::bibliography::{BibEntry, BibReference};
 use crate::parsing::elements::*;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
@@ -38,7 +39,7 @@ impl ToHtml for Line {
             Line::Ruler(ruler) => ruler.to_html(),
             Line::Anchor(anchor) => anchor.to_html(),
             Line::Centered(centered) => centered.to_html(),
-            Line::ReferenceEntry(ref_entry) => ref_entry.to_html(),
+            Line::BibEntry(bib) => bib.lock().unwrap().to_html(),
         }
     }
 }
@@ -55,11 +56,11 @@ impl ToHtml for Inline {
             Inline::Bold(bold) => bold.to_html(),
             Inline::Image(img) => img.to_html(),
             Inline::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
-            Inline::Reference(reference) => reference.to_html(),
             Inline::Superscript(superscript) => superscript.to_html(),
             Inline::Checkbox(checkbox) => checkbox.to_html(),
             Inline::Emoji(emoji) => emoji.to_html(),
             Inline::Colored(colored) => colored.to_html(),
+            Inline::BibReference(bibref) => bibref.lock().unwrap().to_html(),
         }
     }
 }
@@ -435,51 +436,6 @@ impl ToHtml for Centered {
     }
 }
 
-impl ToHtml for Reference {
-    fn to_html(&self) -> String {
-        if let Some(value) = &self.value {
-            let ref_id = value.get_ref_id();
-            if let Some(display) = &self.display {
-                match value {
-                    RefValue::BibEntry(bib) => {
-                        let bib = bib.lock().unwrap();
-                        let mut template = bib.get_template();
-                        template.set_value(display.lock().unwrap().value.to_html());
-
-                        format!("<a href='#{}'>{}</a>", ref_id, template.render())
-                    }
-                }
-            } else {
-                format!("<a href='#{}'>{}</a>", ref_id, value.to_html())
-            }
-        } else {
-            "Unknown reference".to_string()
-        }
-    }
-}
-
-impl ToHtml for RefValue {
-    fn to_html(&self) -> String {
-        match self {
-            RefValue::BibEntry(bib) => encode_minimal(bib.lock().unwrap().get_formatted().as_str()),
-        }
-    }
-}
-
-impl ToHtml for ReferenceEntry {
-    fn to_html(&self) -> String {
-        if let Some(val) = &self.value {
-            format!(
-                "<div id='{}'>{}</div>",
-                encode_attribute(val.get_ref_id().as_str()),
-                val.to_html()
-            )
-        } else {
-            "Unknown reference".to_string()
-        }
-    }
-}
-
 impl ToHtml for Checkbox {
     fn to_html(&self) -> String {
         if self.value {
@@ -507,5 +463,46 @@ impl ToHtml for Colored {
             encode_attribute(self.color.as_str()),
             self.value.to_html()
         )
+    }
+}
+
+impl ToHtml for BibReference {
+    fn to_html(&self) -> String {
+        format!(
+            "<sup><a href='#{}'>{}</a></sup>",
+            self.key.clone(),
+            self.get_formatted()
+        )
+    }
+}
+
+impl ToHtml for BibEntry {
+    fn to_html(&self) -> String {
+        if !self.is_visible() {
+            return "".to_string();
+        }
+        if let Some(display) = &self.display {
+            let display = display.lock().unwrap();
+            let mut template = Template::new(display.get().as_string());
+            template.set_replacements(self.as_map());
+            format!(
+                "<span id='{}'>{}</span>",
+                encode_attribute(self.key.as_str()),
+                encode_minimal(template.render().as_str())
+            )
+        } else {
+            if let Some(url) = &self.url {
+                format!(
+                    "<a id={1} href='{0}'>{1}</a>",
+                    encode_attribute(url.as_str()),
+                    encode_minimal(self.key.as_str())
+                )
+            } else {
+                format!(
+                    "<span id='{0}'><u>{0}</u></span>",
+                    encode_attribute(self.key.as_str())
+                )
+            }
+        }
     }
 }

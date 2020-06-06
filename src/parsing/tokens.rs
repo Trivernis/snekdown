@@ -51,6 +51,12 @@ pub(crate) const CHECK_CHECKED: char = X;
 pub(crate) const COLOR_START: char = PARAGRAPH;
 pub(crate) const COLOR_OPEN: char = R_BRACKET;
 pub(crate) const COLOR_CLOSE: char = L_BRACKET;
+pub(crate) const BIBREF_OPEN: char = R_BRACKET;
+pub(crate) const BIBREF_REF: char = UP;
+pub(crate) const BIBREF_CLOSE: char = L_BRACKET;
+pub(crate) const BIB_KEY_OPEN: char = R_BRACKET;
+pub(crate) const BIB_KEY_CLOSE: char = L_BRACKET;
+pub(crate) const BIB_DATA_START: char = COLON;
 
 pub(crate) const ITALIC: char = ASTERISK;
 pub(crate) const MONOSPACE: char = BACKTICK;
@@ -102,6 +108,7 @@ pub(crate) const SQ_PHOLDER_START: [char; 2] = [PHOLDER_OPEN, PHOLDER_OPEN];
 pub(crate) const SQ_PHOLDER_STOP: [char; 2] = [PHOLDER_CLOSE, PHOLDER_CLOSE];
 pub(crate) const SQ_CENTERED_START: [char; 2] = [PIPE, PIPE];
 pub(crate) const SQ_COLOR_START: [char; 2] = [COLOR_START, COLOR_OPEN];
+pub(crate) const SQ_BIBREF_START: [char; 2] = [BIBREF_OPEN, BIBREF_REF];
 
 // expressions
 

@@ -166,6 +166,23 @@ _Underlined_
 §[#0C0]Colored text§[] §[red] red §[]
 ```
 
+## Bibliography
+
+Bibliography entries can be defined and referenced anywhere in the document.
+
+Definition:
+```md
+[book]:[author=Snek title = "Snekdown Book"]
+[github]: https://github.com/trivernis/snekdown
+```
+
+Usage:
+```
+There is a book about snekdown[^book] and a github repo[^github].
+```
+
+Bibliography entries are only shown when used in the document.
+
 ## Roadmap
 
 The end goal is to have a markup language with features similar to LaTeX.
@@ -175,7 +192,7 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [x] Colors
 - [x] Watching and rendering on change
 - [ ] Metadata files
-- [ ] Bibliography
+- [x] Bibliography
 - [ ] Math
 - [ ] Text sizes
 - [ ] Title pages
