@@ -7,8 +7,9 @@ use crate::parsing::utils::{ParseError, ParseResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
-use std::fs::read_to_string;
+use std::fs::File;
 use std::io;
+use std::io::{BufRead, BufReader, Cursor};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -27,40 +28,82 @@ pub struct Parser {
     pub(crate) inline_break_at: Vec<char>,
     document: Document,
     pub(crate) previous_char: char,
+    pub(crate) reader: Box<dyn BufRead>,
 }
 
 impl Parser {
+    /// Creates a new parser from a path
     pub fn new_from_file(path: String) -> Result<Self, io::Error> {
-        let content = read_to_string(path.clone())?;
-        Ok(Self::new(content, Some(path)))
+        let f = File::open(&path)?;
+        Ok(Self::create(
+            Some(path),
+            Arc::new(Mutex::new(Vec::new())),
+            false,
+            Box::new(BufReader::new(f)),
+        ))
     }
 
+    /// Creates a new parser with text being the markdown text
     pub fn new(text: String, path: Option<String>) -> Self {
-        Parser::create(text, path, Arc::new(Mutex::new(Vec::new())), false)
+        let text_bytes = text.as_bytes();
+        Parser::create(
+            path,
+            Arc::new(Mutex::new(Vec::new())),
+            false,
+            Box::new(Cursor::new(text_bytes.to_vec())),
+        )
     }
 
-    pub fn new_as_child(text: String, path: String, paths: Arc<Mutex<Vec<String>>>) -> Self {
-        Self::create(text, Some(path), paths, true)
+    /// Creates a child parser from string text
+    pub fn child(text: String, path: String, paths: Arc<Mutex<Vec<String>>>) -> Self {
+        let text_bytes = text.as_bytes();
+        Self::create(
+            Some(path),
+            paths,
+            true,
+            Box::new(Cursor::new(text_bytes.to_vec())),
+        )
+    }
+
+    /// Creates a child parser from a file
+    pub fn child_from_file(
+        path: String,
+        paths: Arc<Mutex<Vec<String>>>,
+    ) -> Result<Self, io::Error> {
+        let f = File::open(&path)?;
+        Ok(Self::create(
+            Some(path),
+            paths,
+            true,
+            Box::new(BufReader::new(f)),
+        ))
     }
 
     fn create(
-        text: String,
         path: Option<String>,
         paths: Arc<Mutex<Vec<String>>>,
         is_child: bool,
+        mut reader: Box<dyn BufRead>,
     ) -> Self {
-        let text: Vec<char> = text.chars().collect();
-        let current_char = if text.len() > 0 {
-            text.get(0).unwrap().clone()
-        } else {
-            ' '
-        };
         if let Some(path) = path.clone() {
             let path_info = Path::new(&path);
             paths
                 .lock()
                 .unwrap()
                 .push(path_info.to_str().unwrap().to_string())
+        }
+        let mut text = Vec::new();
+        let mut current_char = ' ';
+        for _ in 0..8 {
+            let mut buf = String::new();
+            if let Ok(_) = reader.read_line(&mut buf) {
+                text.append(&mut buf.chars().collect::<Vec<char>>());
+            } else {
+                break;
+            }
+        }
+        if let Some(ch) = text.get(0) {
+            current_char = *ch
         }
         Self {
             index: 0,
@@ -76,6 +119,7 @@ impl Parser {
             previous_char: ' ',
             inline_break_at: Vec::new(),
             document: Document::new(!is_child),
+            reader,
         }
     }
 
@@ -141,9 +185,7 @@ impl Parser {
         let paths = Arc::clone(&self.paths);
 
         let _ = thread::spawn(move || {
-            let text = read_to_string(path.clone()).unwrap();
-
-            let mut parser = Parser::new_as_child(text.to_string(), path, paths);
+            let mut parser = Parser::child_from_file(path, paths).unwrap();
             let document = parser.parse();
             anchor_clone.lock().unwrap().set_document(document);
 

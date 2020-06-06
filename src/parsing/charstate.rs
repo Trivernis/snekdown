@@ -59,6 +59,16 @@ impl CharStateMachine for Parser {
     fn next_char(&mut self) -> Option<char> {
         self.index += 1;
         self.previous_char = self.current_char;
+        if (self.text.len() - 1) <= self.index {
+            for _ in 0..8 {
+                let mut buf = String::new();
+                if let Ok(_) = self.reader.read_line(&mut buf) {
+                    self.text.append(&mut buf.chars().collect())
+                } else {
+                    break;
+                }
+            }
+        }
         self.current_char = *self.text.get(self.index)?;
 
         Some(self.current_char)

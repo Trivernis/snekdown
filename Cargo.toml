@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.12.4"
+version = "0.13.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -15,8 +15,6 @@ crate-type = ["lib"]
 [[bin]]
 name = "snekdown"
 path = "src/main.rs"
-
-[tests]
 
 [dependencies]
 crossbeam-utils = "0.7.2"
