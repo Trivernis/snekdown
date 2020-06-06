@@ -26,6 +26,8 @@ impl ParseInline for Parser {
     fn parse_inline(&mut self) -> ParseResult<Inline> {
         if self.check_special(&PIPE) || self.check_linebreak() {
             Err(ParseError::new(self.index))
+        } else if self.check_eof() {
+            Err(ParseError::eof(self.index))
         } else if let Ok(image) = self.parse_image() {
             Ok(Inline::Image(image))
         } else if let Ok(url) = self.parse_url(false) {
@@ -197,7 +199,10 @@ impl ParseInline for Parser {
         if characters.len() > 0 {
             Ok(PlainText { value: characters })
         } else {
-            Err(ParseError::new(self.index))
+            Err(ParseError::new_with_message(
+                self.index,
+                "no plaintext characters parsed",
+            ))
         }
     }
 

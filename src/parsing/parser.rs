@@ -13,15 +13,6 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-macro_rules! parse_option {
-    ($option:expr, $index:expr) => {
-        if let Some(_) = $option {
-        } else {
-            return Err(ParseError::new($index));
-        }
-    };
-}
-
 pub struct Parser {
     pub(crate) index: usize,
     pub(crate) text: Vec<char>,
@@ -58,8 +49,7 @@ impl Parser {
         paths: Arc<Mutex<Vec<String>>>,
         is_child: bool,
     ) -> Self {
-        let mut text: Vec<char> = text.chars().collect();
-        text.append(&mut vec!['\n', ' ']); // it fixes stuff and I don't know why.
+        let text: Vec<char> = text.chars().collect();
         let current_char = text.get(0).unwrap().clone();
         if let Some(path) = path.clone() {
             let path_info = Path::new(&path);
@@ -167,6 +157,9 @@ impl Parser {
             match self.parse_block() {
                 Ok(block) => self.document.add_element(block),
                 Err(err) => {
+                    if err.eof {
+                        break;
+                    }
                     if let Some(path) = &self.path {
                         if let Some(position) = err.get_position(&self.get_text()) {
                             println!(
@@ -439,7 +432,7 @@ impl Parser {
             return Err(self.revert_with_error(start_index));
         }
         if self.check_special(&IMPORT_CLOSE) {
-            parse_option!(self.next_char(), self.index);
+            self.skip_char();
         }
         // parsing success
 
@@ -613,7 +606,7 @@ impl Parser {
             let mut element = TextLine::new();
             while let Ok(inline) = self.parse_inline() {
                 element.subtext.push(inline);
-                if self.check_linebreak() || self.check_special(&PIPE) {
+                if self.check_linebreak() || self.check_special(&PIPE) || self.check_eof() {
                     break;
                 }
             }
@@ -623,7 +616,7 @@ impl Parser {
             if self.check_special(&PIPE) {
                 self.skip_char();
             }
-            if self.check_linebreak() {
+            if self.check_linebreak() || self.check_eof() {
                 break;
             }
             self.seek_inline_whitespace();
@@ -709,17 +702,19 @@ impl Parser {
         let mut text = TextLine::new();
         while let Ok(subtext) = self.parse_inline() {
             text.add_subtext(subtext);
-            let current_index = self.index;
-            if self.next_char() == None {
+            if self.check_eof() {
                 break;
             }
-            self.revert_to(current_index)?;
         }
 
         if self.check_linebreak() {
-            parse_option!(self.next_char(), self.index);
+            self.skip_char();
         }
 
-        Ok(text)
+        if text.subtext.len() > 0 || !self.check_eof() {
+            Ok(text)
+        } else {
+            Err(ParseError::eof(self.index))
+        }
     }
 }

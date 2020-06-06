@@ -17,6 +17,7 @@ pub trait CharStateMachine {
     fn check_special_sequence(&mut self, sequence: &[char]) -> bool;
     fn check_special_sequence_group(&mut self, sequences: &[&[char]]) -> bool;
     fn check_linebreak(&self) -> bool;
+    fn check_eof(&self) -> bool;
     fn assert_special(&mut self, character: &char, revert_index: usize) -> Result<(), ParseError>;
     fn assert_special_group(
         &mut self,
@@ -66,7 +67,7 @@ impl CharStateMachine for Parser {
     /// skips to the next char
     #[inline]
     fn skip_char(&mut self) {
-        let _ = self.next_char();
+        self.next_char();
     }
 
     /// Returns to an index position
@@ -207,6 +208,10 @@ impl CharStateMachine for Parser {
     #[inline]
     fn check_linebreak(&self) -> bool {
         self.current_char == LB && !self.check_escaped()
+    }
+
+    fn check_eof(&self) -> bool {
+        self.index >= (self.text.len() - 1)
     }
 
     #[inline]

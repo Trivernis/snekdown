@@ -9,6 +9,7 @@ pub type ParseResult<T> = Result<T, ParseError>;
 pub struct ParseError {
     index: usize,
     message: Option<String>,
+    pub(crate) eof: bool,
 }
 impl Display for ParseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -33,6 +34,7 @@ impl ParseError {
         Self {
             index,
             message: None,
+            eof: false,
         }
     }
 
@@ -40,6 +42,15 @@ impl ParseError {
         Self {
             index,
             message: Some(message.to_string()),
+            eof: false,
+        }
+    }
+
+    pub fn eof(index: usize) -> Self {
+        Self {
+            index,
+            message: Some("EOF".to_string()),
+            eof: true,
         }
     }
 
