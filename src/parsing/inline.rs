@@ -22,6 +22,7 @@ pub(crate) trait ParseInline {
     fn parse_emoji(&mut self) -> ParseResult<Emoji>;
     fn parse_colored(&mut self) -> ParseResult<Colored>;
     fn parse_bibref(&mut self) -> ParseResult<Arc<Mutex<BibReference>>>;
+    fn parse_template_variable(&mut self) -> ParseResult<Arc<Mutex<TemplateVariable>>>;
     fn parse_plain(&mut self) -> ParseResult<PlainText>;
 }
 
@@ -40,6 +41,11 @@ impl ParseInline for Parser {
 
     /// parses Inline, the formatting parts of a line (Text)
     fn parse_inline(&mut self) -> ParseResult<Inline> {
+        if self.parse_variables {
+            if let Ok(var) = self.parse_template_variable() {
+                return Ok(Inline::TemplateVar(var));
+            }
+        }
         if self.check_special(&PIPE) || self.check_linebreak() {
             Err(ParseError::new(self.index))
         } else if self.check_eof() {
@@ -249,6 +255,25 @@ impl ParseInline for Parser {
         Ok(ref_entry)
     }
 
+    /// parses a template variable {prefix{name}suffix}
+    fn parse_template_variable(&mut self) -> ParseResult<Arc<Mutex<TemplateVariable>>> {
+        let start_index = self.index;
+        self.assert_special(&TEMP_VAR_OPEN, start_index)?;
+        self.skip_char();
+        let prefix = self.get_string_until_or_revert(&[TEMP_VAR_OPEN], &[LB], start_index)?;
+        self.skip_char();
+        let name = self.get_string_until_or_revert(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
+        self.skip_char();
+        let suffix = self.get_string_until_or_revert(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
+        self.skip_char();
+        Ok(Arc::new(Mutex::new(TemplateVariable {
+            value: None,
+            name,
+            prefix,
+            suffix,
+        })))
+    }
+
     /// parses plain text as a string until it encounters an unescaped special inline char
     fn parse_plain(&mut self) -> ParseResult<PlainText> {
         if self.check_linebreak() {
@@ -259,6 +284,7 @@ impl ParseInline for Parser {
         while let Some(ch) = self.next_char() {
             if self.check_special_group(&INLINE_SPECIAL_CHARS)
                 || self.check_special_group(&self.inline_break_at)
+                || (self.parse_variables && self.check_special(&TEMP_VAR_OPEN))
             {
                 break;
             }

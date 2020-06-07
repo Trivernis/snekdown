@@ -25,10 +25,12 @@ pub struct Parser {
     paths: Arc<Mutex<Vec<String>>>,
     wg: WaitGroup,
     is_child: bool,
+    pub(crate) block_break_at: Vec<char>,
     pub(crate) inline_break_at: Vec<char>,
     pub(crate) document: Document,
     pub(crate) previous_char: char,
     pub(crate) reader: Box<dyn BufRead>,
+    pub(crate) parse_variables: bool,
 }
 
 impl Parser {
@@ -118,8 +120,10 @@ impl Parser {
             is_child,
             previous_char: ' ',
             inline_break_at: Vec::new(),
+            block_break_at: Vec::new(),
             document: Document::new(!is_child),
             reader,
+            parse_variables: false,
         }
     }
 
@@ -426,6 +430,8 @@ impl Parser {
             self.seek_inline_whitespace();
             if let Ok(ph) = self.parse_placeholder() {
                 value = MetadataValue::Placeholder(ph);
+            } else if let Ok(template) = self.parse_template() {
+                value = MetadataValue::Template(template)
             } else {
                 let quoted_string = self.check_special_group(&QUOTES);
                 let parse_until = if quoted_string {
@@ -501,7 +507,9 @@ impl Parser {
         while let Ok(token) = self.parse_line() {
             paragraph.add_element(token);
             let start_index = self.index;
-            if self.check_special_sequence_group(&BLOCK_SPECIAL_CHARS) {
+            if self.check_special_sequence_group(&BLOCK_SPECIAL_CHARS)
+                || self.check_special_group(&self.block_break_at)
+            {
                 self.revert_to(start_index)?;
                 break;
             }
@@ -772,7 +780,7 @@ impl Parser {
         let mut text = TextLine::new();
         while let Ok(subtext) = self.parse_inline() {
             text.add_subtext(subtext);
-            if self.check_eof() {
+            if self.check_eof() || self.check_special_group(&self.inline_break_at) {
                 break;
             }
         }
@@ -786,5 +794,48 @@ impl Parser {
         } else {
             Err(ParseError::eof(self.index))
         }
+    }
+
+    /// parses a template
+    fn parse_template(&mut self) -> ParseResult<Template> {
+        let start_index = self.index;
+        self.assert_special(&TEMPLATE, start_index)?;
+        self.skip_char();
+        if self.check_special(&TEMPLATE) {
+            return Err(self.revert_with_error(start_index));
+        }
+        let mut elements = Vec::new();
+        self.block_break_at.push(TEMPLATE);
+        self.inline_break_at.push(TEMPLATE);
+        self.parse_variables = true;
+        while let Ok(e) = self.parse_block() {
+            elements.push(Element::Block(Box::new(e)));
+            if self.check_special(&TEMPLATE) {
+                break;
+            }
+        }
+        self.parse_variables = false;
+        self.block_break_at.clear();
+        self.inline_break_at.clear();
+        self.assert_special(&TEMPLATE, start_index)?;
+        self.skip_char();
+        let vars: HashMap<String, Arc<Mutex<TemplateVariable>>> = elements
+            .iter()
+            .map(|e| e.get_template_variables())
+            .flatten()
+            .map(|e: Arc<Mutex<TemplateVariable>>| {
+                let name;
+                {
+                    name = e.lock().unwrap().name.clone();
+                };
+
+                (name, e)
+            })
+            .collect();
+
+        Ok(Template {
+            text: elements,
+            variables: vars,
+        })
     }
 }

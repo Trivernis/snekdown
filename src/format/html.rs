@@ -1,5 +1,6 @@
-use crate::format::Template;
+use crate::format::PlaceholderTemplate;
 use crate::parsing::bibliography::{BibEntry, BibReference};
+use crate::parsing::configuration::Value;
 use crate::parsing::elements::*;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
@@ -61,6 +62,7 @@ impl ToHtml for Inline {
             Inline::Emoji(emoji) => emoji.to_html(),
             Inline::Colored(colored) => colored.to_html(),
             Inline::BibReference(bibref) => bibref.lock().unwrap().to_html(),
+            Inline::TemplateVar(var) => var.lock().unwrap().to_html(),
         }
     }
 }
@@ -88,6 +90,7 @@ impl ToHtml for MetadataValue {
             MetadataValue::Placeholder(ph) => ph.lock().unwrap().to_html(),
             MetadataValue::Bool(b) => format!("{}", b),
             MetadataValue::Float(f) => format!("{}", f),
+            MetadataValue::Template(t) => t.to_html(),
         }
     }
 }
@@ -416,7 +419,7 @@ impl ToHtml for Anchor {
 impl ToHtml for InlineMetadata {
     fn to_html(&self) -> String {
         if let Some(MetadataValue::String(format)) = self.data.get("display") {
-            let mut template = Template::new(format.clone());
+            let mut template = PlaceholderTemplate::new(format.clone());
             self.data
                 .iter()
                 .for_each(|(k, v)| template.add_replacement(k, v.to_html().as_str()));
@@ -483,7 +486,25 @@ impl ToHtml for BibEntry {
         }
         if let Some(display) = &self.display {
             let display = display.lock().unwrap();
-            let mut template = Template::new(display.get().as_string());
+            if let Value::Template(template) = display.get() {
+                let replacements = self
+                    .as_map()
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            Element::Inline(Box::new(Inline::Plain(PlainText {
+                                value: v.clone(),
+                            }))),
+                        )
+                    })
+                    .collect();
+                return template
+                    .render(replacements)
+                    .iter()
+                    .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
+            }
+            let mut template = PlaceholderTemplate::new(display.get().as_string());
             template.set_replacements(self.as_map());
             format!(
                 "<span id='{}'>{}</span>",
@@ -503,6 +524,29 @@ impl ToHtml for BibEntry {
                     encode_attribute(self.key.as_str())
                 )
             }
+        }
+    }
+}
+
+impl ToHtml for Template {
+    fn to_html(&self) -> String {
+        self.text
+            .iter()
+            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+    }
+}
+
+impl ToHtml for TemplateVariable {
+    fn to_html(&self) -> String {
+        if let Some(value) = &self.value {
+            format!(
+                "{}{}{}",
+                encode_minimal(self.prefix.as_str()),
+                value.to_html(),
+                encode_minimal(self.suffix.as_str())
+            )
+        } else {
+            "".to_string()
         }
     }
 }

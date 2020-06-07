@@ -3,12 +3,12 @@ use std::collections::HashMap;
 
 pub mod html;
 
-pub struct Template {
+pub struct PlaceholderTemplate {
     value: String,
     replacements: HashMap<String, String>,
 }
 
-impl Template {
+impl PlaceholderTemplate {
     pub fn empty() -> Self {
         Self::new(String::new())
     }

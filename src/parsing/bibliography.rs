@@ -1,4 +1,4 @@
-use crate::format::Template;
+use crate::format::PlaceholderTemplate;
 use crate::parsing::configuration::keys::{BIB_DISPLAY, BIB_HIDE_UNUSED};
 use crate::parsing::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::parsing::elements::Metadata;
@@ -141,7 +141,7 @@ impl BibReference {
             let entry = entry.lock().unwrap();
             if let Some(display) = &self.display {
                 let display = display.lock().unwrap();
-                let mut template = Template::new(display.get().as_string());
+                let mut template = PlaceholderTemplate::new(display.get().as_string());
                 template.set_replacements(entry.as_map());
                 return template.render();
             }

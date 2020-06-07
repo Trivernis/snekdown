@@ -200,5 +200,5 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [ ] Cross References
 - [ ] Figures
 - [ ] EPUB Rendering (PDF is too hard)
-- [ ] Custom Elements via templates
+- [ ] Custom Elements via templates (50%)
 - [ ] Custom Stylesheets

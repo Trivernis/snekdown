@@ -28,6 +28,9 @@ pub(crate) const UP: char = '^';
 pub(crate) const COLON: char = ':';
 pub(crate) const PARAGRAPH: char = '§';
 pub(crate) const SEMICOLON: char = ';';
+pub(crate) const R_BRACE: char = '{';
+pub(crate) const L_BRACE: char = '}';
+pub(crate) const PERCENT: char = '%';
 
 // aliases
 
@@ -57,6 +60,9 @@ pub(crate) const BIBREF_CLOSE: char = L_BRACKET;
 pub(crate) const BIB_KEY_OPEN: char = R_BRACKET;
 pub(crate) const BIB_KEY_CLOSE: char = L_BRACKET;
 pub(crate) const BIB_DATA_START: char = COLON;
+pub(crate) const TEMP_VAR_OPEN: char = R_BRACE;
+pub(crate) const TEMP_VAR_CLOSE: char = L_BRACE;
+pub(crate) const TEMPLATE: char = PERCENT;
 
 pub(crate) const ITALIC: char = ASTERISK;
 pub(crate) const MONOSPACE: char = BACKTICK;

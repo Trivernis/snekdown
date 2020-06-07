@@ -2,7 +2,7 @@ use crate::parsing::configuration::config::RootConfig;
 use crate::parsing::configuration::keys::{
     BIB_DISPLAY, BIB_HIDE_UNUSED, BIB_REF_DISPLAY, META_AUTHOR, META_DATE, META_TITLE,
 };
-use crate::parsing::elements::MetadataValue;
+use crate::parsing::elements::{MetadataValue, Template};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -15,6 +15,7 @@ pub enum Value {
     Bool(bool),
     Float(f64),
     Integer(i64),
+    Template(Template),
 }
 
 #[derive(Clone, Debug)]
@@ -36,6 +37,7 @@ impl Value {
             Value::Integer(int) => format!("{}", int),
             Value::Float(f) => format!("{:02}", f),
             Value::Bool(b) => format!("{}", b),
+            _ => "".to_string(),
         }
     }
 }
@@ -135,6 +137,7 @@ impl Configuration {
             MetadataValue::Bool(bool) => self.set(key, Value::Bool(bool)),
             MetadataValue::Float(f) => self.set(key, Value::Float(f)),
             MetadataValue::Integer(i) => self.set(key, Value::Integer(i)),
+            MetadataValue::Template(t) => self.set(key, Value::Template(t)),
             _ => {}
         }
     }
