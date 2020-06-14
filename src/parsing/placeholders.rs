@@ -37,7 +37,7 @@ impl ProcessPlaceholders for Document {
     /// parses all placeholders and assigns values to them
     fn process_placeholders(&mut self) {
         self.placeholders.iter().for_each(|p| {
-            let mut pholder = p.lock().unwrap();
+            let mut pholder = p.write().unwrap();
             match pholder.name.to_lowercase().as_str() {
                 P_TOC => {
                     let ordered = if let Some(meta) = &pholder.metadata {
@@ -74,7 +74,7 @@ impl ProcessPlaceholders for Document {
 
         let placeholders = self.placeholders.clone();
         placeholders.iter().for_each(|p| {
-            let mut pholder = p.lock().unwrap();
+            let mut pholder = p.write().unwrap();
             let name = pholder.name.clone();
 
             if let Some(cap) = RE_SET.captures(&name) {

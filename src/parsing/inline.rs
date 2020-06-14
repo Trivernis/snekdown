@@ -3,9 +3,10 @@ use super::elements::*;
 use super::tokens::*;
 use crate::parsing::bibliography::BibReference;
 use crate::parsing::configuration::keys::BIB_REF_DISPLAY;
+use crate::parsing::templates::TemplateVariable;
 use crate::parsing::utils::{ParseError, ParseResult};
 use crate::Parser;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 pub(crate) trait ParseInline {
     fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Inline>;
@@ -21,8 +22,8 @@ pub(crate) trait ParseInline {
     fn parse_superscript(&mut self) -> ParseResult<SuperscriptText>;
     fn parse_emoji(&mut self) -> ParseResult<Emoji>;
     fn parse_colored(&mut self) -> ParseResult<Colored>;
-    fn parse_bibref(&mut self) -> ParseResult<Arc<Mutex<BibReference>>>;
-    fn parse_template_variable(&mut self) -> ParseResult<Arc<Mutex<TemplateVariable>>>;
+    fn parse_bibref(&mut self) -> ParseResult<Arc<RwLock<BibReference>>>;
+    fn parse_template_variable(&mut self) -> ParseResult<Arc<RwLock<TemplateVariable>>>;
     fn parse_plain(&mut self) -> ParseResult<PlainText>;
 }
 
@@ -238,13 +239,13 @@ impl ParseInline for Parser {
         })
     }
 
-    fn parse_bibref(&mut self) -> ParseResult<Arc<Mutex<BibReference>>> {
+    fn parse_bibref(&mut self) -> ParseResult<Arc<RwLock<BibReference>>> {
         let start_index = self.index;
         self.assert_special_sequence(&SQ_BIBREF_START, start_index)?;
         self.skip_char();
         let key = self.get_string_until_or_revert(&[BIBREF_CLOSE], &[SPACE, LB], start_index)?;
         self.skip_char();
-        let ref_entry = Arc::new(Mutex::new(BibReference::new(
+        let ref_entry = Arc::new(RwLock::new(BibReference::new(
             key,
             self.document.config.get_ref_entry(BIB_REF_DISPLAY),
         )));
@@ -256,7 +257,7 @@ impl ParseInline for Parser {
     }
 
     /// parses a template variable {prefix{name}suffix}
-    fn parse_template_variable(&mut self) -> ParseResult<Arc<Mutex<TemplateVariable>>> {
+    fn parse_template_variable(&mut self) -> ParseResult<Arc<RwLock<TemplateVariable>>> {
         let start_index = self.index;
         self.assert_special(&TEMP_VAR_OPEN, start_index)?;
         self.skip_char();
@@ -266,7 +267,7 @@ impl ParseInline for Parser {
         self.skip_char();
         let suffix = self.get_string_until_or_revert(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
         self.skip_char();
-        Ok(Arc::new(Mutex::new(TemplateVariable {
+        Ok(Arc::new(RwLock::new(TemplateVariable {
             value: None,
             name,
             prefix,

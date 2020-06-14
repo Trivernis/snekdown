@@ -2,6 +2,7 @@ use crate::format::PlaceholderTemplate;
 use crate::parsing::bibliography::{BibEntry, BibReference};
 use crate::parsing::configuration::Value;
 use crate::parsing::elements::*;
+use crate::parsing::templates::{Template, TemplateVariable};
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
 use std::cell::RefCell;
@@ -40,7 +41,7 @@ impl ToHtml for Line {
             Line::Ruler(ruler) => ruler.to_html(),
             Line::Anchor(anchor) => anchor.to_html(),
             Line::Centered(centered) => centered.to_html(),
-            Line::BibEntry(bib) => bib.lock().unwrap().to_html(),
+            Line::BibEntry(bib) => bib.read().unwrap().to_html(),
         }
     }
 }
@@ -56,13 +57,13 @@ impl ToHtml for Inline {
             Inline::Underlined(under) => under.to_html(),
             Inline::Bold(bold) => bold.to_html(),
             Inline::Image(img) => img.to_html(),
-            Inline::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
+            Inline::Placeholder(placeholder) => placeholder.read().unwrap().to_html(),
             Inline::Superscript(superscript) => superscript.to_html(),
             Inline::Checkbox(checkbox) => checkbox.to_html(),
             Inline::Emoji(emoji) => emoji.to_html(),
             Inline::Colored(colored) => colored.to_html(),
-            Inline::BibReference(bibref) => bibref.lock().unwrap().to_html(),
-            Inline::TemplateVar(var) => var.lock().unwrap().to_html(),
+            Inline::BibReference(bibref) => bibref.read().unwrap().to_html(),
+            Inline::TemplateVar(var) => var.read().unwrap().to_html(),
         }
     }
 }
@@ -77,7 +78,7 @@ impl ToHtml for Block {
             Block::Quote(quote) => quote.to_html(),
             Block::Section(section) => section.to_html(),
             Block::Import(import) => import.to_html(),
-            Block::Placeholder(placeholder) => placeholder.lock().unwrap().to_html(),
+            Block::Placeholder(placeholder) => placeholder.read().unwrap().to_html(),
         }
     }
 }
@@ -87,7 +88,7 @@ impl ToHtml for MetadataValue {
         match self {
             MetadataValue::String(string) => encode_minimal(string),
             MetadataValue::Integer(num) => format!("{}", num),
-            MetadataValue::Placeholder(ph) => ph.lock().unwrap().to_html(),
+            MetadataValue::Placeholder(ph) => ph.read().unwrap().to_html(),
             MetadataValue::Bool(b) => format!("{}", b),
             MetadataValue::Float(f) => format!("{}", f),
             MetadataValue::Template(t) => t.to_html(),
@@ -123,7 +124,7 @@ impl ToHtml for Document {
 
 impl ToHtml for Import {
     fn to_html(&self) -> String {
-        let anchor = self.anchor.lock().unwrap();
+        let anchor = self.anchor.read().unwrap();
         if let Some(document) = &anchor.document {
             document.to_html()
         } else {
@@ -485,7 +486,7 @@ impl ToHtml for BibEntry {
             return "".to_string();
         }
         if let Some(display) = &self.display {
-            let display = display.lock().unwrap();
+            let display = display.read().unwrap();
             if let Value::Template(template) = display.get() {
                 let replacements = self
                     .as_map()

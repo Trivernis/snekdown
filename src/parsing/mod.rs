@@ -5,6 +5,7 @@ pub mod elements;
 pub mod inline;
 pub mod parser;
 pub mod placeholders;
+pub mod templates;
 pub mod tokens;
 
 #[macro_use]

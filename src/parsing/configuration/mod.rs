@@ -2,9 +2,10 @@ use crate::parsing::configuration::config::RootConfig;
 use crate::parsing::configuration::keys::{
     BIB_DISPLAY, BIB_HIDE_UNUSED, BIB_REF_DISPLAY, META_AUTHOR, META_DATE, META_TITLE,
 };
-use crate::parsing::elements::{MetadataValue, Template};
+use crate::parsing::elements::MetadataValue;
+use crate::parsing::templates::Template;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 pub mod config;
 pub(crate) mod keys;
@@ -23,11 +24,11 @@ pub struct ConfigEntry {
     inner: Value,
 }
 
-pub type ConfigRefEntry = Arc<Mutex<ConfigEntry>>;
+pub type ConfigRefEntry = Arc<RwLock<ConfigEntry>>;
 
 #[derive(Clone, Debug)]
 pub struct Configuration {
-    config: Arc<Mutex<HashMap<String, ConfigRefEntry>>>,
+    config: Arc<RwLock<HashMap<String, ConfigRefEntry>>>,
 }
 
 impl Value {
@@ -59,7 +60,7 @@ impl ConfigEntry {
 impl Configuration {
     pub fn new() -> Self {
         Self {
-            config: Arc::new(Mutex::new(HashMap::new())),
+            config: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -98,9 +99,9 @@ impl Configuration {
 
     /// returns the value of a config entry
     pub fn get_entry(&self, key: &str) -> Option<ConfigEntry> {
-        let config = self.config.lock().unwrap();
+        let config = self.config.read().unwrap();
         if let Some(entry) = config.get(key) {
-            let value = entry.lock().unwrap();
+            let value = entry.read().unwrap();
             Some(value.clone())
         } else {
             None
@@ -109,7 +110,7 @@ impl Configuration {
 
     /// returns a config entry that is a reference to a value
     pub fn get_ref_entry(&self, key: &str) -> Option<ConfigRefEntry> {
-        let config = self.config.lock().unwrap();
+        let config = self.config.read().unwrap();
         if let Some(entry) = config.get(&key.to_string()) {
             Some(Arc::clone(entry))
         } else {
@@ -119,13 +120,13 @@ impl Configuration {
 
     /// Sets a config parameter
     pub fn set(&mut self, key: &str, value: Value) {
-        let mut config = self.config.lock().unwrap();
+        let mut config = self.config.write().unwrap();
         if let Some(entry) = config.get(&key.to_string()) {
-            entry.lock().unwrap().set(value)
+            entry.write().unwrap().set(value)
         } else {
             config.insert(
                 key.to_string(),
-                Arc::new(Mutex::new(ConfigEntry::new(value))),
+                Arc::new(RwLock::new(ConfigEntry::new(value))),
             );
         }
     }

@@ -3,7 +3,7 @@ use crate::parsing::configuration::keys::{BIB_DISPLAY, BIB_HIDE_UNUSED};
 use crate::parsing::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::parsing::elements::Metadata;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 const B_NUMBER: &str = "number";
 const B_AUTHOR: &str = "author";
@@ -31,14 +31,14 @@ pub struct BibEntry {
 #[derive(Clone, Debug)]
 pub struct BibReference {
     pub(crate) key: String,
-    pub(crate) reference_entry: Option<Arc<Mutex<BibEntry>>>,
+    pub(crate) reference_entry: Option<Arc<RwLock<BibEntry>>>,
     pub(crate) display: Option<ConfigRefEntry>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Bibliography {
-    entries: HashMap<String, Arc<Mutex<BibEntry>>>,
-    references: Vec<Arc<Mutex<BibReference>>>,
+    entries: HashMap<String, Arc<RwLock<BibEntry>>>,
+    references: Vec<Arc<RwLock<BibReference>>>,
 }
 
 impl BibEntry {
@@ -110,7 +110,7 @@ impl BibEntry {
 
     pub fn is_visible(&self) -> bool {
         if let Some(hide_cfg) = &self.hide_unused {
-            let hide_cfg = hide_cfg.lock().unwrap();
+            let hide_cfg = hide_cfg.read().unwrap();
             if let Value::Bool(b) = hide_cfg.get() {
                 if *b && self.ref_count == 0 {
                     return false;
@@ -132,15 +132,15 @@ impl BibReference {
     }
 
     /// sets the reference to the bib entry
-    pub(crate) fn set_entry(&mut self, entry: Arc<Mutex<BibEntry>>) {
+    pub(crate) fn set_entry(&mut self, entry: Arc<RwLock<BibEntry>>) {
         self.reference_entry = Some(entry)
     }
 
     pub(crate) fn get_formatted(&self) -> String {
         if let Some(entry) = &self.reference_entry {
-            let entry = entry.lock().unwrap();
+            let entry = entry.read().unwrap();
             if let Some(display) = &self.display {
-                let display = display.lock().unwrap();
+                let display = display.read().unwrap();
                 let mut template = PlaceholderTemplate::new(display.get().as_string());
                 template.set_replacements(entry.as_map());
                 return template.render();
@@ -163,10 +163,10 @@ impl Bibliography {
     pub(crate) fn assign_entry_data(&mut self) {
         let mut count = 0;
         self.references.iter().for_each(|e| {
-            let mut reference = e.lock().unwrap();
+            let mut reference = e.write().unwrap();
             if let Some(entry) = self.entries.get(&reference.key) {
                 {
-                    let mut entry_raw = entry.lock().unwrap();
+                    let mut entry_raw = entry.write().unwrap();
                     let ref_count = entry_raw.ref_count;
                     entry_raw.set_ref_count(ref_count + 1);
                 }
@@ -174,7 +174,7 @@ impl Bibliography {
             }
         });
         self.entries.iter().for_each(|(_, e)| {
-            let mut entry = e.lock().unwrap();
+            let mut entry = e.write().unwrap();
             if entry.is_visible() {
                 count += 1;
                 entry.set_number(count)
@@ -182,12 +182,12 @@ impl Bibliography {
         });
     }
 
-    pub fn add_ref_entry(&mut self, entry: Arc<Mutex<BibReference>>) {
+    pub fn add_ref_entry(&mut self, entry: Arc<RwLock<BibReference>>) {
         self.references.push(entry)
     }
 
-    pub fn add_bib_entry(&mut self, entry: Arc<Mutex<BibEntry>>) {
-        let key = entry.lock().unwrap().key.clone();
+    pub fn add_bib_entry(&mut self, entry: Arc<RwLock<BibEntry>>) {
+        let key = entry.read().unwrap().key.clone();
         self.entries.insert(key, entry);
     }
 

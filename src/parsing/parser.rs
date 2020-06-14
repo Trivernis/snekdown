@@ -2,7 +2,9 @@ use super::elements::*;
 use super::tokens::*;
 use crate::parsing::bibliography::BibEntry;
 use crate::parsing::charstate::CharStateMachine;
+use crate::parsing::configuration::Configuration;
 use crate::parsing::inline::ParseInline;
+use crate::parsing::templates::{GetTemplateVariables, Template, TemplateVariable};
 use crate::parsing::utils::{ParseError, ParseResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
@@ -11,7 +13,7 @@ use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Cursor};
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 
 pub struct Parser {
@@ -107,6 +109,7 @@ impl Parser {
         if let Some(ch) = text.get(0) {
             current_char = *ch
         }
+        let document = Document::new(!is_child);
         Self {
             index: 0,
             text,
@@ -121,10 +124,14 @@ impl Parser {
             previous_char: ' ',
             inline_break_at: Vec::new(),
             block_break_at: Vec::new(),
-            document: Document::new(!is_child),
+            document,
             reader,
             parse_variables: false,
         }
+    }
+
+    pub fn set_config(&mut self, config: Configuration) {
+        self.document.config = config;
     }
 
     /// Returns the text of the parser as a string
@@ -159,7 +166,7 @@ impl Parser {
     }
 
     /// starts up a new thread to parse the imported document
-    fn import_document(&mut self, path: String) -> ParseResult<Arc<Mutex<ImportAnchor>>> {
+    fn import_document(&mut self, path: String) -> ParseResult<Arc<RwLock<ImportAnchor>>> {
         let path = self.transform_path(path);
         let path_info = Path::new(&path);
         if !path_info.exists() || !path_info.is_file() {
@@ -183,15 +190,17 @@ impl Parser {
             }
             paths.push(path.clone());
         }
-        let anchor = Arc::new(Mutex::new(ImportAnchor::new()));
+        let anchor = Arc::new(RwLock::new(ImportAnchor::new()));
         let anchor_clone = Arc::clone(&anchor);
         let wg = self.wg.clone();
         let paths = Arc::clone(&self.paths);
+        let config = self.document.config.clone();
 
         let _ = thread::spawn(move || {
             let mut parser = Parser::child_from_file(path, paths).unwrap();
+            parser.set_config(config);
             let document = parser.parse();
-            anchor_clone.lock().unwrap().set_document(document);
+            anchor_clone.write().unwrap().set_document(document);
 
             drop(wg);
         });
@@ -707,7 +716,7 @@ impl Parser {
         }
     }
 
-    fn parse_bib_entry(&mut self) -> ParseResult<Arc<Mutex<BibEntry>>> {
+    fn parse_bib_entry(&mut self) -> ParseResult<Arc<RwLock<BibEntry>>> {
         let start_index = self.index;
         self.seek_inline_whitespace();
         self.assert_special(&BIB_KEY_OPEN, start_index)?;
@@ -723,7 +732,7 @@ impl Parser {
             let url = self.get_string_until_or_revert(&[LB], &[], start_index)?;
             BibEntry::from_url(key, url, &self.document.config)
         };
-        let entry_ref = Arc::new(Mutex::new(entry));
+        let entry_ref = Arc::new(RwLock::new(entry));
         self.document
             .bibliography
             .add_bib_entry(Arc::clone(&entry_ref));
@@ -742,7 +751,7 @@ impl Parser {
     }
 
     /// parses a placeholder element
-    pub(crate) fn parse_placeholder(&mut self) -> Result<Arc<Mutex<Placeholder>>, ParseError> {
+    pub(crate) fn parse_placeholder(&mut self) -> Result<Arc<RwLock<Placeholder>>, ParseError> {
         let start_index = self.index;
         self.assert_special_sequence(&SQ_PHOLDER_START, self.index)?;
         self.skip_char();
@@ -760,7 +769,7 @@ impl Parser {
             None
         };
 
-        let placeholder = Arc::new(Mutex::new(Placeholder::new(name, metadata)));
+        let placeholder = Arc::new(RwLock::new(Placeholder::new(name, metadata)));
         self.document.add_placeholder(Arc::clone(&placeholder));
 
         Ok(placeholder)
@@ -819,14 +828,14 @@ impl Parser {
         self.inline_break_at.clear();
         self.assert_special(&TEMPLATE, start_index)?;
         self.skip_char();
-        let vars: HashMap<String, Arc<Mutex<TemplateVariable>>> = elements
+        let vars: HashMap<String, Arc<RwLock<TemplateVariable>>> = elements
             .iter()
             .map(|e| e.get_template_variables())
             .flatten()
-            .map(|e: Arc<Mutex<TemplateVariable>>| {
+            .map(|e: Arc<RwLock<TemplateVariable>>| {
                 let name;
                 {
-                    name = e.lock().unwrap().name.clone();
+                    name = e.read().unwrap().name.clone();
                 };
 
                 (name, e)

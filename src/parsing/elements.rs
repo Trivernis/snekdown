@@ -1,9 +1,10 @@
 use crate::parsing::bibliography::{BibEntry, BibReference, Bibliography};
 use crate::parsing::configuration::Configuration;
 use crate::parsing::placeholders::ProcessPlaceholders;
+use crate::parsing::templates::{Template, TemplateVariable};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 
 pub const SECTION: &str = "section";
 pub const PARAGRAPH: &str = "paragraph";
@@ -19,7 +20,7 @@ pub enum MetadataValue {
     Integer(i64),
     Float(f64),
     Bool(bool),
-    Placeholder(Arc<Mutex<Placeholder>>),
+    Placeholder(Arc<RwLock<Placeholder>>),
     Template(Template),
 }
 
@@ -39,7 +40,7 @@ pub enum Block {
     CodeBlock(CodeBlock),
     Quote(Quote),
     Import(Import),
-    Placeholder(Arc<Mutex<Placeholder>>),
+    Placeholder(Arc<RwLock<Placeholder>>),
 }
 
 #[derive(Clone, Debug)]
@@ -48,7 +49,7 @@ pub enum Line {
     Ruler(Ruler),
     Anchor(Anchor),
     Centered(Centered),
-    BibEntry(Arc<Mutex<BibEntry>>),
+    BibEntry(Arc<RwLock<BibEntry>>),
 }
 
 #[derive(Clone, Debug)]
@@ -56,7 +57,7 @@ pub struct Document {
     pub elements: Vec<Block>,
     pub(crate) is_root: bool,
     pub(crate) path: Option<String>,
-    pub(crate) placeholders: Vec<Arc<Mutex<Placeholder>>>,
+    pub(crate) placeholders: Vec<Arc<RwLock<Placeholder>>>,
     pub config: Configuration,
     pub bibliography: Bibliography,
 }
@@ -125,7 +126,7 @@ pub struct Quote {
 #[derive(Clone, Debug)]
 pub struct Import {
     pub(crate) path: String,
-    pub(crate) anchor: Arc<Mutex<ImportAnchor>>,
+    pub(crate) anchor: Arc<RwLock<ImportAnchor>>,
 }
 
 #[derive(Clone, Debug)]
@@ -157,12 +158,12 @@ pub enum Inline {
     Superscript(SuperscriptText),
     Url(Url),
     Image(Image),
-    Placeholder(Arc<Mutex<Placeholder>>),
+    Placeholder(Arc<RwLock<Placeholder>>),
     Checkbox(Checkbox),
     Emoji(Emoji),
     Colored(Colored),
-    BibReference(Arc<Mutex<BibReference>>),
-    TemplateVar(Arc<Mutex<TemplateVariable>>),
+    BibReference(Arc<RwLock<BibReference>>),
+    TemplateVar(Arc<RwLock<TemplateVariable>>),
 }
 
 #[derive(Clone, Debug)]
@@ -247,20 +248,6 @@ pub struct Colored {
     pub(crate) color: String,
 }
 
-#[derive(Clone, Debug)]
-pub struct Template {
-    pub(crate) text: Vec<Element>,
-    pub(crate) variables: HashMap<String, Arc<Mutex<TemplateVariable>>>,
-}
-
-#[derive(Clone, Debug)]
-pub struct TemplateVariable {
-    pub(crate) prefix: String,
-    pub(crate) name: String,
-    pub(crate) suffix: String,
-    pub(crate) value: Option<Element>,
-}
-
 // implementations
 
 impl Document {
@@ -279,7 +266,7 @@ impl Document {
         self.elements.push(element)
     }
 
-    pub fn add_placeholder(&mut self, placeholder: Arc<Mutex<Placeholder>>) {
+    pub fn add_placeholder(&mut self, placeholder: Arc<RwLock<Placeholder>>) {
         self.placeholders.push(placeholder);
     }
 
@@ -295,7 +282,7 @@ impl Document {
                 }
             }
             Block::Import(imp) => {
-                let anchor = imp.anchor.lock().unwrap();
+                let anchor = imp.anchor.read().unwrap();
                 if let Some(doc) = &anchor.document {
                     list.items.append(&mut doc.create_toc(ordered).items)
                 }
@@ -334,7 +321,7 @@ impl Document {
                 }
                 Block::Import(imp) => {
                     let arc_anchor = Arc::clone(&imp.anchor);
-                    let anchor = &mut arc_anchor.lock().unwrap();
+                    let anchor = &mut arc_anchor.write().unwrap();
                     if let Some(doc) = &mut anchor.document {
                         self.placeholders.append(&mut doc.placeholders);
                         self.bibliography.combine(&mut doc.bibliography);
@@ -415,11 +402,11 @@ impl Section {
         if section.header.size == self.header.size + 1 {
             self.elements.push(Block::Section(section))
         } else {
-            let has_parent = Mutex::new(AtomicBool::new(true));
+            let has_parent = RwLock::new(AtomicBool::new(true));
             let iterator = self.elements.iter_mut().rev().filter(|e| {
                 if let Block::Section(sec) = e {
                     if sec.header.size > section.header.size {
-                        has_parent.lock().unwrap().store(true, Ordering::Relaxed);
+                        has_parent.write().unwrap().store(true, Ordering::Relaxed);
                         true
                     } else {
                         false
@@ -429,7 +416,7 @@ impl Section {
                 }
             });
 
-            if has_parent.lock().unwrap().load(Ordering::Relaxed) {
+            if has_parent.read().unwrap().load(Ordering::Relaxed) {
                 for sec in iterator {
                     if let Block::Section(sec) = sec {
                         if sec.header.size < section.header.size {
@@ -606,210 +593,5 @@ impl Metadata for InlineMetadata {
         } else {
             None
         }
-    }
-}
-
-impl Element {
-    pub fn get_template_variables(&self) -> Vec<Arc<Mutex<TemplateVariable>>> {
-        match self {
-            Element::Block(block) => block
-                .get_template_variables()
-                .iter()
-                .filter_map(|e| e.clone())
-                .collect(),
-            Element::Inline(inline) => vec![inline.get_template_variable()]
-                .iter()
-                .filter_map(|e| e.clone())
-                .collect(),
-            Element::Line(line) => line
-                .get_template_variables()
-                .iter()
-                .filter_map(|e| e.clone())
-                .collect(),
-        }
-    }
-
-    pub fn freeze_variables(&mut self) -> Option<Arc<Mutex<TemplateVariable>>> {
-        match self {
-            Element::Block(b) => b.freeze_template_variables(),
-            Element::Line(l) => l.freeze_variables(),
-            Element::Inline(i) => return i.freeze_variables(),
-        }
-
-        None
-    }
-}
-
-impl Block {
-    pub fn get_template_variables(&self) -> Vec<Option<Arc<Mutex<TemplateVariable>>>> {
-        match self {
-            Block::Section(sec) => sec
-                .elements
-                .iter()
-                .map(|e| e.get_template_variables())
-                .flatten()
-                .collect(),
-            Block::Paragraph(par) => par
-                .elements
-                .iter()
-                .map(|l| l.get_template_variables())
-                .flatten()
-                .collect(),
-            Block::Quote(q) => q
-                .text
-                .iter()
-                .map(|t| t.subtext.iter().map(|i| i.get_template_variable()))
-                .flatten()
-                .collect(),
-            _ => Vec::new(),
-        }
-    }
-
-    pub fn freeze_template_variables(&mut self) {
-        match self {
-            Block::Section(s) => s
-                .elements
-                .iter_mut()
-                .for_each(|b| b.freeze_template_variables()),
-            Block::Paragraph(p) => p.elements.iter_mut().for_each(|l| l.freeze_variables()),
-            Block::Quote(q) => q.text.iter_mut().for_each(|t| {
-                t.subtext = t
-                    .subtext
-                    .iter_mut()
-                    .map(|i| {
-                        if let Some(t) = i.freeze_variables() {
-                            Inline::TemplateVar(t)
-                        } else {
-                            (*i).clone()
-                        }
-                    })
-                    .collect()
-            }),
-            _ => {}
-        }
-    }
-}
-
-impl Line {
-    pub fn get_template_variables(&self) -> Vec<Option<Arc<Mutex<TemplateVariable>>>> {
-        match self {
-            Line::Text(line) => line
-                .subtext
-                .iter()
-                .map(|s| s.get_template_variable())
-                .collect(),
-            _ => Vec::new(),
-        }
-    }
-
-    pub fn freeze_variables(&mut self) {
-        match self {
-            Line::Text(text) => {
-                text.subtext = text
-                    .subtext
-                    .iter_mut()
-                    .map(|i| {
-                        if let Some(t) = i.freeze_variables() {
-                            Inline::TemplateVar(t)
-                        } else {
-                            (*i).clone()
-                        }
-                    })
-                    .collect()
-            }
-            _ => {}
-        }
-    }
-}
-
-impl Inline {
-    pub fn get_template_variable(&self) -> Option<Arc<Mutex<TemplateVariable>>> {
-        match self {
-            Inline::TemplateVar(temp) => Some(Arc::clone(temp)),
-            Inline::Colored(col) => col.value.get_template_variable(),
-            Inline::Superscript(sup) => sup.value.get_template_variable(),
-            Inline::Striked(striked) => striked.value.get_template_variable(),
-            Inline::Underlined(under) => under.value.get_template_variable(),
-            Inline::Italic(it) => it.value.get_template_variable(),
-            Inline::Bold(bo) => bo.value.get_template_variable(),
-            _ => None,
-        }
-    }
-
-    pub fn freeze_variables(&mut self) -> Option<Arc<Mutex<TemplateVariable>>> {
-        match self {
-            Inline::TemplateVar(temp) => {
-                let temp = temp.lock().unwrap();
-                return Some(Arc::new(Mutex::new((*temp).clone())));
-            }
-            Inline::Colored(col) => {
-                if let Some(temp) = col.value.freeze_variables() {
-                    col.value = Box::new(Inline::TemplateVar(temp))
-                }
-            }
-            Inline::Superscript(sup) => {
-                if let Some(temp) = sup.value.freeze_variables() {
-                    sup.value = Box::new(Inline::TemplateVar(temp))
-                }
-            }
-            Inline::Striked(striked) => {
-                if let Some(temp) = striked.value.freeze_variables() {
-                    striked.value = Box::new(Inline::TemplateVar(temp))
-                }
-            }
-            Inline::Underlined(under) => {
-                if let Some(temp) = under.value.freeze_variables() {
-                    under.value = Box::new(Inline::TemplateVar(temp))
-                }
-            }
-            Inline::Italic(it) => {
-                if let Some(temp) = it.value.freeze_variables() {
-                    it.value = Box::new(Inline::TemplateVar(temp))
-                }
-            }
-            Inline::Bold(bo) => {
-                if let Some(temp) = bo.value.freeze_variables() {
-                    bo.value = Box::new(Inline::TemplateVar(temp))
-                }
-            }
-            _ => {}
-        }
-        None
-    }
-}
-
-impl Template {
-    pub fn render(&self, replacements: HashMap<String, Element>) -> Vec<Element> {
-        replacements.iter().for_each(|(k, r)| {
-            if let Some(v) = self.variables.get(k) {
-                v.lock().unwrap().set_value(r.clone())
-            }
-        });
-        let elements = self
-            .text
-            .iter()
-            .map(|e| {
-                let mut e = e.clone();
-                if let Some(template) = e.freeze_variables() {
-                    Element::Inline(Box::new(Inline::TemplateVar(template)))
-                } else {
-                    e
-                }
-            })
-            .collect();
-        self.variables
-            .iter()
-            .for_each(|(_, v)| v.lock().unwrap().reset());
-
-        elements
-    }
-}
-
-impl TemplateVariable {
-    pub fn set_value(&mut self, value: Element) {
-        self.value = Some(value)
-    }
-    pub fn reset(&mut self) {
-        self.value = None
     }
 }
