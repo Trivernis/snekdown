@@ -454,6 +454,10 @@ impl Parser {
                 if self.check_special_group(&QUOTES) {
                     self.skip_char();
                 }
+                self.seek_inline_whitespace();
+                if self.check_special(&COMMA) {
+                    self.skip_char();
+                }
                 value = if quoted_string {
                     MetadataValue::String(raw_value)
                 } else if raw_value.to_lowercase().as_str() == "true" {

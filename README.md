@@ -172,7 +172,7 @@ Bibliography entries can be defined and referenced anywhere in the document.
 
 Definition:
 ```md
-[book]:[author=Snek title = "Snekdown Book"]
+[book]:[author=Snek, title = "Snekdown Book"]
 [github]: https://github.com/trivernis/snekdown
 ```
 

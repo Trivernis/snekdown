@@ -31,6 +31,7 @@ pub(crate) const SEMICOLON: char = ';';
 pub(crate) const R_BRACE: char = '{';
 pub(crate) const L_BRACE: char = '}';
 pub(crate) const PERCENT: char = '%';
+pub(crate) const COMMA: char = ',';
 
 // aliases
 
