@@ -1,4 +1,4 @@
-use crate::parsing::elements::{Block, Element, Inline, Line, ListItem};
+use crate::elements::{Block, Element, Inline, Line, ListItem};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

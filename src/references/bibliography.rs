@@ -1,7 +1,7 @@
+use crate::elements::Metadata;
 use crate::format::PlaceholderTemplate;
-use crate::parsing::configuration::keys::{BIB_DISPLAY, BIB_HIDE_UNUSED};
-use crate::parsing::configuration::{ConfigRefEntry, Configuration, Value};
-use crate::parsing::elements::Metadata;
+use crate::references::configuration::keys::{BIB_DISPLAY, BIB_HIDE_UNUSED};
+use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

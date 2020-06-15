@@ -1,11 +1,13 @@
 use super::charstate::CharStateMachine;
-use super::elements::*;
-use super::tokens::*;
-use crate::parsing::bibliography::BibReference;
-use crate::parsing::configuration::keys::BIB_REF_DISPLAY;
-use crate::parsing::templates::TemplateVariable;
-use crate::parsing::utils::{ParseError, ParseResult};
+use crate::elements::tokens::*;
+use crate::elements::*;
+use crate::parser::block::ParseBlock;
+use crate::references::bibliography::BibReference;
+use crate::references::configuration::keys::BIB_REF_DISPLAY;
+use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
+use crate::utils::parsing::{ParseError, ParseResult};
 use crate::Parser;
+use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub(crate) trait ParseInline {
@@ -25,6 +27,10 @@ pub(crate) trait ParseInline {
     fn parse_bibref(&mut self) -> ParseResult<Arc<RwLock<BibReference>>>;
     fn parse_template_variable(&mut self) -> ParseResult<Arc<RwLock<TemplateVariable>>>;
     fn parse_plain(&mut self) -> ParseResult<PlainText>;
+    fn parse_inline_metadata(&mut self) -> ParseResult<InlineMetadata>;
+    fn parse_metadata_pair(&mut self) -> ParseResult<(String, MetadataValue)>;
+    fn parse_placeholder(&mut self) -> ParseResult<Arc<RwLock<Placeholder>>>;
+    fn parse_template(&mut self) -> ParseResult<Template>;
 }
 
 impl ParseInline for Parser {
@@ -300,5 +306,149 @@ impl ParseInline for Parser {
                 "no plaintext characters parsed",
             ))
         }
+    }
+
+    /// parses a key-value metadata pair
+    fn parse_metadata_pair(&mut self) -> Result<(String, MetadataValue), ParseError> {
+        self.seek_inline_whitespace();
+        let name = self.get_string_until(&[META_CLOSE, EQ, SPACE, LB], &[])?;
+
+        self.seek_inline_whitespace();
+        let mut value = MetadataValue::Bool(true);
+        if self.check_special(&EQ) {
+            self.skip_char();
+            self.seek_inline_whitespace();
+            if let Ok(ph) = self.parse_placeholder() {
+                value = MetadataValue::Placeholder(ph);
+            } else if let Ok(template) = self.parse_template() {
+                value = MetadataValue::Template(template)
+            } else {
+                let quoted_string = self.check_special_group(&QUOTES);
+                let parse_until = if quoted_string {
+                    let quote_start = self.current_char;
+                    self.skip_char();
+                    vec![quote_start, META_CLOSE, LB]
+                } else {
+                    vec![META_CLOSE, LB, SPACE]
+                };
+                let raw_value = self.get_string_until(&parse_until, &[])?;
+                if self.check_special_group(&QUOTES) {
+                    self.skip_char();
+                }
+                self.seek_inline_whitespace();
+                if self.check_special(&COMMA) {
+                    self.skip_char();
+                }
+                value = if quoted_string {
+                    MetadataValue::String(raw_value)
+                } else if raw_value.to_lowercase().as_str() == "true" {
+                    MetadataValue::Bool(true)
+                } else if raw_value.to_lowercase().as_str() == "false" {
+                    MetadataValue::Bool(false)
+                } else if let Ok(num) = raw_value.parse::<i64>() {
+                    MetadataValue::Integer(num)
+                } else if let Ok(num) = raw_value.parse::<f64>() {
+                    MetadataValue::Float(num)
+                } else {
+                    MetadataValue::String(raw_value)
+                }
+            }
+        }
+
+        Ok((name, value))
+    }
+
+    /// Parses metadata
+    fn parse_inline_metadata(&mut self) -> ParseResult<InlineMetadata> {
+        let start_index = self.index;
+        self.assert_special(&META_OPEN, start_index)?;
+        self.skip_char();
+
+        let mut values = HashMap::new();
+        while let Ok((key, value)) = self.parse_metadata_pair() {
+            values.insert(key, value);
+            if self.check_special(&META_CLOSE) || self.check_linebreak() {
+                // abort the parser of the inner content when encountering a closing tag or linebreak
+                break;
+            }
+        }
+        if self.check_special(&META_CLOSE) {
+            self.skip_char();
+        }
+        if values.len() == 0 {
+            // if there was a linebreak (the metadata wasn't closed) or there is no inner data
+            // return an error
+            return Err(self.revert_with_error(start_index));
+        }
+
+        Ok(InlineMetadata { data: values })
+    }
+
+    /// parses a placeholder element
+    fn parse_placeholder(&mut self) -> ParseResult<Arc<RwLock<Placeholder>>> {
+        let start_index = self.index;
+        self.assert_special_sequence(&SQ_PHOLDER_START, self.index)?;
+        self.skip_char();
+        let name = if let Ok(name_str) = self.get_string_until_sequence(&[&SQ_PHOLDER_STOP], &[LB])
+        {
+            name_str
+        } else {
+            return Err(self.revert_with_error(start_index));
+        };
+        self.skip_char();
+
+        let metadata = if let Ok(meta) = self.parse_inline_metadata() {
+            Some(meta)
+        } else {
+            None
+        };
+
+        let placeholder = Arc::new(RwLock::new(Placeholder::new(name, metadata)));
+        self.document.add_placeholder(Arc::clone(&placeholder));
+
+        Ok(placeholder)
+    }
+
+    /// parses a template
+    fn parse_template(&mut self) -> ParseResult<Template> {
+        let start_index = self.index;
+        self.assert_special(&TEMPLATE, start_index)?;
+        self.skip_char();
+        if self.check_special(&TEMPLATE) {
+            return Err(self.revert_with_error(start_index));
+        }
+        let mut elements = Vec::new();
+        self.block_break_at.push(TEMPLATE);
+        self.inline_break_at.push(TEMPLATE);
+        self.parse_variables = true;
+        while let Ok(e) = self.parse_block() {
+            elements.push(Element::Block(Box::new(e)));
+            if self.check_special(&TEMPLATE) {
+                break;
+            }
+        }
+        self.parse_variables = false;
+        self.block_break_at.clear();
+        self.inline_break_at.clear();
+        self.assert_special(&TEMPLATE, start_index)?;
+        self.skip_char();
+        let vars: HashMap<String, Arc<RwLock<TemplateVariable>>> = elements
+            .iter()
+            .map(|e| e.get_template_variables())
+            .flatten()
+            .map(|e: Arc<RwLock<TemplateVariable>>| {
+                let name;
+                {
+                    name = e.read().unwrap().name.clone();
+                };
+
+                (name, e)
+            })
+            .collect();
+
+        Ok(Template {
+            text: elements,
+            variables: vars,
+        })
     }
 }

@@ -1,8 +1,8 @@
+use crate::elements::*;
 use crate::format::PlaceholderTemplate;
-use crate::parsing::bibliography::{BibEntry, BibReference};
-use crate::parsing::configuration::Value;
-use crate::parsing::elements::*;
-use crate::parsing::templates::{Template, TemplateVariable};
+use crate::references::bibliography::{BibEntry, BibReference};
+use crate::references::configuration::Value;
+use crate::references::templates::{Template, TemplateVariable};
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
 use std::cell::RefCell;

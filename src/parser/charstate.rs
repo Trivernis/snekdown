@@ -1,5 +1,5 @@
-use crate::parsing::tokens::{LB, SPECIAL_ESCAPE};
-use crate::parsing::utils::{ParseError, ParseResult};
+use crate::elements::tokens::{LB, SPECIAL_ESCAPE};
+use crate::utils::parsing::{ParseError, ParseResult};
 use crate::Parser;
 
 pub trait CharStateMachine {

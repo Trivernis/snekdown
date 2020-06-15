@@ -1,9 +1,9 @@
-use crate::parsing::configuration::config::RootConfig;
-use crate::parsing::configuration::keys::{
+use crate::elements::MetadataValue;
+use crate::references::configuration::config::RootConfig;
+use crate::references::configuration::keys::{
     BIB_DISPLAY, BIB_HIDE_UNUSED, BIB_REF_DISPLAY, META_AUTHOR, META_DATE, META_TITLE,
 };
-use crate::parsing::elements::MetadataValue;
-use crate::parsing::templates::Template;
+use crate::references::templates::Template;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 

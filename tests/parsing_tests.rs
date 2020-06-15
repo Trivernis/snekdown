@@ -1,5 +1,5 @@
 use snekdown::parse;
-use snekdown::parsing::elements::Block;
+use snekdown::parser::elements::Block;
 use snekdown::Parser;
 
 macro_rules! count_block_elements {
