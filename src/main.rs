@@ -78,7 +78,7 @@ fn watch(opt: &Opt) {
 /// Renders the document to the output path
 fn render(opt: &Opt) -> Parser {
     let start = Instant::now();
-    let mut parser = Parser::new_from_file(opt.input.to_str().unwrap().to_string()).unwrap();
+    let mut parser = Parser::new_from_file(opt.input.clone()).unwrap();
     let document = parser.parse();
     println!(
         "{}",

@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io;
 use std::io::{BufRead, BufReader, Cursor};
-use std::path::Path;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 
@@ -23,8 +23,8 @@ pub struct Parser {
     section_nesting: u8,
     sections: Vec<u8>,
     section_return: Option<u8>,
-    path: Option<String>,
-    paths: Arc<Mutex<Vec<String>>>,
+    path: Option<PathBuf>,
+    paths: Arc<Mutex<Vec<PathBuf>>>,
     wg: WaitGroup,
     is_child: bool,
     pub(crate) block_break_at: Vec<char>,
@@ -37,10 +37,10 @@ pub struct Parser {
 
 impl Parser {
     /// Creates a new parser from a path
-    pub fn new_from_file(path: String) -> Result<Self, io::Error> {
+    pub fn new_from_file(path: PathBuf) -> Result<Self, io::Error> {
         let f = File::open(&path)?;
         Ok(Self::create(
-            Some(path),
+            Some(PathBuf::from(path)),
             Arc::new(Mutex::new(Vec::new())),
             false,
             Box::new(BufReader::new(f)),
@@ -48,8 +48,13 @@ impl Parser {
     }
 
     /// Creates a new parser with text being the markdown text
-    pub fn new(text: String, path: Option<String>) -> Self {
+    pub fn new(text: String, path: Option<PathBuf>) -> Self {
         let text_bytes = text.as_bytes();
+        let path = if let Some(inner_path) = path {
+            Some(PathBuf::from(inner_path))
+        } else {
+            None
+        };
         Parser::create(
             path,
             Arc::new(Mutex::new(Vec::new())),
@@ -59,10 +64,10 @@ impl Parser {
     }
 
     /// Creates a child parser from string text
-    pub fn child(text: String, path: String, paths: Arc<Mutex<Vec<String>>>) -> Self {
+    pub fn child(text: String, path: PathBuf, paths: Arc<Mutex<Vec<PathBuf>>>) -> Self {
         let text_bytes = text.as_bytes();
         Self::create(
-            Some(path),
+            Some(PathBuf::from(path)),
             paths,
             true,
             Box::new(Cursor::new(text_bytes.to_vec())),
@@ -71,12 +76,12 @@ impl Parser {
 
     /// Creates a child parser from a file
     pub fn child_from_file(
-        path: String,
-        paths: Arc<Mutex<Vec<String>>>,
+        path: PathBuf,
+        paths: Arc<Mutex<Vec<PathBuf>>>,
     ) -> Result<Self, io::Error> {
         let f = File::open(&path)?;
         Ok(Self::create(
-            Some(path),
+            Some(PathBuf::from(path)),
             paths,
             true,
             Box::new(BufReader::new(f)),
@@ -84,17 +89,13 @@ impl Parser {
     }
 
     fn create(
-        path: Option<String>,
-        paths: Arc<Mutex<Vec<String>>>,
+        path: Option<PathBuf>,
+        paths: Arc<Mutex<Vec<PathBuf>>>,
         is_child: bool,
         mut reader: Box<dyn BufRead>,
     ) -> Self {
         if let Some(path) = path.clone() {
-            let path_info = Path::new(&path);
-            paths
-                .lock()
-                .unwrap()
-                .push(path_info.to_str().unwrap().to_string())
+            paths.lock().unwrap().push(path.clone())
         }
         let mut text = Vec::new();
         let mut current_char = ' ';
@@ -142,37 +143,36 @@ impl Parser {
     }
 
     /// Returns the import paths of the parser
-    pub fn get_paths(&self) -> Vec<String> {
+    pub fn get_paths(&self) -> Vec<PathBuf> {
         self.paths.lock().unwrap().clone()
     }
 
     /// transform an import path to be relative to the current parsers file
-    fn transform_path(&mut self, path: String) -> String {
-        let mut path = path;
-        let first_path_info = Path::new(&path);
-        if first_path_info.is_absolute() {
-            return first_path_info.to_str().unwrap().to_string();
-        }
-        if let Some(selfpath) = &self.path {
-            let path_info = Path::new(&selfpath);
-            if path_info.is_file() {
-                if let Some(dir) = path_info.parent() {
-                    path = format!("{}/{}", dir.to_str().unwrap(), path);
+    fn transform_path(&mut self, path: String) -> PathBuf {
+        let mut path = PathBuf::from(path);
+
+        if !path.is_absolute() {
+            if let Some(selfpath) = &self.path {
+                if let Some(dir) = selfpath.parent() {
+                    path = PathBuf::new().join(dir).join(path);
                 }
             }
         }
-        let path_info = Path::new(&path);
-        return path_info.to_str().unwrap().to_string();
+
+        path
     }
 
     /// starts up a new thread to parse the imported document
     fn import_document(&mut self, path: String) -> ParseResult<Arc<RwLock<ImportAnchor>>> {
         let path = self.transform_path(path);
-        let path_info = Path::new(&path);
-        if !path_info.exists() || !path_info.is_file() {
+        if !path.exists() || !path.is_file() {
             println!(
                 "{}",
-                format!("Import of \"{}\" failed: The file doesn't exist.", path,).red()
+                format!(
+                    "Import of \"{}\" failed: The file doesn't exist.",
+                    path.to_str().unwrap()
+                )
+                .red()
             );
             return Err(ParseError::new_with_message(
                 self.index,
@@ -184,7 +184,11 @@ impl Parser {
             if paths.iter().find(|item| **item == path) != None {
                 println!(
                     "{}",
-                    format!("Import of \"{}\" failed: Cyclic import.", path).yellow()
+                    format!(
+                        "Import of \"{}\" failed: Cyclic import.",
+                        path.to_str().unwrap()
+                    )
+                    .yellow()
                 );
                 return Err(ParseError::new_with_message(self.index, "cyclic import"));
             }
@@ -210,7 +214,11 @@ impl Parser {
 
     /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
-        self.document.path = self.path.clone();
+        self.document.path = if let Some(path) = &self.path {
+            Some(path.canonicalize().unwrap().to_str().unwrap().to_string())
+        } else {
+            None
+        };
 
         while self.index < self.text.len() {
             match self.parse_block() {
@@ -225,12 +233,18 @@ impl Parser {
                                 "{}",
                                 format!(
                                     "Error in File {}:{}:{} - {}",
-                                    path, position.0, position.1, err
+                                    path.to_str().unwrap(),
+                                    position.0,
+                                    position.1,
+                                    err
                                 )
                                 .red()
                             );
                         } else {
-                            println!("{}", format!("Error in File {}: {}", path, err).red());
+                            println!(
+                                "{}",
+                                format!("Error in File {}: {}", path.to_str().unwrap(), err).red()
+                            );
                         }
                     } else {
                         println!("{}", err);

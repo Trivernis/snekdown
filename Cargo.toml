@@ -1,12 +1,12 @@
 [package]
 name = "snekdown"
-version = "0.15.2"
+version = "0.16.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
 readme = "README.md"
 description = "A parser for the custom snekdown markdown syntax"
-homepage = "https://github.com/Trivernis/snekdown"
+repository = "https://github.com/Trivernis/snekdown"
 
 [lib]
 name = "snekdown"

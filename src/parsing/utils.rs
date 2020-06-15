@@ -70,11 +70,10 @@ impl ParseError {
             return None;
         }
         let split_content = content.split_at(self.index);
-        let line_number = split_content.0.matches("\n").count() as usize;
-        let overshoot_position = self.index as isize - split_content.0.len() as isize;
+        let line_number = split_content.0.lines().count() as usize;
 
         if let Some(line) = split_content.0.lines().last() {
-            let inline_position = (line.len() as isize + overshoot_position) as usize;
+            let inline_position = line.len();
 
             Some((line_number, inline_position))
         } else {

@@ -116,8 +116,3 @@ pub(crate) const SQ_PHOLDER_STOP: [char; 2] = [PHOLDER_CLOSE, PHOLDER_CLOSE];
 pub(crate) const SQ_CENTERED_START: [char; 2] = [PIPE, PIPE];
 pub(crate) const SQ_COLOR_START: [char; 2] = [COLOR_START, COLOR_OPEN];
 pub(crate) const SQ_BIBREF_START: [char; 2] = [BIBREF_OPEN, BIBREF_REF];
-
-// expressions
-
-pub(crate) const EXPR_URI: &str =
-    r"^(https?://)?\w+\.\w+(\.\w+|)?(/[\w, -.%&]+)*/?$|^([\w, -.]+|\w:)?(/[\w, -.]+)+$";

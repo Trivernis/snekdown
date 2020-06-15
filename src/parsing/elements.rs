@@ -322,6 +322,7 @@ impl Document {
                 Block::Import(imp) => {
                     let arc_anchor = Arc::clone(&imp.anchor);
                     let anchor = &mut arc_anchor.write().unwrap();
+
                     if let Some(doc) = &mut anchor.document {
                         self.placeholders.append(&mut doc.placeholders);
                         self.bibliography.combine(&mut doc.bibliography);
