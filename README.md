@@ -36,6 +36,7 @@ Simple Syntax
 
 Extended syntax with a description
 ![description](url)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FTrivernis%2Fsnekdown.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2FTrivernis%2Fsnekdown?ref=badge_shield)
 
 Extended syntax with metadata to specify the size
 ![description](url)[metadata]
@@ -202,3 +203,7 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [ ] EPUB Rendering (PDF is too hard)
 - [ ] Custom Elements via templates (50%)
 - [ ] Custom Stylesheets
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FTrivernis%2Fsnekdown.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2FTrivernis%2Fsnekdown?ref=badge_large)
