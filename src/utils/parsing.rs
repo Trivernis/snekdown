@@ -1,3 +1,4 @@
+use charred::tapemachine::{TapeError, TapeResult};
 use colored::*;
 use std::error::Error;
 use std::fmt;
@@ -10,8 +11,10 @@ macro_rules! parse {
     };
 }
 
-pub type ParseResult<T> = Result<T, ParseError>;
+pub type ParseResult<T> = TapeResult<T>;
+pub type ParseError = TapeError;
 
+/*
 #[derive(Debug)]
 pub struct ParseError {
     index: usize,
@@ -81,3 +84,4 @@ impl ParseError {
         }
     }
 }
+*/

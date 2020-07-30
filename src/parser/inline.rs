@@ -36,12 +36,14 @@ pub(crate) trait ParseInline {
 impl ParseInline for Parser {
     /// parses Inline surrounded by characters
     fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Inline> {
-        let start_index = self.index;
-        self.assert_special(surrounding, start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(surrounding, Some(start_index))?;
+        self.ctm.seek_one()?;
         let inline = self.parse_inline()?;
-        self.assert_special(surrounding, start_index)?;
-        self.skip_char();
+        self.ctm.assert_char(surrounding, Some(start_index))?;
+        if !self.ctm.check_eof() {
+            self.ctm.seek_one()?;
+        }
 
         Ok(inline)
     }
@@ -53,10 +55,10 @@ impl ParseInline for Parser {
                 return Ok(Inline::TemplateVar(var));
             }
         }
-        if self.check_special(&PIPE) || self.check_linebreak() {
-            Err(ParseError::new(self.index))
-        } else if self.check_eof() {
-            Err(ParseError::eof(self.index))
+        if self.ctm.check_char(&PIPE) || self.ctm.check_char(&LB) {
+            Err(self.ctm.err())
+        } else if self.ctm.check_eof() {
+            Err(self.ctm.err())
         } else if let Ok(image) = self.parse_image() {
             Ok(Inline::Image(image))
         } else if let Ok(url) = self.parse_url(false) {
@@ -90,10 +92,10 @@ impl ParseInline for Parser {
 
     /// parses an image url
     fn parse_image(&mut self) -> ParseResult<Image> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        self.assert_special(&IMG_START, start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        self.ctm.assert_char(&IMG_START, Some(start_index))?;
+        self.ctm.seek_one()?;
 
         if let Ok(url) = self.parse_url(true) {
             let metadata = if let Ok(meta) = self.parse_inline_metadata() {
@@ -103,37 +105,34 @@ impl ParseInline for Parser {
             };
             Ok(Image { url, metadata })
         } else {
-            Err(self.revert_with_error(start_index))
+            Err(self.ctm.rewind_with_error(start_index))
         }
     }
 
     // parses an url
     fn parse_url(&mut self, short_syntax: bool) -> ParseResult<Url> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
 
         let mut description = String::new();
-        if self.check_special(&DESC_OPEN) {
-            self.skip_char();
-            description = if let Ok(desc) = self.get_string_until(&[DESC_CLOSE], &[LB]) {
-                desc
-            } else {
-                return Err(self.revert_with_error(start_index));
-            };
+        if self.ctm.check_char(&DESC_OPEN) {
+            self.ctm.seek_one();
+            description =
+                self.ctm
+                    .get_string_until_any_or_rewind(&[DESC_CLOSE], &[LB], start_index)?;
         } else if !short_syntax {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         }
-        self.skip_char();
-        self.assert_special(&URL_OPEN, start_index)?;
-        self.skip_char();
-        self.seek_inline_whitespace();
+        self.ctm.seek_one();
+        self.ctm.assert_char(&URL_OPEN, Some(start_index))?;
+        self.ctm.seek_one();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
 
-        let url = if let Ok(url_str) = self.get_string_until(&[URL_CLOSE], &[LB]) {
-            url_str
-        } else {
-            return Err(self.revert_with_error(start_index));
-        };
-        self.skip_char();
+        let url = self
+            .ctm
+            .get_string_until_any_or_rewind(&[URL_CLOSE], &[LB], start_index)?;
+
+        self.ctm.seek_one();
 
         if description.is_empty() {
             Ok(Url::new(None, url))
@@ -144,31 +143,31 @@ impl ParseInline for Parser {
 
     /// parses a markdown checkbox
     fn parse_checkbox(&mut self) -> ParseResult<Checkbox> {
-        let start_index = self.index;
-        self.assert_special(&CHECK_OPEN, start_index)?;
-        self.skip_char();
-        let checked = if self.check_special(&CHECK_CHECKED) {
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&CHECK_OPEN, Some(start_index))?;
+        self.ctm.seek_one();
+        let checked = if self.ctm.check_char(&CHECK_CHECKED) {
             true
-        } else if self.check_special(&SPACE) {
+        } else if self.ctm.check_char(&SPACE) {
             false
         } else {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         };
-        self.skip_char();
-        self.assert_special(&CHECK_CLOSE, start_index)?;
-        self.skip_char();
+        self.ctm.seek_one();
+        self.ctm.assert_char(&CHECK_CLOSE, Some(start_index))?;
+        self.ctm.seek_one();
 
         Ok(Checkbox { value: checked })
     }
 
     /// parses bold text with must start with two asterisks
     fn parse_bold(&mut self) -> ParseResult<BoldText> {
-        let start_index = self.index;
-        self.assert_special_sequence(&BOLD, start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_sequence(&BOLD, Some(start_index))?;
+        self.ctm.seek_one();
         let inline = self.parse_inline()?;
-        self.assert_special_sequence(&BOLD, start_index)?;
-        self.skip_char();
+        self.ctm.assert_sequence(&BOLD, Some(start_index))?;
+        self.ctm.seek_one();
 
         Ok(BoldText {
             value: Box::new(inline),
@@ -189,12 +188,14 @@ impl ParseInline for Parser {
 
     /// parses monospace text (inline-code) that isn't allowed to contain special characters
     fn parse_monospace(&mut self) -> ParseResult<MonospaceText> {
-        let start_index = self.index;
-        self.assert_special(&BACKTICK, start_index)?;
-        self.skip_char();
-        let content = self.get_string_until(&[BACKTICK, LB], &[])?;
-        self.assert_special(&BACKTICK, start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&BACKTICK, Some(start_index))?;
+        self.ctm.seek_one();
+        let content = self
+            .ctm
+            .get_string_until_any_or_rewind(&[BACKTICK, LB], &[], start_index)?;
+        self.ctm.assert_char(&BACKTICK, Some(start_index))?;
+        self.ctm.seek_one();
 
         Ok(MonospaceText { value: content })
     }
@@ -212,11 +213,13 @@ impl ParseInline for Parser {
     }
 
     fn parse_emoji(&mut self) -> ParseResult<Emoji> {
-        let start_index = self.index;
-        self.assert_special(&EMOJI, start_index)?;
-        self.skip_char();
-        let name = self.get_string_until_or_revert(&[EMOJI], &[SPACE, LB], start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&EMOJI, Some(start_index))?;
+        self.ctm.seek_one();
+        let name = self
+            .ctm
+            .get_string_until_any_or_rewind(&[EMOJI], &[SPACE, LB], start_index)?;
+        self.ctm.seek_one();
         if let Some(emoji) = gh_emoji::get(name.as_str()) {
             let emoji_char = *emoji.chars().collect::<Vec<char>>().first().unwrap();
             Ok(Emoji {
@@ -224,20 +227,24 @@ impl ParseInline for Parser {
                 name,
             })
         } else {
-            Err(self.revert_with_error(start_index))
+            Err(self.ctm.rewind_with_error(start_index))
         }
     }
 
     /// parses colored text
     fn parse_colored(&mut self) -> ParseResult<Colored> {
-        let start_index = self.index;
-        self.assert_special_sequence(&SQ_COLOR_START, start_index)?;
-        self.skip_char();
-        let color =
-            self.get_string_until_or_revert(&[COLOR_CLOSE], &[SPACE, LB, SEMICOLON], start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm
+            .assert_sequence(&SQ_COLOR_START, Some(start_index))?;
+        self.ctm.seek_one();
+        let color = self.ctm.get_string_until_any_or_rewind(
+            &[COLOR_CLOSE],
+            &[SPACE, LB, SEMICOLON],
+            start_index,
+        )?;
+        self.ctm.seek_one();
         if color.is_empty() {
-            return Err(ParseError::new(self.index));
+            return Err(self.ctm.err());
         }
         Ok(Colored {
             value: Box::new(self.parse_inline()?),
@@ -246,11 +253,14 @@ impl ParseInline for Parser {
     }
 
     fn parse_bibref(&mut self) -> ParseResult<Arc<RwLock<BibReference>>> {
-        let start_index = self.index;
-        self.assert_special_sequence(&SQ_BIBREF_START, start_index)?;
-        self.skip_char();
-        let key = self.get_string_until_or_revert(&[BIBREF_CLOSE], &[SPACE, LB], start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm
+            .assert_sequence(&SQ_BIBREF_START, Some(start_index))?;
+        self.ctm.seek_one();
+        let key =
+            self.ctm
+                .get_string_until_any_or_rewind(&[BIBREF_CLOSE], &[SPACE, LB], start_index)?;
+        self.ctm.seek_one();
         let ref_entry = Arc::new(RwLock::new(BibReference::new(
             key,
             self.document.config.get_ref_entry(BIB_REF_DISPLAY),
@@ -264,15 +274,21 @@ impl ParseInline for Parser {
 
     /// parses a template variable {prefix{name}suffix}
     fn parse_template_variable(&mut self) -> ParseResult<Arc<RwLock<TemplateVariable>>> {
-        let start_index = self.index;
-        self.assert_special(&TEMP_VAR_OPEN, start_index)?;
-        self.skip_char();
-        let prefix = self.get_string_until_or_revert(&[TEMP_VAR_OPEN], &[LB], start_index)?;
-        self.skip_char();
-        let name = self.get_string_until_or_revert(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
-        self.skip_char();
-        let suffix = self.get_string_until_or_revert(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&TEMP_VAR_OPEN, Some(start_index))?;
+        self.ctm.seek_one();
+        let prefix =
+            self.ctm
+                .get_string_until_any_or_rewind(&[TEMP_VAR_OPEN], &[LB], start_index)?;
+        self.ctm.seek_one();
+        let name =
+            self.ctm
+                .get_string_until_any_or_rewind(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
+        self.ctm.seek_one();
+        let suffix =
+            self.ctm
+                .get_string_until_any_or_rewind(&[TEMP_VAR_CLOSE], &[LB], start_index)?;
+        self.ctm.seek_one();
         Ok(Arc::new(RwLock::new(TemplateVariable {
             value: None,
             name,
@@ -283,15 +299,15 @@ impl ParseInline for Parser {
 
     /// parses plain text as a string until it encounters an unescaped special inline char
     fn parse_plain(&mut self) -> ParseResult<PlainText> {
-        if self.check_linebreak() {
-            return Err(ParseError::new(self.index));
+        if self.ctm.check_char(&LB) {
+            return Err(self.ctm.err());
         }
         let mut characters = String::new();
-        characters.push(self.current_char);
-        while let Some(ch) = self.next_char() {
-            if self.check_special_group(&INLINE_SPECIAL_CHARS)
-                || self.check_special_group(&self.inline_break_at)
-                || (self.parse_variables && self.check_special(&TEMP_VAR_OPEN))
+        characters.push(self.ctm.get_current());
+        while let Some(ch) = self.ctm.next_char() {
+            if self.ctm.check_any(&INLINE_SPECIAL_CHARS)
+                || self.ctm.check_any(&self.inline_break_at)
+                || (self.parse_variables && self.ctm.check_char(&TEMP_VAR_OPEN))
             {
                 break;
             }
@@ -301,44 +317,74 @@ impl ParseInline for Parser {
         if characters.len() > 0 {
             Ok(PlainText { value: characters })
         } else {
-            Err(ParseError::new_with_message(
-                self.index,
-                "no plaintext characters parsed",
-            ))
+            Err(self.ctm.err())
         }
+    }
+
+    /// Parses metadata
+    fn parse_inline_metadata(&mut self) -> ParseResult<InlineMetadata> {
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&META_OPEN, Some(start_index))?;
+        self.ctm.seek_one();
+
+        let mut values = HashMap::new();
+        while let Ok((key, value)) = self.parse_metadata_pair() {
+            values.insert(key, value);
+            if self.ctm.check_char(&META_CLOSE) || self.ctm.check_char(&LB) {
+                // abort the parser of the inner content when encountering a closing tag or linebreak
+                break;
+            }
+        }
+        if self.ctm.check_char(&META_CLOSE) {
+            self.ctm.seek_one();
+        }
+        if values.len() == 0 {
+            // if there was a linebreak (the metadata wasn't closed) or there is no inner data
+            // return an error
+            return Err(self.ctm.rewind_with_error(start_index));
+        }
+
+        Ok(InlineMetadata { data: values })
     }
 
     /// parses a key-value metadata pair
     fn parse_metadata_pair(&mut self) -> Result<(String, MetadataValue), ParseError> {
-        self.seek_inline_whitespace();
-        let name = self.get_string_until(&[META_CLOSE, EQ, SPACE, LB], &[])?;
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        let name = self
+            .ctm
+            .get_string_until_any(&[META_CLOSE, EQ, SPACE, LB], &[])?;
 
-        self.seek_inline_whitespace();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
         let mut value = MetadataValue::Bool(true);
-        if self.check_special(&EQ) {
-            self.skip_char();
-            self.seek_inline_whitespace();
+        if self.ctm.check_char(&EQ) {
+            self.ctm.seek_one();
+            self.ctm.seek_any(&INLINE_WHITESPACE);
             if let Ok(ph) = self.parse_placeholder() {
                 value = MetadataValue::Placeholder(ph);
             } else if let Ok(template) = self.parse_template() {
                 value = MetadataValue::Template(template)
             } else {
-                let quoted_string = self.check_special_group(&QUOTES);
+                let quoted_string = self.ctm.check_any(&QUOTES);
+
                 let parse_until = if quoted_string {
-                    let quote_start = self.current_char;
-                    self.skip_char();
+                    let quote_start = self.ctm.get_current();
+                    self.ctm.seek_one();
                     vec![quote_start, META_CLOSE, LB]
                 } else {
                     vec![META_CLOSE, LB, SPACE]
                 };
-                let raw_value = self.get_string_until(&parse_until, &[])?;
-                if self.check_special_group(&QUOTES) {
-                    self.skip_char();
+
+                let raw_value = self.ctm.get_string_until_any(&parse_until, &[])?;
+
+                if self.ctm.check_any(&QUOTES) {
+                    self.ctm.seek_one();
                 }
-                self.seek_inline_whitespace();
-                if self.check_special(&COMMA) {
-                    self.skip_char();
+                self.ctm.seek_any(&INLINE_WHITESPACE);
+
+                if self.ctm.check_char(&COMMA) {
+                    self.ctm.seek_one();
                 }
+
                 value = if quoted_string {
                     MetadataValue::String(raw_value)
                 } else if raw_value.to_lowercase().as_str() == "true" {
@@ -358,44 +404,21 @@ impl ParseInline for Parser {
         Ok((name, value))
     }
 
-    /// Parses metadata
-    fn parse_inline_metadata(&mut self) -> ParseResult<InlineMetadata> {
-        let start_index = self.index;
-        self.assert_special(&META_OPEN, start_index)?;
-        self.skip_char();
-
-        let mut values = HashMap::new();
-        while let Ok((key, value)) = self.parse_metadata_pair() {
-            values.insert(key, value);
-            if self.check_special(&META_CLOSE) || self.check_linebreak() {
-                // abort the parser of the inner content when encountering a closing tag or linebreak
-                break;
-            }
-        }
-        if self.check_special(&META_CLOSE) {
-            self.skip_char();
-        }
-        if values.len() == 0 {
-            // if there was a linebreak (the metadata wasn't closed) or there is no inner data
-            // return an error
-            return Err(self.revert_with_error(start_index));
-        }
-
-        Ok(InlineMetadata { data: values })
-    }
-
     /// parses a placeholder element
     fn parse_placeholder(&mut self) -> ParseResult<Arc<RwLock<Placeholder>>> {
-        let start_index = self.index;
-        self.assert_special_sequence(&SQ_PHOLDER_START, self.index)?;
-        self.skip_char();
-        let name = if let Ok(name_str) = self.get_string_until_sequence(&[&SQ_PHOLDER_STOP], &[LB])
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_sequence(&SQ_PHOLDER_START, None)?;
+        self.ctm.seek_one();
+
+        let name = if let Ok(name_str) = self
+            .ctm
+            .get_string_until_sequence(&[&SQ_PHOLDER_STOP], &[&[LB]])
         {
             name_str
         } else {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         };
-        self.skip_char();
+        self.ctm.seek_one();
 
         let metadata = if let Ok(meta) = self.parse_inline_metadata() {
             Some(meta)
@@ -411,27 +434,32 @@ impl ParseInline for Parser {
 
     /// parses a template
     fn parse_template(&mut self) -> ParseResult<Template> {
-        let start_index = self.index;
-        self.assert_special(&TEMPLATE, start_index)?;
-        self.skip_char();
-        if self.check_special(&TEMPLATE) {
-            return Err(self.revert_with_error(start_index));
+        let start_index = self.ctm.get_index();
+
+        self.ctm.assert_char(&TEMPLATE, None)?;
+        self.ctm.seek_one();
+
+        if self.ctm.check_char(&TEMPLATE) {
+            return Err(self.ctm.rewind_with_error(start_index));
         }
+
         let mut elements = Vec::new();
         self.block_break_at.push(TEMPLATE);
         self.inline_break_at.push(TEMPLATE);
         self.parse_variables = true;
+
         while let Ok(e) = self.parse_block() {
             elements.push(Element::Block(Box::new(e)));
-            if self.check_special(&TEMPLATE) {
+            if self.ctm.check_char(&TEMPLATE) {
                 break;
             }
         }
         self.parse_variables = false;
         self.block_break_at.clear();
         self.inline_break_at.clear();
-        self.assert_special(&TEMPLATE, start_index)?;
-        self.skip_char();
+        self.ctm.assert_char(&TEMPLATE, Some(start_index))?;
+        self.ctm.seek_one();
+
         let vars: HashMap<String, Arc<RwLock<TemplateVariable>>> = elements
             .iter()
             .map(|e| e.get_template_variables())

@@ -21,8 +21,8 @@ pub(crate) trait ParseLine {
 impl ParseLine for Parser {
     /// parses inline definitions
     fn parse_line(&mut self) -> ParseResult<Line> {
-        if self.index > self.text.len() {
-            Err(ParseError::new(self.index))
+        if self.ctm.check_eof() {
+            Err(self.ctm.err())
         } else {
             if let Ok(ruler) = self.parse_ruler() {
                 Ok(Line::Ruler(ruler))
@@ -33,17 +33,17 @@ impl ParseLine for Parser {
             } else if let Ok(text) = self.parse_text_line() {
                 Ok(Line::Text(text))
             } else {
-                Err(ParseError::new(self.index))
+                Err(self.ctm.err())
             }
         }
     }
 
     /// parses the header of a section
     fn parse_header(&mut self) -> ParseResult<Header> {
-        let start_index = self.index;
+        let start_index = self.ctm.get_index();
         let line = self.parse_line()?;
         let mut anchor = String::new();
-        self.text[start_index..self.index]
+        self.ctm.get_text()[start_index..self.ctm.get_index()]
             .iter()
             .for_each(|e| anchor.push(*e));
         anchor.retain(|c| !c.is_whitespace());
@@ -52,21 +52,23 @@ impl ParseLine for Parser {
 
     /// parses a single list item defined with -
     fn parse_list_item(&mut self) -> ParseResult<ListItem> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        let level = self.index - start_index;
-        self.assert_special_group(&LIST_SPECIAL_CHARS, start_index)?;
-        let ordered = self.current_char.is_numeric();
-        self.skip_char();
-        if self.check_special(&DOT) {
-            self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        let level = self.ctm.get_index() - start_index;
+        self.ctm
+            .assert_any(&LIST_SPECIAL_CHARS, Some(start_index))?;
+        let ordered = self.ctm.get_current().is_numeric();
+        self.ctm.seek_one()?;
+
+        if self.ctm.check_char(&DOT) {
+            self.ctm.seek_one()?;
         }
-        if !self.check_seek_inline_whitespace() {
-            return Err(self.revert_with_error(start_index));
+        if !self.ctm.check_any(&INLINE_WHITESPACE) {
+            return Err(self.ctm.rewind_with_error(start_index));
         }
-        self.seek_inline_whitespace();
-        if self.check_special(&MINUS) {
-            return Err(self.revert_with_error(start_index));
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        if self.ctm.check_char(&MINUS) {
+            return Err(self.ctm.rewind_with_error(start_index));
         }
 
         let item = ListItem::new(self.parse_line()?, level as u16, ordered);
@@ -76,65 +78,68 @@ impl ParseLine for Parser {
 
     /// parses a table row/head
     fn parse_row(&mut self) -> ParseResult<Row> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        self.assert_special(&PIPE, start_index)?;
-        self.skip_char();
-        if self.check_special(&PIPE) {
-            return Err(self.revert_with_error(start_index));
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        self.ctm.assert_char(&PIPE, Some(start_index))?;
+        self.ctm.seek_one();
+        if self.ctm.check_char(&PIPE) {
+            return Err(self.ctm.rewind_with_error(start_index));
         }
         self.inline_break_at.push(PIPE);
 
-        self.seek_inline_whitespace();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
         let mut row = Row::new();
         loop {
             let mut element = TextLine::new();
             while let Ok(inline) = self.parse_inline() {
                 element.subtext.push(inline);
-                if self.check_linebreak() || self.check_special(&PIPE) || self.check_eof() {
+                if self.ctm.check_char(&LB) || self.ctm.check_char(&PIPE) || self.ctm.check_eof() {
                     break;
                 }
             }
             row.add_cell(Cell {
                 text: Line::Text(element),
             });
-            if self.check_special(&PIPE) {
-                self.skip_char();
+            if self.ctm.check_char(&PIPE) {
+                self.ctm.seek_one();
             }
-            if self.check_linebreak() || self.check_eof() {
+            if self.ctm.check_char(&LB) || self.ctm.check_eof() {
                 break;
             }
-            self.seek_inline_whitespace();
+            self.ctm.seek_any(&INLINE_WHITESPACE);
         }
         self.inline_break_at.clear();
-        if self.check_special(&PIPE) {
-            self.skip_char();
-            self.skip_char();
-        } else {
-            self.skip_char();
+
+        if self.ctm.check_char(&PIPE) {
+            self.ctm.seek_one();
         }
+        self.ctm.seek_one();
 
         if row.cells.len() > 0 {
             Ok(row)
         } else {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         }
     }
 
     fn parse_bib_entry(&mut self) -> ParseResult<Arc<RwLock<BibEntry>>> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        self.assert_special(&BIB_KEY_OPEN, start_index)?;
-        self.skip_char();
-        let key = self.get_string_until_or_revert(&[BIB_KEY_CLOSE], &[LB, SPACE], start_index)?;
-        self.skip_char();
-        self.assert_special(&BIB_DATA_START, start_index)?;
-        self.skip_char();
-        self.seek_inline_whitespace();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        self.ctm.assert_char(&BIB_KEY_OPEN, Some(start_index))?;
+        self.ctm.seek_one();
+        let key =
+            self.ctm
+                .get_string_until_any_or_rewind(&[BIB_KEY_CLOSE], &[LB, SPACE], start_index)?;
+        self.ctm.seek_one();
+        self.ctm.assert_char(&BIB_DATA_START, Some(start_index))?;
+        self.ctm.seek_one();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
         let entry = if let Ok(meta) = self.parse_inline_metadata() {
             BibEntry::from_metadata(key, Box::new(meta), &self.document.config)
         } else {
-            let url = self.get_string_until_or_revert(&[LB], &[], start_index)?;
+            let url = self
+                .ctm
+                .get_string_until_any_or_rewind(&[LB], &[], start_index)?;
             BibEntry::from_url(key, url, &self.document.config)
         };
         let entry_ref = Arc::new(RwLock::new(entry));
@@ -147,9 +152,10 @@ impl ParseLine for Parser {
 
     /// parses centered text
     fn parse_centered(&mut self) -> ParseResult<Centered> {
-        let start_index = self.index;
-        self.assert_special_sequence(&SQ_CENTERED_START, start_index)?;
-        self.skip_char();
+        let start_index = self.ctm.get_index();
+        self.ctm
+            .assert_sequence(&SQ_CENTERED_START, Some(start_index))?;
+        self.ctm.seek_one();
         let line = self.parse_text_line()?;
 
         Ok(Centered { line })
@@ -157,10 +163,12 @@ impl ParseLine for Parser {
 
     /// parses a ruler
     fn parse_ruler(&mut self) -> ParseResult<Ruler> {
-        let start_index = self.index;
-        self.seek_inline_whitespace();
-        self.assert_special_sequence(&SQ_RULER, start_index)?;
-        self.seek_until_linebreak();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE);
+        self.ctm.assert_sequence(&SQ_RULER, Some(start_index))?;
+        while !self.ctm.check_char(&LB) {
+            self.ctm.seek_one();
+        }
         Ok(Ruler {})
     }
 
@@ -169,19 +177,19 @@ impl ParseLine for Parser {
         let mut text = TextLine::new();
         while let Ok(subtext) = self.parse_inline() {
             text.add_subtext(subtext);
-            if self.check_eof() || self.check_special_group(&self.inline_break_at) {
+            if self.ctm.check_eof() || self.ctm.check_any(&self.inline_break_at) {
                 break;
             }
         }
 
-        if self.check_linebreak() {
-            self.skip_char();
+        if self.ctm.check_char(&LB) {
+            self.ctm.seek_one();
         }
 
-        if text.subtext.len() > 0 || !self.check_eof() {
+        if text.subtext.len() > 0 || !self.ctm.check_eof() {
             Ok(text)
         } else {
-            Err(ParseError::eof(self.index))
+            Err(self.ctm.err())
         }
     }
 }

@@ -17,6 +17,7 @@ name = "snekdown"
 path = "src/main.rs"
 
 [dependencies]
+charred = "0.2.2"
 crossbeam-utils = "0.7.2"
 structopt = "0.3.14"
 minify = "1.1.1"

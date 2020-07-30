@@ -5,6 +5,7 @@ use crate::parser::inline::ParseInline;
 use crate::parser::line::ParseLine;
 use crate::utils::parsing::{ParseError, ParseResult};
 use crate::Parser;
+use charred::tapemachine::{TapeError, TapeResult};
 
 pub(crate) trait ParseBlock {
     fn parse_block(&mut self) -> ParseResult<Block>;
@@ -22,10 +23,7 @@ impl ParseBlock for Parser {
     fn parse_block(&mut self) -> ParseResult<Block> {
         if let Some(section) = self.section_return {
             if section <= self.section_nesting && (self.section_nesting > 0) {
-                return Err(ParseError::new_with_message(
-                    self.index,
-                    "invalid section nesting",
-                ));
+                return Err(self.ctm.assert_error(None));
             } else {
                 self.section_return = None;
             }
@@ -33,7 +31,7 @@ impl ParseBlock for Parser {
         let token = if let Ok(section) = self.parse_section() {
             Block::Section(section)
         } else if let Some(_) = self.section_return {
-            return Err(ParseError::new(self.index));
+            return Err(self.ctm.err());
         } else if let Ok(list) = self.parse_list() {
             Block::List(list)
         } else if let Ok(table) = self.parse_table() {
@@ -45,13 +43,13 @@ impl ParseBlock for Parser {
         } else if let Ok(import) = self.parse_import() {
             Block::Import(import)
         } else if let Some(_) = self.section_return {
-            return Err(ParseError::new(self.index));
+            return Err(self.ctm.err());
         } else if let Ok(pholder) = self.parse_placeholder() {
             Block::Placeholder(pholder)
         } else if let Ok(paragraph) = self.parse_paragraph() {
             Block::Paragraph(paragraph)
         } else {
-            return Err(ParseError::new(self.index));
+            return Err(self.ctm.err());
         };
 
         Ok(token)
@@ -59,12 +57,12 @@ impl ParseBlock for Parser {
 
     /// Parses a section that consists of a header and one or more blocks
     fn parse_section(&mut self) -> ParseResult<Section> {
-        let start_index = self.index;
-        self.seek_whitespace();
-        if self.check_special(&HASH) {
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_whitespace();
+        if self.ctm.check_char(&HASH) {
             let mut size = 1;
-            while let Some(_) = self.next_char() {
-                if !self.check_special(&HASH) {
+            while let Some(_) = self.ctm.next_char() {
+                if !self.ctm.check_char(&HASH) {
                     break;
                 }
                 size += 1;
@@ -73,20 +71,20 @@ impl ParseBlock for Parser {
             if let Ok(meta) = self.parse_inline_metadata() {
                 metadata = Some(meta);
             }
-            if size <= self.section_nesting || !self.current_char.is_whitespace() {
+            if size <= self.section_nesting || !self.ctm.get_current().is_whitespace() {
                 if size <= self.section_nesting {
                     self.section_return = Some(size);
                 }
-                return Err(self.revert_with_error(start_index));
+                return Err(self.ctm.rewind_with_error(start_index));
             }
-            self.seek_inline_whitespace();
+            self.ctm.seek_any(&INLINE_WHITESPACE);
             let mut header = self.parse_header()?;
             header.size = size;
             self.section_nesting = size;
             self.sections.push(size);
             let mut section = Section::new(header);
             section.metadata = metadata;
-            self.seek_whitespace();
+            self.ctm.seek_whitespace();
 
             while let Ok(block) = self.parse_block() {
                 section.add_element(block);
@@ -100,20 +98,22 @@ impl ParseBlock for Parser {
             }
             Ok(section)
         } else {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         }
     }
 
     /// parses a code block
     fn parse_code_block(&mut self) -> ParseResult<CodeBlock> {
-        self.seek_whitespace();
-        self.assert_special_sequence(&SQ_CODE_BLOCK, self.index)?;
-        self.skip_char();
-        let language = self.get_string_until(&[LB], &[])?;
-        self.skip_char();
-        let text = self.get_string_until_sequence(&[&SQ_CODE_BLOCK], &[])?;
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_whitespace();
+        self.ctm
+            .assert_sequence(&SQ_CODE_BLOCK, Some(start_index))?;
+        self.ctm.seek_one();
+        let language = self.ctm.get_string_until_any(&[LB], &[])?;
+        self.ctm.seek_one();
+        let text = self.ctm.get_string_until_sequence(&[&SQ_CODE_BLOCK], &[])?;
         for _ in 0..2 {
-            self.skip_char();
+            self.ctm.seek_one();
         }
 
         Ok(CodeBlock {
@@ -124,24 +124,25 @@ impl ParseBlock for Parser {
 
     /// parses a quote
     fn parse_quote(&mut self) -> ParseResult<Quote> {
-        let start_index = self.index;
-        self.seek_whitespace();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_whitespace();
         let metadata = if let Ok(meta) = self.parse_inline_metadata() {
             Some(meta)
         } else {
             None
         };
-        if self.check_special(&META_CLOSE) {
-            if self.next_char() == None {
-                return Err(self.revert_with_error(start_index));
+        if self.ctm.check_char(&META_CLOSE) {
+            if self.ctm.next_char() == None {
+                return Err(self.ctm.rewind_with_error(start_index));
             }
         }
         let mut quote = Quote::new(metadata);
 
-        while self.check_special(&QUOTE_START)
-            && self.next_char() != None
-            && (self.check_seek_inline_whitespace() || self.check_special(&LB))
+        while self.ctm.check_char(&QUOTE_START)
+            && self.ctm.next_char() != None
+            && (self.ctm.check_any(&WHITESPACE))
         {
+            self.ctm.seek_any(&INLINE_WHITESPACE)?;
             if let Ok(text) = self.parse_text_line() {
                 if text.subtext.len() > 0 {
                     quote.add_text(text);
@@ -151,7 +152,7 @@ impl ParseBlock for Parser {
             }
         }
         if quote.text.len() == 0 {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         }
 
         Ok(quote)
@@ -159,26 +160,26 @@ impl ParseBlock for Parser {
 
     /// Parses a paragraph
     fn parse_paragraph(&mut self) -> ParseResult<Paragraph> {
-        self.seek_whitespace();
+        self.ctm.seek_whitespace();
         let mut paragraph = Paragraph::new();
         while let Ok(token) = self.parse_line() {
             paragraph.add_element(token);
-            let start_index = self.index;
-            if self.check_special_sequence_group(&BLOCK_SPECIAL_CHARS)
-                || self.check_special_group(&self.block_break_at)
+            let start_index = self.ctm.get_index();
+            if self.ctm.check_any_sequence(&BLOCK_SPECIAL_CHARS)
+                || self.ctm.check_any(&self.block_break_at)
             {
-                self.revert_to(start_index)?;
+                self.ctm.rewind(start_index);
                 break;
             }
-            if !self.check_eof() {
-                self.revert_to(start_index)?;
+            if !self.ctm.check_eof() {
+                self.ctm.rewind(start_index);
             }
         }
 
         if paragraph.elements.len() > 0 {
             Ok(paragraph)
         } else {
-            Err(ParseError::new(self.index))
+            Err(self.ctm.err())
         }
     }
 
@@ -186,10 +187,10 @@ impl ParseBlock for Parser {
     /// The parser is done iterative to resolve nested items
     fn parse_list(&mut self) -> ParseResult<List> {
         let mut list = List::new();
-        let start_index = self.index;
-        self.seek_whitespace();
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_whitespace();
 
-        let ordered = if self.check_special_group(&LIST_SPECIAL_CHARS) {
+        let ordered = if self.ctm.check_any(&LIST_SPECIAL_CHARS) {
             false
         } else {
             true
@@ -242,31 +243,31 @@ impl ParseBlock for Parser {
         if list.items.len() > 0 {
             Ok(list)
         } else {
-            return Err(self.revert_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index));
         }
     }
 
     /// parses a markdown table
     fn parse_table(&mut self) -> ParseResult<Table> {
         let header = self.parse_row()?;
-        if self.check_linebreak() {
-            self.skip_char();
+        if self.ctm.check_char(&LB) {
+            self.ctm.seek_one();
         }
-        let seek_index = self.index;
+        let seek_index = self.ctm.get_index();
         let mut table = Table::new(header);
-        while let Some(_) = self.next_char() {
-            self.seek_inline_whitespace();
-            if !self.check_special_group(&[MINUS, PIPE]) || self.check_linebreak() {
+        while let Ok(_) = self.ctm.seek_one() {
+            self.ctm.seek_any(&INLINE_WHITESPACE);
+            if !self.ctm.check_any(&[MINUS, PIPE]) || self.ctm.check_char(&LB) {
                 break;
             }
         }
 
-        if !self.check_linebreak() {
-            self.revert_to(seek_index)?;
+        if !self.ctm.check_char(&LB) {
+            self.ctm.rewind(seek_index);
             return Ok(table);
         }
 
-        self.seek_whitespace();
+        self.ctm.seek_whitespace();
         while let Ok(row) = self.parse_row() {
             table.add_row(row);
         }
@@ -276,37 +277,36 @@ impl ParseBlock for Parser {
 
     /// parses an import and starts a new task to parse the document of the import
     fn parse_import(&mut self) -> ParseResult<Import> {
-        let start_index = self.index;
-        self.seek_whitespace();
-        self.assert_special_sequence_group(&[&[IMPORT_START, IMPORT_OPEN]], start_index)?;
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_whitespace();
+        self.ctm
+            .assert_any_sequence(&[&[IMPORT_START, IMPORT_OPEN]], Some(start_index))?;
         let mut path = String::new();
-        while let Some(character) = self.next_char() {
-            if self.check_linebreak() || self.check_special(&IMPORT_CLOSE) {
+        while let Some(character) = self.ctm.next_char() {
+            if self.ctm.check_char(&LB) || self.ctm.check_char(&IMPORT_CLOSE) {
                 break;
             }
             path.push(character);
         }
-        if self.check_linebreak() || path.is_empty() {
-            return Err(self.revert_with_error(start_index));
+        if self.ctm.check_char(&LB) || path.is_empty() {
+            return Err(self.ctm.rewind_with_error(start_index));
         }
-        if self.check_special(&IMPORT_CLOSE) {
-            self.skip_char();
+        if self.ctm.check_char(&IMPORT_CLOSE) {
+            self.ctm.seek_one();
         }
         // parser success
 
         if self.section_nesting > 0 {
             self.section_return = Some(0);
-            let err = ParseError::new_with_message(self.index, "import section nesting error");
-            self.revert_to(start_index)?;
-            return Err(err);
+            return Err(self.ctm.rewind_with_error(start_index));
         }
 
-        self.seek_whitespace();
+        self.ctm.seek_whitespace();
 
         if let Ok(anchor) = self.import_document(path.clone()) {
             Ok(Import { path, anchor })
         } else {
-            Err(ParseError::new(self.index))
+            Err(self.ctm.err())
         }
     }
 }

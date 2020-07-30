@@ -51,7 +51,7 @@ pub trait CharStateMachine {
         revert_index: usize,
     ) -> ParseResult<String>;
 }
-
+/*
 impl CharStateMachine for Parser {
     /// Increments the current index and returns the
     /// char at the indexes position
@@ -342,3 +342,4 @@ impl CharStateMachine for Parser {
         }
     }
 }
+*/

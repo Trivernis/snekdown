@@ -7,6 +7,7 @@ use self::block::ParseBlock;
 use crate::elements::{Document, ImportAnchor};
 use crate::references::configuration::Configuration;
 use crate::utils::parsing::{ParseError, ParseResult};
+use charred::tapemachine::CharTapeMachine;
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use std::fs::File;
@@ -17,9 +18,7 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 
 pub struct Parser {
-    pub(crate) index: usize,
-    pub(crate) text: Vec<char>,
-    pub(crate) current_char: char,
+    pub(crate) ctm: CharTapeMachine,
     section_nesting: u8,
     sections: Vec<u8>,
     section_return: Option<u8>,
@@ -30,7 +29,6 @@ pub struct Parser {
     pub(crate) block_break_at: Vec<char>,
     pub(crate) inline_break_at: Vec<char>,
     pub(crate) document: Document,
-    pub(crate) previous_char: char,
     pub(crate) reader: Box<dyn BufRead>,
     pub(crate) parse_variables: bool,
 }
@@ -112,9 +110,6 @@ impl Parser {
         }
         let document = Document::new(!is_child);
         Self {
-            index: 0,
-            text,
-            current_char,
             sections: Vec::new(),
             section_nesting: 0,
             section_return: None,
@@ -122,7 +117,7 @@ impl Parser {
             paths,
             wg: WaitGroup::new(),
             is_child,
-            previous_char: ' ',
+            ctm: CharTapeMachine::new(text),
             inline_break_at: Vec::new(),
             block_break_at: Vec::new(),
             document,
@@ -137,7 +132,8 @@ impl Parser {
 
     /// Returns the text of the parser as a string
     fn get_text(&self) -> String {
-        self.text
+        self.ctm
+            .get_text()
             .iter()
             .fold("".to_string(), |a, b| format!("{}{}", a, b))
     }
@@ -174,15 +170,13 @@ impl Parser {
                 )
                 .red()
             );
-            return Err(ParseError::new_with_message(
-                self.index,
-                "file does not exist",
-            ));
+            eprintln!("file {} does not exist", path.to_str().unwrap());
+            return Err(self.ctm.assert_error(None));
         }
         {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
-                println!(
+                eprintln!(
                     "{}",
                     format!(
                         "Import of \"{}\" failed: Cyclic import.",
@@ -190,7 +184,7 @@ impl Parser {
                     )
                     .yellow()
                 );
-                return Err(ParseError::new_with_message(self.index, "cyclic import"));
+                return Err(self.ctm.assert_error(None));
             }
             paths.push(path.clone());
         }
@@ -220,35 +214,14 @@ impl Parser {
             None
         };
 
-        while self.index < self.text.len() {
+        while !self.ctm.check_eof() {
             match self.parse_block() {
                 Ok(block) => self.document.add_element(block),
                 Err(err) => {
-                    if err.eof {
+                    if self.ctm.check_eof() {
                         break;
                     }
-                    if let Some(path) = &self.path {
-                        if let Some(position) = err.get_position(&self.get_text()) {
-                            println!(
-                                "{}",
-                                format!(
-                                    "Error in File {}:{}:{} - {}",
-                                    path.to_str().unwrap(),
-                                    position.0,
-                                    position.1,
-                                    err
-                                )
-                                .red()
-                            );
-                        } else {
-                            println!(
-                                "{}",
-                                format!("Error in File {}: {}", path.to_str().unwrap(), err).red()
-                            );
-                        }
-                    } else {
-                        println!("{}", err);
-                    }
+                    eprintln!("{}", err);
                     break;
                 }
             }
