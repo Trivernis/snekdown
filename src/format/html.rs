@@ -319,7 +319,12 @@ impl ToHtml for Image {
                      <label class='imageDescription'>{1}</label>\
                      </div>",
                     encode_attribute(self.url.url.clone().as_str()),
-                    encode_attribute(description.as_str()),
+                    encode_attribute(
+                        description
+                            .iter()
+                            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+                            .as_str()
+                    ),
                     style
                 )
                 .as_str(),
@@ -379,12 +384,15 @@ impl ToHtml for Url {
             format!(
                 "<a href='{}'>{}</a>",
                 self.url.clone(),
-                encode_minimal(description.as_str())
+                description
+                    .iter()
+                    .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+                    .as_str()
             )
         } else {
             format!(
                 "<a href='{}'>{}</a>",
-                self.url.clone(),
+                encode_attribute(self.url.clone().as_str()),
                 encode_minimal(self.url.clone().as_str())
             )
         }

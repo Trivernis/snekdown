@@ -210,7 +210,7 @@ pub struct Checkbox {
 
 #[derive(Clone, Debug)]
 pub struct Url {
-    pub description: Option<String>,
+    pub description: Option<Vec<Inline>>,
     pub url: String,
 }
 
@@ -528,7 +528,7 @@ impl Row {
 }
 
 impl Url {
-    pub fn new(description: Option<String>, url: String) -> Self {
+    pub fn new(description: Option<Vec<Inline>>, url: String) -> Self {
         Self { description, url }
     }
 }

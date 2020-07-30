@@ -113,12 +113,19 @@ impl ParseInline for Parser {
         let start_index = self.ctm.get_index();
         self.ctm.seek_any(&INLINE_WHITESPACE)?;
 
-        let mut description = String::new();
+        let mut description = Vec::new();
+
         if self.ctm.check_char(&DESC_OPEN) {
             self.ctm.seek_one()?;
-            description =
-                self.ctm
-                    .get_string_until_any_or_rewind(&[DESC_CLOSE], &[LB], start_index)?;
+            self.inline_break_at.push(DESC_CLOSE);
+
+            while let Ok(inline) = self.parse_inline() {
+                description.push(inline);
+                if self.ctm.check_char(&DESC_CLOSE) {
+                    break;
+                }
+            }
+            self.inline_break_at.pop();
         } else if !short_syntax {
             return Err(self.ctm.rewind_with_error(start_index));
         }
@@ -133,10 +140,10 @@ impl ParseInline for Parser {
 
         self.ctm.seek_one()?;
 
-        if description.is_empty() {
-            Ok(Url::new(None, url))
-        } else {
+        if description.len() > 0 {
             Ok(Url::new(Some(description), url))
+        } else {
+            Ok(Url::new(None, url))
         }
     }
 
