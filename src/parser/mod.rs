@@ -1,13 +1,11 @@
 pub(crate) mod block;
-pub(crate) mod charstate;
 pub(crate) mod inline;
 pub(crate) mod line;
 
 use self::block::ParseBlock;
 use crate::elements::{Document, ImportAnchor};
 use crate::references::configuration::Configuration;
-use crate::utils::parsing::{ParseError, ParseResult};
-use charred::tapemachine::CharTapeMachine;
+use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use std::fs::File;
@@ -16,6 +14,9 @@ use std::io::{BufRead, BufReader, Cursor};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
+
+pub type ParseResult<T> = TapeResult<T>;
+pub type ParseError = TapeError;
 
 pub struct Parser {
     pub(crate) ctm: CharTapeMachine,
@@ -29,7 +30,6 @@ pub struct Parser {
     pub(crate) block_break_at: Vec<char>,
     pub(crate) inline_break_at: Vec<char>,
     pub(crate) document: Document,
-    pub(crate) reader: Box<dyn BufRead>,
     pub(crate) parse_variables: bool,
 }
 
@@ -95,19 +95,11 @@ impl Parser {
         if let Some(path) = path.clone() {
             paths.lock().unwrap().push(path.clone())
         }
-        let mut text = Vec::new();
-        let mut current_char = ' ';
-        for _ in 0..8 {
-            let mut buf = String::new();
-            if let Ok(_) = reader.read_line(&mut buf) {
-                text.append(&mut buf.chars().collect::<Vec<char>>());
-            } else {
-                break;
-            }
-        }
-        if let Some(ch) = text.get(0) {
-            current_char = *ch
-        }
+        let mut text = String::new();
+        reader
+            .read_to_string(&mut text)
+            .expect("Failed to read file");
+
         let document = Document::new(!is_child);
         Self {
             sections: Vec::new(),
@@ -117,25 +109,16 @@ impl Parser {
             paths,
             wg: WaitGroup::new(),
             is_child,
-            ctm: CharTapeMachine::new(text),
+            ctm: CharTapeMachine::new(text.chars().collect()),
             inline_break_at: Vec::new(),
             block_break_at: Vec::new(),
             document,
-            reader,
             parse_variables: false,
         }
     }
 
     pub fn set_config(&mut self, config: Configuration) {
         self.document.config = config;
-    }
-
-    /// Returns the text of the parser as a string
-    fn get_text(&self) -> String {
-        self.ctm
-            .get_text()
-            .iter()
-            .fold("".to_string(), |a, b| format!("{}{}", a, b))
     }
 
     /// Returns the import paths of the parser

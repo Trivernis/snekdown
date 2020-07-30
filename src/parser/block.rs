@@ -1,11 +1,9 @@
+use super::ParseResult;
 use crate::elements::tokens::*;
 use crate::elements::{Block, CodeBlock, Import, List, ListItem, Paragraph, Quote, Section, Table};
-use crate::parser::charstate::CharStateMachine;
 use crate::parser::inline::ParseInline;
 use crate::parser::line::ParseLine;
-use crate::utils::parsing::{ParseError, ParseResult};
 use crate::Parser;
-use charred::tapemachine::{TapeError, TapeResult};
 
 pub(crate) trait ParseBlock {
     fn parse_block(&mut self) -> ParseResult<Block>;
@@ -77,7 +75,7 @@ impl ParseBlock for Parser {
                 }
                 return Err(self.ctm.rewind_with_error(start_index));
             }
-            self.ctm.seek_any(&INLINE_WHITESPACE);
+            self.ctm.seek_any(&INLINE_WHITESPACE)?;
             let mut header = self.parse_header()?;
             header.size = size;
             self.section_nesting = size;
@@ -108,12 +106,12 @@ impl ParseBlock for Parser {
         self.ctm.seek_whitespace();
         self.ctm
             .assert_sequence(&SQ_CODE_BLOCK, Some(start_index))?;
-        self.ctm.seek_one();
+        self.ctm.seek_one()?;
         let language = self.ctm.get_string_until_any(&[LB], &[])?;
-        self.ctm.seek_one();
+        self.ctm.seek_one()?;
         let text = self.ctm.get_string_until_sequence(&[&SQ_CODE_BLOCK], &[])?;
         for _ in 0..2 {
-            self.ctm.seek_one();
+            self.ctm.seek_one()?;
         }
 
         Ok(CodeBlock {
@@ -251,12 +249,12 @@ impl ParseBlock for Parser {
     fn parse_table(&mut self) -> ParseResult<Table> {
         let header = self.parse_row()?;
         if self.ctm.check_char(&LB) {
-            self.ctm.seek_one();
+            self.ctm.seek_one()?;
         }
         let seek_index = self.ctm.get_index();
         let mut table = Table::new(header);
         while let Ok(_) = self.ctm.seek_one() {
-            self.ctm.seek_any(&INLINE_WHITESPACE);
+            self.ctm.seek_any(&INLINE_WHITESPACE)?;
             if !self.ctm.check_any(&[MINUS, PIPE]) || self.ctm.check_char(&LB) {
                 break;
             }
@@ -292,7 +290,7 @@ impl ParseBlock for Parser {
             return Err(self.ctm.rewind_with_error(start_index));
         }
         if self.ctm.check_char(&IMPORT_CLOSE) {
-            self.ctm.seek_one();
+            self.ctm.seek_one()?;
         }
         // parser success
 
