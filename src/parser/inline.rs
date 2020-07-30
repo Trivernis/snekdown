@@ -119,17 +119,20 @@ impl ParseInline for Parser {
             self.ctm.seek_one()?;
             self.inline_break_at.push(DESC_CLOSE);
 
-            while let Ok(inline) = self.parse_inline() {
-                description.push(inline);
-                if self.ctm.check_char(&DESC_CLOSE) {
-                    break;
+            // only parse the description as inline if there is a description
+            if !self.ctm.check_char(&DESC_CLOSE) {
+                while let Ok(inline) = self.parse_inline() {
+                    description.push(inline);
+                    if self.ctm.check_char(&DESC_CLOSE) {
+                        break;
+                    }
                 }
             }
             self.inline_break_at.pop();
+            self.ctm.seek_one()?;
         } else if !short_syntax {
             return Err(self.ctm.rewind_with_error(start_index));
         }
-        self.ctm.seek_one()?;
         self.ctm.assert_char(&URL_OPEN, Some(start_index))?;
         self.ctm.seek_one()?;
         self.ctm.seek_any(&INLINE_WHITESPACE)?;

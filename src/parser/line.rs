@@ -121,35 +121,6 @@ impl ParseLine for Parser {
         }
     }
 
-    fn parse_bib_entry(&mut self) -> ParseResult<Arc<RwLock<BibEntry>>> {
-        let start_index = self.ctm.get_index();
-        self.ctm.seek_any(&INLINE_WHITESPACE)?;
-        self.ctm.assert_char(&BIB_KEY_OPEN, Some(start_index))?;
-        self.ctm.seek_one()?;
-        let key =
-            self.ctm
-                .get_string_until_any_or_rewind(&[BIB_KEY_CLOSE], &[LB, SPACE], start_index)?;
-        self.ctm.seek_one()?;
-        self.ctm.assert_char(&BIB_DATA_START, Some(start_index))?;
-        self.ctm.seek_one()?;
-        self.ctm.seek_any(&INLINE_WHITESPACE)?;
-
-        let entry = if let Ok(meta) = self.parse_inline_metadata() {
-            BibEntry::from_metadata(key, Box::new(meta), &self.document.config)
-        } else {
-            let url = self
-                .ctm
-                .get_string_until_any_or_rewind(&[LB], &[], start_index)?;
-            BibEntry::from_url(key, url, &self.document.config)
-        };
-        let entry_ref = Arc::new(RwLock::new(entry));
-        self.document
-            .bibliography
-            .add_bib_entry(Arc::clone(&entry_ref));
-
-        Ok(entry_ref)
-    }
-
     /// parses centered text
     fn parse_centered(&mut self) -> ParseResult<Centered> {
         let start_index = self.ctm.get_index();
@@ -191,5 +162,34 @@ impl ParseLine for Parser {
         } else {
             Err(self.ctm.err())
         }
+    }
+
+    fn parse_bib_entry(&mut self) -> ParseResult<Arc<RwLock<BibEntry>>> {
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_any(&INLINE_WHITESPACE)?;
+        self.ctm.assert_char(&BIB_KEY_OPEN, Some(start_index))?;
+        self.ctm.seek_one()?;
+        let key =
+            self.ctm
+                .get_string_until_any_or_rewind(&[BIB_KEY_CLOSE], &[LB, SPACE], start_index)?;
+        self.ctm.seek_one()?;
+        self.ctm.assert_char(&BIB_DATA_START, Some(start_index))?;
+        self.ctm.seek_one()?;
+        self.ctm.seek_any(&INLINE_WHITESPACE)?;
+
+        let entry = if let Ok(meta) = self.parse_inline_metadata() {
+            BibEntry::from_metadata(key, Box::new(meta), &self.document.config)
+        } else {
+            let url = self
+                .ctm
+                .get_string_until_any_or_rewind(&[LB], &[], start_index)?;
+            BibEntry::from_url(key, url, &self.document.config)
+        };
+        let entry_ref = Arc::new(RwLock::new(entry));
+        self.document
+            .bibliography
+            .add_bib_entry(Arc::clone(&entry_ref));
+
+        Ok(entry_ref)
     }
 }
