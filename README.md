@@ -1,4 +1,4 @@
-# :snake: Snekdown - More than just Markdown
+# :snake: Snekdown - More than just Markdown ![](https://img.shields.io/discord/729250668162056313)
 
 This projects goal is to implement a fast markdown parser with an extended syntax fitted
 for my needs.
