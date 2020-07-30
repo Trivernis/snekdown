@@ -2,6 +2,7 @@ body {
     background-color: #DDD;
     overflow-x: hidden;
     color: #000;
+    word-break: break-word;
 }
 
 .content {
