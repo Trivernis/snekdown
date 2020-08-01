@@ -1,4 +1,5 @@
-# :snake: Snekdown - More than just Markdown ![](https://img.shields.io/discord/729250668162056313)
+# ![](https://i.imgur.com/FpdXqiT.png) Snekdown - More than just Markdown ![](https://img.shields.io/discord/729250668162056313)
+
 
 This projects goal is to implement a fast markdown parser with an extended syntax fitted
 for my needs.
@@ -202,3 +203,4 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [ ] EPUB Rendering (PDF is too hard)
 - [ ] Custom Elements via templates (50%)
 - [ ] Custom Stylesheets
+- [ ] Smart arrows

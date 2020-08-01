@@ -6,7 +6,7 @@ body {
 }
 
 .content {
-    font-family: "Noto Sans", SansSerif, sans-serif;
+    font-family: "Fira Sans", "Noto Sans", SansSerif, sans-serif;
     width: 100vh;
     max-width: calc(100% - 4rem);
     padding: 2rem;
