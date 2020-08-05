@@ -18,6 +18,7 @@ pub(crate) trait ParseInline {
     fn parse_bold(&mut self) -> ParseResult<BoldText>;
     fn parse_italic(&mut self) -> ParseResult<ItalicText>;
     fn parse_striked(&mut self) -> ParseResult<StrikedText>;
+    fn parse_math(&mut self) -> ParseResult<Math>;
     fn parse_monospace(&mut self) -> ParseResult<MonospaceText>;
     fn parse_underlined(&mut self) -> ParseResult<UnderlinedText>;
     fn parse_superscript(&mut self) -> ParseResult<SuperscriptText>;
@@ -84,6 +85,8 @@ impl ParseInline for Parser {
             Ok(Inline::Colored(colored))
         } else if let Ok(bibref) = self.parse_bibref() {
             Ok(Inline::BibReference(bibref))
+        } else if let Ok(math) = self.parse_math() {
+            Ok(Inline::Math(math))
         } else {
             Ok(Inline::Plain(self.parse_plain()?))
         }
@@ -192,6 +195,20 @@ impl ParseInline for Parser {
     fn parse_striked(&mut self) -> ParseResult<StrikedText> {
         Ok(StrikedText {
             value: Box::new(self.parse_surrounded(&STRIKED)?),
+        })
+    }
+
+    fn parse_math(&mut self) -> ParseResult<Math> {
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_sequence(&MATH_INLINE, Some(start_index))?;
+        self.ctm.seek_one()?;
+        let content = self
+            .ctm
+            .get_string_until_sequence(&[MATH_INLINE, &[LB]], &[])?;
+        self.ctm.seek_one()?;
+
+        Ok(Math {
+            expression: asciimath_rs::parse(content),
         })
     }
 

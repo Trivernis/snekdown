@@ -4,6 +4,7 @@ use crate::references::bibliography::{BibEntry, BibReference, Bibliography};
 use crate::references::configuration::Configuration;
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
+use asciimath_rs::elements::special::Expression;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
@@ -40,6 +41,7 @@ pub enum Block {
     List(List),
     Table(Table),
     CodeBlock(CodeBlock),
+    MathBlock(MathBlock),
     Quote(Quote),
     Import(Import),
     Placeholder(Arc<RwLock<Placeholder>>),
@@ -164,6 +166,7 @@ pub enum Inline {
     Checkbox(Checkbox),
     Emoji(Emoji),
     Colored(Colored),
+    Math(Math),
     BibReference(Arc<RwLock<BibReference>>),
     TemplateVar(Arc<RwLock<TemplateVariable>>),
 }
@@ -248,6 +251,16 @@ pub struct Emoji {
 pub struct Colored {
     pub(crate) value: Box<Inline>,
     pub(crate) color: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Math {
+    pub(crate) expression: Expression,
+}
+
+#[derive(Clone, Debug)]
+pub struct MathBlock {
+    pub(crate) expression: Expression,
 }
 
 // implementations

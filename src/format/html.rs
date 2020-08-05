@@ -3,6 +3,7 @@ use crate::format::PlaceholderTemplate;
 use crate::references::bibliography::{BibEntry, BibReference};
 use crate::references::configuration::Value;
 use crate::references::templates::{Template, TemplateVariable};
+use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
 use std::cell::RefCell;
@@ -64,6 +65,7 @@ impl ToHtml for Inline {
             Inline::Colored(colored) => colored.to_html(),
             Inline::BibReference(bibref) => bibref.read().unwrap().to_html(),
             Inline::TemplateVar(var) => var.read().unwrap().to_html(),
+            Inline::Math(m) => m.to_html(),
         }
     }
 }
@@ -79,6 +81,7 @@ impl ToHtml for Block {
             Block::Section(section) => section.to_html(),
             Block::Import(import) => import.to_html(),
             Block::Placeholder(placeholder) => placeholder.read().unwrap().to_html(),
+            Block::MathBlock(m) => m.to_html(),
         }
     }
 }
@@ -119,6 +122,24 @@ impl ToHtml for Document {
                 path, inner
             )
         }
+    }
+}
+
+impl ToHtml for Math {
+    fn to_html(&self) -> String {
+        format!(
+            "<math xmlns='http://www.w3.org/1998/Math/MathML'>{}</math>",
+            self.expression.to_mathml()
+        )
+    }
+}
+
+impl ToHtml for MathBlock {
+    fn to_html(&self) -> String {
+        format!(
+            "<math xmlns='http://www.w3.org/1998/Math/MathML' display='block'>{}</math>",
+            self.expression.to_mathml()
+        )
     }
 }
 

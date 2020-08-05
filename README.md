@@ -184,6 +184,22 @@ There is a book about snekdown[^book] and a github repo[^github].
 
 Bibliography entries are only shown when used in the document.
 
+
+## Math
+
+Snekdown allows the embedding of [AsciiMath](http://asciimath.org/):
+
+```
+inline math $$ a^2 + b^2 = c^2 $$
+
+Block Math
+$$$
+A = [[1, 2],[3,4]]
+$$$
+```
+
+Currently math only get's rendered into MathML which is only supported by Safari and Firefox.
+
 ## Roadmap
 
 The end goal is to have a markup language with features similar to LaTeX.
@@ -194,7 +210,7 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [x] Watching and rendering on change
 - [ ] Metadata files
 - [x] Bibliography
-- [ ] Math
+- [x] Math
 - [ ] Text sizes
 - [ ] Title pages
 - [ ] Glossary

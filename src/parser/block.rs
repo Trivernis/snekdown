@@ -1,6 +1,8 @@
 use super::ParseResult;
 use crate::elements::tokens::*;
-use crate::elements::{Block, CodeBlock, Import, List, ListItem, Paragraph, Quote, Section, Table};
+use crate::elements::{
+    Block, CodeBlock, Import, List, ListItem, MathBlock, Paragraph, Quote, Section, Table,
+};
 use crate::parser::inline::ParseInline;
 use crate::parser::line::ParseLine;
 use crate::Parser;
@@ -9,6 +11,7 @@ pub(crate) trait ParseBlock {
     fn parse_block(&mut self) -> ParseResult<Block>;
     fn parse_section(&mut self) -> ParseResult<Section>;
     fn parse_code_block(&mut self) -> ParseResult<CodeBlock>;
+    fn parse_math_block(&mut self) -> ParseResult<MathBlock>;
     fn parse_quote(&mut self) -> ParseResult<Quote>;
     fn parse_paragraph(&mut self) -> ParseResult<Paragraph>;
     fn parse_list(&mut self) -> ParseResult<List>;
@@ -36,6 +39,8 @@ impl ParseBlock for Parser {
             Block::Table(table)
         } else if let Ok(code_block) = self.parse_code_block() {
             Block::CodeBlock(code_block)
+        } else if let Ok(math_block) = self.parse_math_block() {
+            Block::MathBlock(math_block)
         } else if let Ok(quote) = self.parse_quote() {
             Block::Quote(quote)
         } else if let Ok(import) = self.parse_import() {
@@ -117,6 +122,21 @@ impl ParseBlock for Parser {
         Ok(CodeBlock {
             language,
             code: text,
+        })
+    }
+
+    /// parses a math block
+    fn parse_math_block(&mut self) -> ParseResult<MathBlock> {
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_whitespace();
+        self.ctm.assert_sequence(SQ_MATH, Some(start_index))?;
+        self.ctm.seek_one()?;
+        let text = self.ctm.get_string_until_sequence(&[SQ_MATH], &[])?;
+        for _ in 0..1 {
+            self.ctm.seek_one()?;
+        }
+        Ok(MathBlock {
+            expression: asciimath_rs::parse(text),
         })
     }
 

@@ -32,6 +32,7 @@ pub(crate) const R_BRACE: char = '{';
 pub(crate) const L_BRACE: char = '}';
 pub(crate) const PERCENT: char = '%';
 pub(crate) const COMMA: char = ',';
+pub(crate) const MATH: char = '$';
 
 // aliases
 
@@ -71,13 +72,14 @@ pub(crate) const STRIKED: char = TILDE;
 pub(crate) const UNDERLINED: char = UNDERSCR;
 pub(crate) const SUPER: char = UP;
 pub(crate) const EMOJI: char = COLON;
+pub(crate) const MATH_INLINE: &'static [char] = &[MATH, MATH];
 pub(crate) const BOLD: [char; 2] = [ASTERISK, ASTERISK];
 
 // groups
 
 pub(crate) const QUOTES: [char; 2] = [SINGLE_QUOTE, DOUBLE_QUOTE];
 
-pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 9] = [
+pub(crate) const BLOCK_SPECIAL_CHARS: &'static [&[char]] = &[
     &[HASH],
     &[HASH, META_OPEN],
     &[MINUS, SPACE],
@@ -87,9 +89,10 @@ pub(crate) const BLOCK_SPECIAL_CHARS: [&[char]; 9] = [
     &[META_OPEN],
     &[IMPORT_START, IMPORT_OPEN],
     &SQ_CENTERED_START,
+    &SQ_MATH,
 ];
 
-pub(crate) const INLINE_SPECIAL_CHARS: [char; 11] = [
+pub(crate) const INLINE_SPECIAL_CHARS: &'static [char] = &[
     BACKTICK,
     TILDE,
     UNDERSCR,
@@ -101,6 +104,7 @@ pub(crate) const INLINE_SPECIAL_CHARS: [char; 11] = [
     SUPER,
     EMOJI,
     COLOR_START,
+    MATH,
 ];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [
@@ -119,3 +123,4 @@ pub(crate) const SQ_PHOLDER_STOP: [char; 2] = [PHOLDER_CLOSE, PHOLDER_CLOSE];
 pub(crate) const SQ_CENTERED_START: [char; 2] = [PIPE, PIPE];
 pub(crate) const SQ_COLOR_START: [char; 2] = [COLOR_START, COLOR_OPEN];
 pub(crate) const SQ_BIBREF_START: [char; 2] = [BIBREF_OPEN, BIBREF_REF];
+pub(crate) const SQ_MATH: &'static [char] = &[MATH, MATH, MATH];
