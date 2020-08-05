@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.19.0"
+version = "0.19.1"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -32,4 +32,4 @@ notify = "4.0.12"
 toml = "0.5.6"
 serde ="1.0.111"
 serde_derive = "1.0.111"
-asciimath-rs = "0.4.0"
+asciimath-rs = "0.4.1"
