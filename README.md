@@ -198,7 +198,8 @@ A = [[1, 2],[3,4]]
 $$$
 ```
 
-Currently math only get's rendered into MathML which is only supported by Safari and Firefox.
+The expression get's converted into MathML which is then converted by MathJax when loaded in
+the browser.
 
 ## Roadmap
 

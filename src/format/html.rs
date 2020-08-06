@@ -113,7 +113,16 @@ impl ToHtml for Document {
         if self.is_root {
             let style = minify(std::include_str!("assets/style.css"));
             format!(
-                "<!DOCTYPE html>\n<html><head {}><style>{}</style></head><body><div class='content'>{}</div></body></html>",
+                "<!DOCTYPE html>\
+                <html>\
+                    <head {}>\
+                        <script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
+                        <style>{}</style>\
+                    </head>\
+                    <body>\
+                        <div class='content'>{}</div>\
+                    </body>\
+                </html>",
                 path, style, inner
             )
         } else {

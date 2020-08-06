@@ -592,7 +592,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "snekdown"
-version = "0.19.1"
+version = "0.19.2"
 dependencies = [
  "asciimath-rs 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "charred 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
