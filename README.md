@@ -45,6 +45,7 @@ Extended syntax with metadata and no description
 !(url)[metadata]
 ```
 
+When generating the html file the images are base64 embedded.
 
 ### Quotes
 
@@ -68,6 +69,10 @@ Imports are parsed via multithreading.
 
 ```md
 <[path]
+
+<[document.md]
+
+<[style.css]
 ```
 
 

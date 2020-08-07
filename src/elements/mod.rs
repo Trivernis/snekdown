@@ -6,6 +6,8 @@ use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::elements::special::Expression;
 use std::collections::HashMap;
+use std::fs::read;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -610,6 +612,33 @@ impl Metadata for InlineMetadata {
     fn get_string(&self, key: &str) -> Option<String> {
         if let Some(MetadataValue::String(value)) = self.data.get(key) {
             Some(value.clone())
+        } else {
+            None
+        }
+    }
+}
+
+impl Image {
+    pub fn get_content(&self) -> Option<Vec<u8>> {
+        let path = PathBuf::from(&self.url.url);
+        if path.exists() {
+            if let Ok(content) = read(path) {
+                Some(content)
+            } else {
+                None
+            }
+        } else {
+            self.download_content()
+        }
+    }
+
+    fn download_content(&self) -> Option<Vec<u8>> {
+        if let Ok(content) = reqwest::blocking::get(&self.url.url) {
+            if let Ok(bytes) = content.bytes() {
+                Some(bytes.to_vec())
+            } else {
+                None
+            }
         } else {
             None
         }

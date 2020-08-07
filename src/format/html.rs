@@ -6,6 +6,7 @@ use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::{encode_attribute, encode_minimal};
 use minify::html::minify;
+use rayon::prelude::*;
 use std::cell::RefCell;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
@@ -105,8 +106,15 @@ impl ToHtml for Document {
     fn to_html(&self) -> String {
         let inner = self
             .elements
-            .iter()
-            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
+            .par_iter()
+            .fold(|| String::new(), |a, b| format!("{}{}", a, b.to_html()))
+            .reduce(
+                || String::new(),
+                |mut a: String, b: String| {
+                    a.push_str(&b);
+                    a
+                },
+            );
         let path = if let Some(path) = &self.path {
             format!("path='{}'", encode_attribute(path.as_str()))
         } else {
@@ -334,6 +342,17 @@ impl ToHtml for TextLine {
 impl ToHtml for Image {
     fn to_html(&self) -> String {
         let mut style = String::new();
+
+        let url = if let Some(content) = self.get_content() {
+            let mime_type = mime_guess::from_path(&self.url.url).first_or(mime::IMAGE_PNG);
+            format!(
+                "data:{};base64,{}",
+                mime_type.to_string(),
+                base64::encode(content)
+            )
+        } else {
+            encode_attribute(self.url.url.as_str())
+        };
         if let Some(meta) = &self.metadata {
             if let Some(width) = meta.data.get("width") {
                 style = format!("{}width: {};", style, width.to_html())
@@ -347,11 +366,12 @@ impl ToHtml for Image {
                 format!(
                     "<div class='figure'>\
                      <a href={0}>\
-                     <img src='{0}' alt='{1}' style='{2}'/>\
+                     <img src='{1}' alt='{2}' style='{3}'/>\
                      </a>\
-                     <label class='imageDescription'>{1}</label>\
+                     <label class='imageDescription'>{2}</label>\
                      </div>",
-                    encode_attribute(self.url.url.clone().as_str()),
+                    encode_attribute(self.url.url.as_str()),
+                    url,
                     encode_attribute(
                         description
                             .iter()
@@ -363,11 +383,7 @@ impl ToHtml for Image {
                 .as_str(),
             )
         } else {
-            format!(
-                "<a href={0}><img src='{0}' style='{1}'/></a>",
-                self.url.url.clone(),
-                style
-            )
+            format!("<a href={0}><img src='{0}' style='{1}'/></a>", url, style)
         }
     }
 }
