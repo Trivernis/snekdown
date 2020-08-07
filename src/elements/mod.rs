@@ -169,6 +169,7 @@ pub enum Inline {
     Math(Math),
     BibReference(Arc<RwLock<BibReference>>),
     TemplateVar(Arc<RwLock<TemplateVariable>>),
+    LineBreak,
 }
 
 #[derive(Clone, Debug)]

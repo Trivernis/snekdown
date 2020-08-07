@@ -95,7 +95,6 @@ impl ParseInline for Parser {
     /// parses an image url
     fn parse_image(&mut self) -> ParseResult<Image> {
         let start_index = self.ctm.get_index();
-        self.ctm.seek_any(&INLINE_WHITESPACE)?;
         self.ctm.assert_char(&IMG_START, Some(start_index))?;
         self.ctm.seek_one()?;
 
@@ -114,8 +113,6 @@ impl ParseInline for Parser {
     // parses an url
     fn parse_url(&mut self, short_syntax: bool) -> ParseResult<Url> {
         let start_index = self.ctm.get_index();
-        self.ctm.seek_any(&INLINE_WHITESPACE)?;
-
         let mut description = Vec::new();
 
         if self.ctm.check_char(&DESC_OPEN) {
@@ -329,7 +326,10 @@ impl ParseInline for Parser {
             return Err(self.ctm.err());
         }
         let mut characters = String::new();
-        characters.push(self.ctm.get_current());
+        if !self.ctm.check_char(&SPECIAL_ESCAPE) {
+            characters.push(self.ctm.get_current());
+        }
+
         while let Some(ch) = self.ctm.next_char() {
             if self.ctm.check_any(&INLINE_SPECIAL_CHARS)
                 || self.ctm.check_any(&self.inline_break_at)
@@ -337,7 +337,9 @@ impl ParseInline for Parser {
             {
                 break;
             }
-            characters.push(ch)
+            if !self.ctm.check_char(&SPECIAL_ESCAPE) {
+                characters.push(ch)
+            }
         }
 
         if characters.len() > 0 {

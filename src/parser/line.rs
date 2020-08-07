@@ -1,6 +1,6 @@
 use super::ParseResult;
 use crate::elements::tokens::*;
-use crate::elements::{Cell, Centered, Header, Line, ListItem, Row, Ruler, TextLine};
+use crate::elements::{Cell, Centered, Header, Inline, Line, ListItem, Row, Ruler, TextLine};
 use crate::parser::inline::ParseInline;
 use crate::references::bibliography::BibEntry;
 use crate::Parser;
@@ -155,9 +155,12 @@ impl ParseLine for Parser {
 
         if self.ctm.check_char(&LB) {
             self.ctm.seek_one()?;
+            if self.ctm.check_char(&LB) {
+                text.add_subtext(Inline::LineBreak)
+            }
         }
 
-        if text.subtext.len() > 0 || !self.ctm.check_eof() {
+        if text.subtext.len() > 0 {
             Ok(text)
         } else {
             Err(self.ctm.err())

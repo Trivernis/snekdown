@@ -66,6 +66,7 @@ impl ToHtml for Inline {
             Inline::BibReference(bibref) => bibref.read().unwrap().to_html(),
             Inline::TemplateVar(var) => var.read().unwrap().to_html(),
             Inline::Math(m) => m.to_html(),
+            Inline::LineBreak => "<br>".to_string(),
         }
     }
 }
