@@ -83,6 +83,7 @@ impl ToHtml for Block {
             Block::Import(import) => import.to_html(),
             Block::Placeholder(placeholder) => placeholder.read().unwrap().to_html(),
             Block::MathBlock(m) => m.to_html(),
+            Block::Null => "".to_string(),
         }
     }
 }
@@ -119,12 +120,13 @@ impl ToHtml for Document {
                     <head {}>\
                         <script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
                         <style>{}</style>\
+                        {}\
                     </head>\
                     <body>\
                         <div class='content'>{}</div>\
                     </body>\
                 </html>",
-                path, style, inner
+                path, style, self.stylesheets.iter().fold("".to_string(), |a, b| format!("{}<style>{}</style>", a, encode_minimal(b))), inner
             )
         } else {
             format!(

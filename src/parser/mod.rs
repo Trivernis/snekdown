@@ -8,7 +8,7 @@ use crate::references::configuration::Configuration;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
-use std::fs::File;
+use std::fs::{read_to_string, File};
 use std::io;
 use std::io::{BufRead, BufReader, Cursor};
 use std::path::PathBuf;
@@ -142,8 +142,7 @@ impl Parser {
     }
 
     /// starts up a new thread to parse the imported document
-    fn import_document(&mut self, path: String) -> ParseResult<Arc<RwLock<ImportAnchor>>> {
-        let path = self.transform_path(path);
+    fn import_document(&mut self, path: PathBuf) -> ParseResult<Arc<RwLock<ImportAnchor>>> {
         if !path.exists() || !path.is_file() {
             println!(
                 "{}",
@@ -189,6 +188,20 @@ impl Parser {
         Ok(anchor)
     }
 
+    fn import(&mut self, path: String) -> ImportType {
+        let path = self.transform_path(path);
+        match path.extension() {
+            Some(e) if e.to_str().unwrap() == "css" => {
+                if let Ok(content) = read_to_string(path) {
+                    ImportType::Stylesheet(Ok(content))
+                } else {
+                    ImportType::Stylesheet(Err(ParseError::new(self.ctm.get_index())))
+                }
+            }
+            _ => ImportType::Document(self.import_document(path)),
+        }
+    }
+
     /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
         self.document.path = if let Some(path) = &self.path {
@@ -219,4 +232,9 @@ impl Parser {
 
         document
     }
+}
+
+pub(crate) enum ImportType {
+    Document(ParseResult<Arc<RwLock<ImportAnchor>>>),
+    Stylesheet(ParseResult<String>),
 }

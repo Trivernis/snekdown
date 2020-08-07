@@ -5,6 +5,7 @@ use crate::elements::{
 };
 use crate::parser::inline::ParseInline;
 use crate::parser::line::ParseLine;
+use crate::parser::ImportType;
 use crate::Parser;
 
 pub(crate) trait ParseBlock {
@@ -16,7 +17,7 @@ pub(crate) trait ParseBlock {
     fn parse_paragraph(&mut self) -> ParseResult<Paragraph>;
     fn parse_list(&mut self) -> ParseResult<List>;
     fn parse_table(&mut self) -> ParseResult<Table>;
-    fn parse_import(&mut self) -> ParseResult<Import>;
+    fn parse_import(&mut self) -> ParseResult<Option<Import>>;
 }
 
 impl ParseBlock for Parser {
@@ -44,7 +45,11 @@ impl ParseBlock for Parser {
         } else if let Ok(quote) = self.parse_quote() {
             Block::Quote(quote)
         } else if let Ok(import) = self.parse_import() {
-            Block::Import(import)
+            if let Some(import) = import {
+                Block::Import(import)
+            } else {
+                Block::Null
+            }
         } else if let Some(_) = self.section_return {
             return Err(self.ctm.err());
         } else if let Ok(pholder) = self.parse_placeholder() {
@@ -294,7 +299,7 @@ impl ParseBlock for Parser {
     }
 
     /// parses an import and starts a new task to parse the document of the import
-    fn parse_import(&mut self) -> ParseResult<Import> {
+    fn parse_import(&mut self) -> ParseResult<Option<Import>> {
         let start_index = self.ctm.get_index();
         self.ctm.seek_whitespace();
         self.ctm
@@ -321,10 +326,13 @@ impl ParseBlock for Parser {
 
         self.ctm.seek_whitespace();
 
-        if let Ok(anchor) = self.import_document(path.clone()) {
-            Ok(Import { path, anchor })
-        } else {
-            Err(self.ctm.err())
+        match self.import(path.clone()) {
+            ImportType::Document(Ok(anchor)) => Ok(Some(Import { path, anchor })),
+            ImportType::Stylesheet(Ok(content)) => {
+                self.document.stylesheets.push(content);
+                Ok(None)
+            }
+            _ => Err(self.ctm.err()),
         }
     }
 }

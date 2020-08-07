@@ -45,6 +45,7 @@ pub enum Block {
     Quote(Quote),
     Import(Import),
     Placeholder(Arc<RwLock<Placeholder>>),
+    Null,
 }
 
 #[derive(Clone, Debug)]
@@ -64,6 +65,7 @@ pub struct Document {
     pub(crate) placeholders: Vec<Arc<RwLock<Placeholder>>>,
     pub config: Configuration,
     pub bibliography: Bibliography,
+    pub stylesheets: Vec<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -275,6 +277,7 @@ impl Document {
             placeholders: Vec::new(),
             config: Configuration::default(),
             bibliography: Bibliography::new(),
+            stylesheets: Vec::new(),
         }
     }
 
