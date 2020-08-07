@@ -154,9 +154,10 @@ impl ParseLine for Parser {
         }
 
         if self.ctm.check_char(&LB) {
-            self.ctm.seek_one()?;
-            if self.ctm.check_char(&LB) {
-                text.add_subtext(Inline::LineBreak)
+            if let Ok(_) = self.ctm.seek_one() {
+                if self.ctm.check_char(&LB) {
+                    text.add_subtext(Inline::LineBreak)
+                }
             }
         }
 
