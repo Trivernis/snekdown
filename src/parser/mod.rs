@@ -99,6 +99,9 @@ impl Parser {
         reader
             .read_to_string(&mut text)
             .expect("Failed to read file");
+        if text.chars().last() != Some('\n') {
+            text.push('\n');
+        }
 
         let document = Document::new(!is_child);
         Self {
