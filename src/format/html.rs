@@ -363,23 +363,22 @@ impl ToHtml for Image {
             }
         }
         if let Some(description) = self.url.description.clone() {
+            let description = description
+                .iter()
+                .fold("".to_string(), |a, b| format!("{}&#32;{}", a, b.to_html()));
             minify(
                 format!(
                     "<div class='figure'>\
-                     <a href={0}>\
-                     <img src='{1}' alt='{2}' style='{3}'/>\
+                     <a href={}>\
+                     <img src='{}' alt='{}' style='{}'/>\
                      </a>\
-                     <label class='imageDescription'>{2}</label>\
+                     <label class='imageDescription'>{}</label>\
                      </div>",
                     encode_attribute(self.url.url.as_str()),
                     url,
-                    encode_attribute(
-                        description
-                            .iter()
-                            .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
-                            .as_str()
-                    ),
-                    style
+                    encode_attribute(description.as_str()),
+                    style,
+                    description
                 )
                 .as_str(),
             )
