@@ -58,10 +58,14 @@ impl ParseLine for Parser {
             .assert_any(&LIST_SPECIAL_CHARS, Some(start_index))?;
         let ordered = self.ctm.get_current().is_numeric();
         self.ctm.seek_one()?;
-
-        if self.ctm.check_char(&DOT) {
+        if ordered {
+            while self.ctm.get_current().is_numeric() {
+                self.ctm.seek_one()?;
+            }
+            self.ctm.assert_char(&DOT, Some(start_index))?;
             self.ctm.seek_one()?;
         }
+
         if !self.ctm.check_any(&INLINE_WHITESPACE) {
             return Err(self.ctm.rewind_with_error(start_index));
         }

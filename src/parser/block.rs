@@ -213,11 +213,7 @@ impl ParseBlock for Parser {
         let start_index = self.ctm.get_index();
         self.ctm.seek_whitespace();
 
-        let ordered = if self.ctm.check_any(&LIST_SPECIAL_CHARS) {
-            false
-        } else {
-            true
-        };
+        let ordered = self.ctm.get_current().is_numeric();
         list.ordered = ordered;
         let mut list_hierarchy: Vec<ListItem> = Vec::new();
         while let Ok(mut item) = self.parse_list_item() {
