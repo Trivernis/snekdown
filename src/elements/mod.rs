@@ -173,6 +173,7 @@ pub enum Inline {
     Math(Math),
     BibReference(Arc<RwLock<BibReference>>),
     TemplateVar(Arc<RwLock<TemplateVariable>>),
+    CharacterCode(CharacterCode),
     LineBreak,
 }
 
@@ -266,6 +267,11 @@ pub struct Math {
 #[derive(Clone, Debug)]
 pub struct MathBlock {
     pub(crate) expression: Expression,
+}
+
+#[derive(Clone, Debug)]
+pub struct CharacterCode {
+    pub(crate) code: String,
 }
 
 // implementations

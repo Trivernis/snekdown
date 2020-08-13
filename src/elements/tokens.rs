@@ -33,6 +33,7 @@ pub(crate) const L_BRACE: char = '}';
 pub(crate) const PERCENT: char = '%';
 pub(crate) const COMMA: char = ',';
 pub(crate) const MATH: char = '$';
+pub(crate) const AMPERSAND: char = '&';
 
 // aliases
 
@@ -74,6 +75,9 @@ pub(crate) const SUPER: char = UP;
 pub(crate) const EMOJI: char = COLON;
 pub(crate) const MATH_INLINE: &'static [char] = &[MATH, MATH];
 pub(crate) const BOLD: [char; 2] = [ASTERISK, ASTERISK];
+
+pub(crate) const CHARACTER_START: char = AMPERSAND;
+pub(crate) const CHARACTER_STOP: char = SEMICOLON;
 
 // groups
 

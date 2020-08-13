@@ -31,6 +31,7 @@ pub(crate) trait ParseInline {
     fn parse_metadata_pair(&mut self) -> ParseResult<(String, MetadataValue)>;
     fn parse_placeholder(&mut self) -> ParseResult<Arc<RwLock<Placeholder>>>;
     fn parse_template(&mut self) -> ParseResult<Template>;
+    fn parse_character_code(&mut self) -> ParseResult<CharacterCode>;
 }
 
 impl ParseInline for Parser {
@@ -87,6 +88,8 @@ impl ParseInline for Parser {
             Ok(Inline::BibReference(bibref))
         } else if let Ok(math) = self.parse_math() {
             Ok(Inline::Math(math))
+        } else if let Ok(char_code) = self.parse_character_code() {
+            Ok(Inline::CharacterCode(char_code))
         } else {
             Ok(Inline::Plain(self.parse_plain()?))
         }
@@ -506,5 +509,18 @@ impl ParseInline for Parser {
             text: elements,
             variables: vars,
         })
+    }
+
+    /// parses a character code &code; like a html character code
+    fn parse_character_code(&mut self) -> ParseResult<CharacterCode> {
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&CHARACTER_START, None)?;
+        self.ctm.seek_one()?;
+        let code =
+            self.ctm
+                .get_string_until_any_or_rewind(&[CHARACTER_STOP], &[LB], start_index)?;
+        self.ctm.seek_one()?;
+
+        Ok(CharacterCode { code })
     }
 }

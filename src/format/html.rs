@@ -68,6 +68,7 @@ impl ToHtml for Inline {
             Inline::TemplateVar(var) => var.read().unwrap().to_html(),
             Inline::Math(m) => m.to_html(),
             Inline::LineBreak => "<br>".to_string(),
+            Inline::CharacterCode(code) => code.to_html(),
         }
     }
 }
@@ -606,5 +607,11 @@ impl ToHtml for TemplateVariable {
         } else {
             "".to_string()
         }
+    }
+}
+
+impl ToHtml for CharacterCode {
+    fn to_html(&self) -> String {
+        format!("&{};", encode_minimal(self.code.as_str()))
     }
 }
