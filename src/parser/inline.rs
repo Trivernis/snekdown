@@ -7,7 +7,6 @@ use crate::references::configuration::keys::BIB_REF_DISPLAY;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
 use crate::Parser;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 pub(crate) trait ParseInline {
@@ -146,9 +145,9 @@ impl ParseInline for Parser {
             .get_string_until_any_or_rewind(&[URL_CLOSE], &[LB], start_index)?;
 
         self.ctm.seek_one()?;
-        let url_path = PathBuf::from(url.clone());
+        let url_path = self.transform_path(url.clone());
         if url_path.exists() {
-            url = self.transform_path(url).to_str().unwrap().to_string()
+            url = url_path.to_str().unwrap().to_string();
         }
 
         if description.len() > 0 {
