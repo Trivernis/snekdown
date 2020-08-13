@@ -122,11 +122,17 @@ impl ToHtml for Document {
             "".to_string()
         };
         if self.is_root {
+            let language = if let Some(entry) = self.config.get_entry("lang") {
+                entry.get().as_string()
+            } else {
+                "en".to_string()
+            };
             let style = minify(std::include_str!("assets/style.css"));
             format!(
                 "<!DOCTYPE html>\
-                <html>\
+                <html lang={}>\
                     <head {}>\
+                        <meta charset='UTF-8'>\
                         <script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>
                         <style>{}</style>\
                         {}\
@@ -135,6 +141,7 @@ impl ToHtml for Document {
                         <div class='content'>{}</div>\
                     </body>\
                 </html>",
+                encode_minimal(language.as_str()),
                 path, style, self.stylesheets.iter().fold("".to_string(), |a, b| format!("{}<style>{}</style>", a, encode_minimal(b))), inner
             )
         } else {
