@@ -18,4 +18,5 @@ pub struct MetaConfig {
     pub(crate) author: Option<String>,
     pub(crate) date: Option<String>,
     pub(crate) title: Option<String>,
+    pub(crate) language: Option<String>,
 }

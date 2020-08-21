@@ -1,7 +1,7 @@
 use crate::elements::MetadataValue;
 use crate::references::configuration::config::RootConfig;
 use crate::references::configuration::keys::{
-    BIB_DISPLAY, BIB_HIDE_UNUSED, BIB_REF_DISPLAY, META_AUTHOR, META_DATE, META_TITLE,
+    BIB_DISPLAY, BIB_HIDE_UNUSED, BIB_REF_DISPLAY, META_AUTHOR, META_DATE, META_LANG, META_TITLE,
 };
 use crate::references::templates::Template;
 use std::collections::HashMap;
@@ -93,6 +93,9 @@ impl Configuration {
             }
             if let Some(cfg) = &meta.title {
                 self.set(META_TITLE, Value::String(cfg.clone()))
+            }
+            if let Some(lang) = &meta.language {
+                self.set(META_LANG, Value::String(lang.clone()))
             }
         }
     }

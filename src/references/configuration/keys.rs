@@ -5,3 +5,4 @@ pub const BIB_HIDE_UNUSED: &str = "bib-hide-unused";
 pub const META_AUTHOR: &str = "author";
 pub const META_TITLE: &str = "title";
 pub const META_DATE: &str = "date";
+pub const META_LANG: &str = "lang";

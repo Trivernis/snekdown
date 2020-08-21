@@ -207,7 +207,7 @@ impl ParseBlock for Parser {
     }
 
     /// parses a list which consists of one or more list items
-    /// The parser is done iterative to resolve nested items
+    /// The parsing is done iterative to resolve nested items
     fn parse_list(&mut self) -> ParseResult<List> {
         let mut list = List::new();
         let start_index = self.ctm.get_index();
