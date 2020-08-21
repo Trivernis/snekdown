@@ -116,7 +116,9 @@ impl ParseLine for Parser {
         if self.ctm.check_char(&PIPE) {
             self.ctm.seek_one()?;
         }
-        self.ctm.seek_one()?;
+        if !self.ctm.check_eof() {
+            let _ = self.ctm.seek_one();
+        }
 
         if row.cells.len() > 0 {
             Ok(row)
