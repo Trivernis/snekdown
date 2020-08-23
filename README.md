@@ -131,9 +131,6 @@ Boolean
 
 Placeholder
 [key = [[placeholder]]]
-
-Formatting
-[author = "The Great snek" date = [[date]] time = [[time]] display = "author - date at time"]
 ```
 
 #### Usage
@@ -193,6 +190,7 @@ Bibliography entries are only shown when used in the document.
 ## Math
 
 Snekdown allows the embedding of [AsciiMath](http://asciimath.org/):
+The AsciiMath parser is provided in the [asciimath-rs](https://github.com/Trivernis/asciimath-rs) crate
 
 ```
 inline math $$ a^2 + b^2 = c^2 $$
