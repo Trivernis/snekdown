@@ -184,22 +184,22 @@ pub struct PlainText {
 
 #[derive(Clone, Debug)]
 pub struct BoldText {
-    pub(crate) value: Box<Inline>,
+    pub(crate) value: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ItalicText {
-    pub(crate) value: Box<Inline>,
+    pub(crate) value: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct UnderlinedText {
-    pub(crate) value: Box<Inline>,
+    pub(crate) value: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]
 pub struct StrikedText {
-    pub(crate) value: Box<Inline>,
+    pub(crate) value: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]
@@ -209,7 +209,7 @@ pub struct MonospaceText {
 
 #[derive(Clone, Debug)]
 pub struct SuperscriptText {
-    pub(crate) value: Box<Inline>,
+    pub(crate) value: Vec<Inline>,
 }
 
 #[derive(Clone, Debug)]

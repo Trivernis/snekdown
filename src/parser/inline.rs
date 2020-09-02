@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
 pub(crate) trait ParseInline {
-    fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Inline>;
+    fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Vec<Inline>>;
     fn parse_inline(&mut self) -> ParseResult<Inline>;
     fn parse_image(&mut self) -> ParseResult<Image>;
     fn parse_url(&mut self, short_syntax: bool) -> ParseResult<Url>;
@@ -36,12 +36,18 @@ pub(crate) trait ParseInline {
 
 impl ParseInline for Parser {
     /// parses Inline surrounded by characters
-    fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Inline> {
+    fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Vec<Inline>> {
         let start_index = self.ctm.get_index();
         self.ctm.assert_char(surrounding, Some(start_index))?;
         self.ctm.seek_one()?;
-        let inline = self.parse_inline()?;
-        self.ctm.assert_char(surrounding, Some(start_index))?;
+        let mut inline = vec![self.parse_inline()?];
+        while !self.ctm.check_char(surrounding) {
+            if let Ok(result) = self.parse_inline() {
+                inline.push(result)
+            } else {
+                return Err(self.ctm.rewind_with_error(start_index));
+            }
+        }
         if !self.ctm.check_eof() {
             self.ctm.seek_one()?;
         }
@@ -181,24 +187,28 @@ impl ParseInline for Parser {
         let start_index = self.ctm.get_index();
         self.ctm.assert_sequence(&BOLD, Some(start_index))?;
         self.ctm.seek_one()?;
-        let inline = self.parse_inline()?;
-        self.ctm.assert_sequence(&BOLD, Some(start_index))?;
+        let mut inline = vec![self.parse_inline()?];
+        while !self.ctm.check_sequence(&BOLD) {
+            if let Ok(result) = self.parse_inline() {
+                inline.push(result);
+            } else {
+                return Err(self.ctm.rewind_with_error(start_index));
+            }
+        }
         self.ctm.seek_one()?;
 
-        Ok(BoldText {
-            value: Box::new(inline),
-        })
+        Ok(BoldText { value: inline })
     }
 
     fn parse_italic(&mut self) -> ParseResult<ItalicText> {
         Ok(ItalicText {
-            value: Box::new(self.parse_surrounded(&ITALIC)?),
+            value: self.parse_surrounded(&ITALIC)?,
         })
     }
 
     fn parse_striked(&mut self) -> ParseResult<StrikedText> {
         Ok(StrikedText {
-            value: Box::new(self.parse_surrounded(&STRIKED)?),
+            value: self.parse_surrounded(&STRIKED)?,
         })
     }
 
@@ -232,13 +242,13 @@ impl ParseInline for Parser {
 
     fn parse_underlined(&mut self) -> ParseResult<UnderlinedText> {
         Ok(UnderlinedText {
-            value: Box::new(self.parse_surrounded(&UNDERLINED)?),
+            value: self.parse_surrounded(&UNDERLINED)?,
         })
     }
 
     fn parse_superscript(&mut self) -> ParseResult<SuperscriptText> {
         Ok(SuperscriptText {
-            value: Box::new(self.parse_surrounded(&SUPER)?),
+            value: self.parse_surrounded(&SUPER)?,
         })
     }
 

@@ -397,31 +397,56 @@ impl ToHtml for Image {
 
 impl ToHtml for BoldText {
     fn to_html(&self) -> String {
-        format!("<b>{}</b>", self.value.to_html())
+        format!(
+            "<b>{}</b>",
+            self.value
+                .iter()
+                .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+        )
     }
 }
 
 impl ToHtml for UnderlinedText {
     fn to_html(&self) -> String {
-        format!("<u>{}</u>", self.value.to_html())
+        format!(
+            "<u>{}</u>",
+            self.value
+                .iter()
+                .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+        )
     }
 }
 
 impl ToHtml for ItalicText {
     fn to_html(&self) -> String {
-        format!("<i>{}</i>", self.value.to_html())
+        format!(
+            "<i>{}</i>",
+            self.value
+                .iter()
+                .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+        )
     }
 }
 
 impl ToHtml for StrikedText {
     fn to_html(&self) -> String {
-        format!("<del>{}</del>", self.value.to_html())
+        format!(
+            "<del>{}</del>",
+            self.value
+                .iter()
+                .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+        )
     }
 }
 
 impl ToHtml for SuperscriptText {
     fn to_html(&self) -> String {
-        format!("<sup>{}</sup>", self.value.to_html())
+        format!(
+            "<sup>{}</sup>",
+            self.value
+                .iter()
+                .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()))
+        )
     }
 }
 

@@ -65,11 +65,36 @@ impl GetTemplateVariables for Inline {
         match self {
             Inline::TemplateVar(temp) => vec![Arc::clone(temp)],
             Inline::Colored(col) => col.value.get_template_variables(),
-            Inline::Superscript(sup) => sup.value.get_template_variables(),
-            Inline::Striked(striked) => striked.value.get_template_variables(),
-            Inline::Underlined(under) => under.value.get_template_variables(),
-            Inline::Italic(it) => it.value.get_template_variables(),
-            Inline::Bold(bo) => bo.value.get_template_variables(),
+            Inline::Superscript(sup) => sup
+                .value
+                .iter()
+                .map(|e| e.get_template_variables())
+                .flatten()
+                .collect(),
+            Inline::Striked(striked) => striked
+                .value
+                .iter()
+                .map(|e| e.get_template_variables())
+                .flatten()
+                .collect(),
+            Inline::Underlined(under) => under
+                .value
+                .iter()
+                .map(|e| e.get_template_variables())
+                .flatten()
+                .collect(),
+            Inline::Italic(it) => it
+                .value
+                .iter()
+                .map(|e| e.get_template_variables())
+                .flatten()
+                .collect(),
+            Inline::Bold(bo) => bo
+                .value
+                .iter()
+                .map(|e| e.get_template_variables())
+                .flatten()
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -155,30 +180,71 @@ impl FreezeVariables for Inline {
                     col.value = Box::new(Inline::TemplateVar(temp))
                 }
             }
+
             Inline::Superscript(sup) => {
-                if let Some(temp) = sup.value.freeze_variables() {
-                    sup.value = Box::new(Inline::TemplateVar(temp))
-                }
+                sup.value = sup
+                    .value
+                    .iter_mut()
+                    .map(|e| {
+                        if let Some(temp) = e.freeze_variables() {
+                            Inline::TemplateVar(temp)
+                        } else {
+                            e.clone()
+                        }
+                    })
+                    .collect();
             }
             Inline::Striked(striked) => {
-                if let Some(temp) = striked.value.freeze_variables() {
-                    striked.value = Box::new(Inline::TemplateVar(temp))
-                }
+                striked.value = striked
+                    .value
+                    .iter_mut()
+                    .map(|e| {
+                        if let Some(temp) = e.freeze_variables() {
+                            Inline::TemplateVar(temp)
+                        } else {
+                            e.clone()
+                        }
+                    })
+                    .collect();
             }
             Inline::Underlined(under) => {
-                if let Some(temp) = under.value.freeze_variables() {
-                    under.value = Box::new(Inline::TemplateVar(temp))
-                }
+                under.value = under
+                    .value
+                    .iter_mut()
+                    .map(|e| {
+                        if let Some(temp) = e.freeze_variables() {
+                            Inline::TemplateVar(temp)
+                        } else {
+                            e.clone()
+                        }
+                    })
+                    .collect();
             }
             Inline::Italic(it) => {
-                if let Some(temp) = it.value.freeze_variables() {
-                    it.value = Box::new(Inline::TemplateVar(temp))
-                }
+                it.value = it
+                    .value
+                    .iter_mut()
+                    .map(|e| {
+                        if let Some(temp) = e.freeze_variables() {
+                            Inline::TemplateVar(temp)
+                        } else {
+                            e.clone()
+                        }
+                    })
+                    .collect();
             }
             Inline::Bold(bo) => {
-                if let Some(temp) = bo.value.freeze_variables() {
-                    bo.value = Box::new(Inline::TemplateVar(temp))
-                }
+                bo.value = bo
+                    .value
+                    .iter_mut()
+                    .map(|e| {
+                        if let Some(temp) = e.freeze_variables() {
+                            Inline::TemplateVar(temp)
+                        } else {
+                            e.clone()
+                        }
+                    })
+                    .collect();
             }
             _ => {}
         }
