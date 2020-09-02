@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.22.9"
+version = "0.22.10"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -17,7 +17,7 @@ name = "snekdown"
 path = "src/main.rs"
 
 [dependencies]
-charred = "0.3.1"
+charred = "0.3.3"
 crossbeam-utils = "0.7.2"
 structopt = "0.3.14"
 minify = "1.1.1"
@@ -32,7 +32,7 @@ notify = "4.0.12"
 toml = "0.5.6"
 serde ="1.0.111"
 serde_derive = "1.0.111"
-asciimath-rs = "0.5.6"
+asciimath-rs = "0.5.7"
 reqwest = {version = "0.10", features=["blocking"]}
 mime_guess = "2.0.3"
 mime = "0.3.16"
