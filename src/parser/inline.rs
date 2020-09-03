@@ -1,11 +1,12 @@
 use super::{ParseError, ParseResult};
 use crate::elements::tokens::*;
+use crate::elements::BibReference;
 use crate::elements::*;
 use crate::parser::block::ParseBlock;
-use crate::references::bibliography::BibReference;
 use crate::references::configuration::keys::BIB_REF_DISPLAY;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
 use crate::Parser;
+use bibliographix::references::bib_reference::BibRef;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -301,13 +302,18 @@ impl ParseInline for Parser {
             self.ctm
                 .get_string_until_any_or_rewind(&[BIBREF_CLOSE], &[SPACE, LB], start_index)?;
         self.ctm.seek_one()?;
+        let bib_ref = BibRef::new(key.clone());
         let ref_entry = Arc::new(RwLock::new(BibReference::new(
             key,
             self.document.config.get_ref_entry(BIB_REF_DISPLAY),
+            bib_ref.anchor(),
         )));
         self.document
             .bibliography
-            .add_ref_entry(Arc::clone(&ref_entry));
+            .root_ref_anchor()
+            .lock()
+            .unwrap()
+            .insert(bib_ref);
 
         Ok(ref_entry)
     }

@@ -1,10 +1,13 @@
 use super::ParseResult;
 use crate::elements::tokens::*;
+use crate::elements::{BibEntry, Metadata};
 use crate::elements::{Cell, Centered, Header, Inline, Line, ListItem, Row, Ruler, TextLine};
 use crate::parser::inline::ParseInline;
-use crate::references::bibliography::BibEntry;
 use crate::Parser;
-use std::sync::{Arc, RwLock};
+use bibliographix::bibliography::bibliography_entry::BibliographyEntry;
+use bibliographix::bibliography::keys::{K_KEY, K_TYPE, K_URL, T_WEBSITE};
+use bibliographix::bibliography::FromHashMap;
+use std::collections::HashMap;
 
 pub(crate) trait ParseLine {
     fn parse_line(&mut self) -> ParseResult<Line>;
@@ -14,7 +17,7 @@ pub(crate) trait ParseLine {
     fn parse_centered(&mut self) -> ParseResult<Centered>;
     fn parse_ruler(&mut self) -> ParseResult<Ruler>;
     fn parse_text_line(&mut self) -> ParseResult<TextLine>;
-    fn parse_bib_entry(&mut self) -> ParseResult<Arc<RwLock<BibEntry>>>;
+    fn parse_bib_entry(&mut self) -> ParseResult<BibEntry>;
 }
 
 impl ParseLine for Parser {
@@ -174,7 +177,7 @@ impl ParseLine for Parser {
         }
     }
 
-    fn parse_bib_entry(&mut self) -> ParseResult<Arc<RwLock<BibEntry>>> {
+    fn parse_bib_entry(&mut self) -> ParseResult<BibEntry> {
         let start_index = self.ctm.get_index();
         self.ctm.seek_any(&INLINE_WHITESPACE)?;
         self.ctm.assert_char(&BIB_KEY_OPEN, Some(start_index))?;
@@ -188,18 +191,49 @@ impl ParseLine for Parser {
         self.ctm.seek_any(&INLINE_WHITESPACE)?;
 
         let entry = if let Ok(meta) = self.parse_inline_metadata() {
-            BibEntry::from_metadata(key, Box::new(meta), &self.document.config)
+            let mut string_map = meta.get_string_map();
+            string_map.insert(K_KEY.to_string(), key.clone());
+
+            if let Some(entry) = BibliographyEntry::from_hash_map(&string_map) {
+                *entry
+            } else {
+                eprintln!("Failed to parse bib entry with key {}", key);
+                return Err(self.ctm.rewind_with_error(start_index));
+            }
         } else {
             let url = self
                 .ctm
                 .get_string_until_any_or_rewind(&[LB], &[], start_index)?;
-            BibEntry::from_url(key, url, &self.document.config)
+            let mut map = HashMap::new();
+            map.insert(K_TYPE.to_string(), T_WEBSITE.to_string());
+            map.insert(K_URL.to_string(), url);
+            map.insert(K_KEY.to_string(), key.clone());
+
+            if let Some(entry) = BibliographyEntry::from_hash_map(&map) {
+                *entry
+            } else {
+                eprintln!("Failed to parse bib entry with key {}", key);
+                return Err(self.ctm.rewind_with_error(start_index));
+            }
         };
-        let entry_ref = Arc::new(RwLock::new(entry));
+
         self.document
             .bibliography
-            .add_bib_entry(Arc::clone(&entry_ref));
+            .entry_dictionary()
+            .lock()
+            .unwrap()
+            .insert(entry);
 
-        Ok(entry_ref)
+        Ok(BibEntry {
+            entry: self
+                .document
+                .bibliography
+                .entry_dictionary()
+                .lock()
+                .unwrap()
+                .get(&key)
+                .unwrap(),
+            key,
+        })
     }
 }

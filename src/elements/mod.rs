@@ -1,15 +1,18 @@
 pub mod tokens;
 
-use crate::references::bibliography::{BibEntry, BibReference, Bibliography};
-use crate::references::configuration::Configuration;
+use crate::format::PlaceholderTemplate;
+use crate::references::configuration::{ConfigRefEntry, Configuration};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::elements::special::Expression;
+use bibliographix::bib_manager::BibManager;
+use bibliographix::bibliography::bibliography_entry::BibliographyEntryReference;
+use bibliographix::references::bib_reference::BibRefAnchor;
 use std::collections::HashMap;
 use std::fs::read;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 pub const SECTION: &str = "section";
 pub const PARAGRAPH: &str = "paragraph";
@@ -56,7 +59,7 @@ pub enum Line {
     Ruler(Ruler),
     Anchor(Anchor),
     Centered(Centered),
-    BibEntry(Arc<RwLock<BibEntry>>),
+    BibEntry(BibEntry),
 }
 
 #[derive(Clone, Debug)]
@@ -66,7 +69,7 @@ pub struct Document {
     pub(crate) path: Option<String>,
     pub(crate) placeholders: Vec<Arc<RwLock<Placeholder>>>,
     pub config: Configuration,
-    pub bibliography: Bibliography,
+    pub bibliography: BibManager,
     pub stylesheets: Vec<String>,
 }
 
@@ -284,7 +287,19 @@ impl Document {
             path: None,
             placeholders: Vec::new(),
             config: Configuration::default(),
-            bibliography: Bibliography::new(),
+            bibliography: BibManager::new(),
+            stylesheets: Vec::new(),
+        }
+    }
+
+    pub fn new_with_manager(is_root: bool, bibliography: BibManager) -> Self {
+        Self {
+            elements: Vec::new(),
+            is_root,
+            path: None,
+            placeholders: Vec::new(),
+            config: Configuration::default(),
+            bibliography,
             stylesheets: Vec::new(),
         }
     }
@@ -352,7 +367,6 @@ impl Document {
 
                     if let Some(doc) = &mut anchor.document {
                         self.placeholders.append(&mut doc.placeholders);
-                        self.bibliography.combine(&mut doc.bibliography);
                         doc.elements.reverse();
                         self.elements.append(&mut doc.elements);
                         anchor.document = None;
@@ -381,7 +395,7 @@ impl Document {
         self.postprocess_imports();
         if self.is_root {
             self.process_definitions();
-            self.bibliography.assign_entry_data();
+            self.bibliography.assign_entries_to_references();
             self.process_placeholders();
         }
     }
@@ -604,6 +618,7 @@ impl Placeholder {
 pub trait Metadata {
     fn get_bool(&self, key: &str) -> bool;
     fn get_string(&self, key: &str) -> Option<String>;
+    fn get_string_map(&self) -> HashMap<String, String>;
 }
 
 impl Metadata for InlineMetadata {
@@ -621,6 +636,21 @@ impl Metadata for InlineMetadata {
         } else {
             None
         }
+    }
+
+    fn get_string_map(&self) -> HashMap<String, String> {
+        let mut string_map = HashMap::new();
+        for (k, v) in &self.data {
+            match v {
+                MetadataValue::String(s) => string_map.insert(k.clone(), s.clone()),
+                MetadataValue::Bool(b) => string_map.insert(k.clone(), b.to_string()),
+                MetadataValue::Float(f) => string_map.insert(k.clone(), f.to_string()),
+                MetadataValue::Integer(i) => string_map.insert(k.clone(), i.to_string()),
+                _ => None,
+            };
+        }
+
+        string_map
     }
 }
 
@@ -648,5 +678,49 @@ impl Image {
         } else {
             None
         }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BibEntry {
+    pub key: String,
+    pub entry: BibliographyEntryReference,
+}
+
+#[derive(Clone, Debug)]
+pub struct BibReference {
+    pub(crate) key: String,
+    pub(crate) entry_anchor: Arc<Mutex<BibRefAnchor>>,
+    pub(crate) display: Option<ConfigRefEntry>,
+}
+
+impl BibReference {
+    pub fn new(
+        key: String,
+        display: Option<ConfigRefEntry>,
+        anchor: Arc<Mutex<BibRefAnchor>>,
+    ) -> Self {
+        Self {
+            key: key.to_string(),
+            display,
+            entry_anchor: anchor,
+        }
+    }
+
+    pub(crate) fn get_formatted(&self) -> String {
+        if let Some(entry) = &self.entry_anchor.lock().unwrap().entry {
+            let entry = entry.lock().unwrap();
+            if let Some(display) = &self.display {
+                let display = display.read().unwrap();
+                let mut template = PlaceholderTemplate::new(display.get().as_string());
+                let mut value_map = HashMap::new();
+                value_map.insert("key".to_string(), entry.key());
+                template.set_replacements(value_map);
+                return template.render();
+            }
+            return format!("{}", entry.key());
+        }
+
+        return "citation needed".to_string();
     }
 }

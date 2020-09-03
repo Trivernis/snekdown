@@ -1,4 +1,4 @@
 [bibliography]
 entry_display = "{{number}}: {{author}} - {{title}} - {{date}} - {{url}}"
-reference_display = "{{number}}"
+reference_display = "{{key}}"
 hide_unused = true

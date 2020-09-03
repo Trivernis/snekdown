@@ -5,6 +5,7 @@ pub(crate) mod line;
 use self::block::ParseBlock;
 use crate::elements::{Document, ImportAnchor};
 use crate::references::configuration::Configuration;
+use bibliographix::bib_manager::BibManager;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
@@ -42,6 +43,7 @@ impl Parser {
             Arc::new(Mutex::new(Vec::new())),
             false,
             Box::new(BufReader::new(f)),
+            BibManager::new(),
         ))
     }
 
@@ -58,17 +60,24 @@ impl Parser {
             Arc::new(Mutex::new(Vec::new())),
             false,
             Box::new(Cursor::new(text_bytes.to_vec())),
+            BibManager::new(),
         )
     }
 
     /// Creates a child parser from string text
-    pub fn child(text: String, path: PathBuf, paths: Arc<Mutex<Vec<PathBuf>>>) -> Self {
+    pub fn child(
+        text: String,
+        path: PathBuf,
+        paths: Arc<Mutex<Vec<PathBuf>>>,
+        bib_manager: BibManager,
+    ) -> Self {
         let text_bytes = text.as_bytes();
         Self::create(
             Some(PathBuf::from(path)),
             paths,
             true,
             Box::new(Cursor::new(text_bytes.to_vec())),
+            bib_manager,
         )
     }
 
@@ -76,6 +85,7 @@ impl Parser {
     pub fn child_from_file(
         path: PathBuf,
         paths: Arc<Mutex<Vec<PathBuf>>>,
+        bib_manager: BibManager,
     ) -> Result<Self, io::Error> {
         let f = File::open(&path)?;
         Ok(Self::create(
@@ -83,6 +93,7 @@ impl Parser {
             paths,
             true,
             Box::new(BufReader::new(f)),
+            bib_manager,
         ))
     }
 
@@ -91,6 +102,7 @@ impl Parser {
         paths: Arc<Mutex<Vec<PathBuf>>>,
         is_child: bool,
         mut reader: Box<dyn BufRead>,
+        bib_manager: BibManager,
     ) -> Self {
         if let Some(path) = path.clone() {
             paths.lock().unwrap().push(path.clone())
@@ -103,7 +115,7 @@ impl Parser {
             text.push('\n');
         }
 
-        let document = Document::new(!is_child);
+        let document = Document::new_with_manager(!is_child, bib_manager);
         Self {
             sections: Vec::new(),
             section_nesting: 0,
@@ -178,9 +190,10 @@ impl Parser {
         let wg = self.wg.clone();
         let paths = Arc::clone(&self.paths);
         let config = self.document.config.clone();
+        let bibliography = self.document.bibliography.create_child();
 
         let _ = thread::spawn(move || {
-            let mut parser = Parser::child_from_file(path, paths).unwrap();
+            let mut parser = Parser::child_from_file(path, paths, bibliography).unwrap();
             parser.set_config(config);
             let document = parser.parse();
             anchor_clone.write().unwrap().set_document(document);

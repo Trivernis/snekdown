@@ -1,7 +1,5 @@
 use crate::elements::*;
 use crate::format::PlaceholderTemplate;
-use crate::references::bibliography::{BibEntry, BibReference};
-use crate::references::configuration::Value;
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::{encode_attribute, encode_minimal};
@@ -43,7 +41,7 @@ impl ToHtml for Line {
             Line::Ruler(ruler) => ruler.to_html(),
             Line::Anchor(anchor) => anchor.to_html(),
             Line::Centered(centered) => centered.to_html(),
-            Line::BibEntry(bib) => bib.read().unwrap().to_html(),
+            Line::BibEntry(_) => "".to_string(),
         }
     }
 }
@@ -566,55 +564,6 @@ impl ToHtml for BibReference {
             self.key.clone(),
             self.get_formatted()
         )
-    }
-}
-
-impl ToHtml for BibEntry {
-    fn to_html(&self) -> String {
-        if !self.is_visible() {
-            return "".to_string();
-        }
-        if let Some(display) = &self.display {
-            let display = display.read().unwrap();
-            if let Value::Template(template) = display.get() {
-                let replacements = self
-                    .as_map()
-                    .iter()
-                    .map(|(k, v)| {
-                        (
-                            k.clone(),
-                            Element::Inline(Box::new(Inline::Plain(PlainText {
-                                value: v.clone(),
-                            }))),
-                        )
-                    })
-                    .collect();
-                return template
-                    .render(replacements)
-                    .iter()
-                    .fold("".to_string(), |a, b| format!("{}{}", a, b.to_html()));
-            }
-            let mut template = PlaceholderTemplate::new(display.get().as_string());
-            template.set_replacements(self.as_map());
-            format!(
-                "<span id='{}'>{}</span>",
-                encode_attribute(self.key.as_str()),
-                encode_minimal(template.render().as_str())
-            )
-        } else {
-            if let Some(url) = &self.url {
-                format!(
-                    "<a id={1} href='{0}'>{1}</a>",
-                    encode_attribute(url.as_str()),
-                    encode_minimal(self.key.as_str())
-                )
-            } else {
-                format!(
-                    "<span id='{0}'><u>{0}</u></span>",
-                    encode_attribute(self.key.as_str())
-                )
-            }
-        }
     }
 }
 
