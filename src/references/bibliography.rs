@@ -3,6 +3,7 @@ use crate::elements::{BoldText, ItalicText, Line, List, ListItem, PlainText, Tex
 use bibliographix::bibliography::bib_types::article::Article;
 use bibliographix::bibliography::bib_types::book::Book;
 use bibliographix::bibliography::bib_types::booklet::Booklet;
+use bibliographix::bibliography::bib_types::in_book::InBook;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -48,6 +49,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::Article(a) => get_item_for_article(&*entry, a),
         BibliographyType::Book(b) => get_item_for_book(&*entry, b),
         BibliographyType::Booklet(b) => get_item_for_booklet(&*entry, b),
+        BibliographyType::InBook(ib) => get_item_for_in_book(&*entry, ib),
         _ => unimplemented!(),
     }
 }
@@ -135,6 +137,37 @@ fn get_item_for_booklet(entry: &BibliographyEntry, b: &Booklet) -> ListItem {
         text.subtext
             .push(plain_text!(format!("on {}", date.format("%d.%m.%y"))))
     }
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns the list item for an in book bib entry
+fn get_item_for_in_book(entry: &BibliographyEntry, ib: &InBook) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    text.subtext
+        .push(plain_text!(format!("{}.", ib.author.clone())));
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", ib.title.clone())));
+
+    text.subtext
+        .push(plain_text!(format!("({})", ib.position.clone())));
+
+    if let Some(volume) = ib.volume.clone() {
+        text.subtext.push(plain_text!(format!(", {}", volume)))
+    }
+    if let Some(edition) = ib.edition.clone() {
+        text.subtext.push(plain_text!(format!(", {}", edition)))
+    }
+    if let Some(series) = ib.series.clone() {
+        text.subtext.push(plain_text!("In: ".to_string()));
+        text.subtext.push(italic_text!(series))
+    }
+    text.subtext.push(plain_text!(format!(
+        ", Published By: {}",
+        ib.publisher.clone()
+    )));
 
     ListItem::new(Line::Text(text), 0, true)
 }
