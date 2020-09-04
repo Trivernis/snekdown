@@ -5,6 +5,8 @@ use bibliographix::bibliography::bib_types::book::Book;
 use bibliographix::bibliography::bib_types::booklet::Booklet;
 use bibliographix::bibliography::bib_types::in_book::InBook;
 use bibliographix::bibliography::bib_types::in_collection::InCollection;
+use bibliographix::bibliography::bib_types::manual::Manual;
+use bibliographix::bibliography::bib_types::misc::Misc;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -52,6 +54,8 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::Booklet(b) => get_item_for_booklet(&*entry, b),
         BibliographyType::InBook(ib) => get_item_for_in_book(&*entry, ib),
         BibliographyType::InCollection(ic) => get_item_for_in_collection(&*entry, ic),
+        BibliographyType::Manual(m) => get_item_for_manual(&*entry, m),
+        BibliographyType::Misc(m) => get_item_for_misc(&*entry, m),
         _ => unimplemented!(),
     }
 }
@@ -83,7 +87,7 @@ fn get_item_for_article(entry: &BibliographyEntry, a: &Article) -> ListItem {
             .push(plain_text!(format!(", Pages: {}", pages)));
     }
     if let Some(url) = a.url.clone() {
-        text.subtext.push(plain_text!(format!("URL: {}", url)));
+        text.subtext.push(plain_text!(format!(", URL: {}", url)));
     }
     ListItem::new(Line::Text(text), 0, true)
 }
@@ -173,6 +177,7 @@ fn get_item_for_in_book(entry: &BibliographyEntry, ib: &InBook) -> ListItem {
     ListItem::new(Line::Text(text), 0, true)
 }
 
+/// Returns the list item for an InCollection bib entry
 fn get_item_for_in_collection(entry: &BibliographyEntry, ic: &InCollection) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
@@ -202,5 +207,57 @@ fn get_item_for_in_collection(entry: &BibliographyEntry, ic: &InCollection) -> L
         text.subtext.push(italic_text!(series))
     }
 
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns the list item for a manual
+fn get_item_for_manual(entry: &BibliographyEntry, m: &Manual) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+
+    if let Some(author) = m.author.clone() {
+        text.subtext.push(plain_text!(format!("{}.", author)));
+    }
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", m.title.clone())));
+
+    if let Some(edition) = m.edition.clone() {
+        text.subtext.push(plain_text!(format!(", {}", edition)));
+    }
+    if let Some(organization) = m.organization.clone() {
+        text.subtext
+            .push(plain_text!(format!(", by {}", organization)))
+    }
+    if let Some(date) = m.date {
+        text.subtext
+            .push(plain_text!(format!(" on {}", date.format("%d.%m.%y"))))
+    }
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns the list item for a misc bib entry
+fn get_item_for_misc(entry: &BibliographyEntry, m: &Misc) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+
+    if let Some(author) = m.author.clone() {
+        text.subtext.push(plain_text!(format!("{}.", author)));
+    }
+    if let Some(title) = m.title.clone() {
+        text.subtext.push(plain_text!(format!("\"{}\"", title)));
+    }
+    if let Some(how_pub) = m.how_published.clone() {
+        text.subtext.push(plain_text!(format!("as {} ", how_pub)))
+    }
+    if let Some(date) = m.date {
+        text.subtext
+            .push(plain_text!(format!("on {}", date.format("%d.%m.%y"))))
+    }
+    if let Some(url) = m.url.clone() {
+        text.subtext.push(plain_text!(format!(", URL: {}", url)));
+    }
     ListItem::new(Line::Text(text), 0, true)
 }
