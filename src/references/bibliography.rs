@@ -11,11 +11,11 @@ use bibliographix::bibliography::bib_types::repository::Repository;
 use bibliographix::bibliography::bib_types::tech_report::TechReport;
 use bibliographix::bibliography::bib_types::thesis::Thesis;
 use bibliographix::bibliography::bib_types::unpublished::Unpublished;
+use bibliographix::bibliography::bib_types::website::Website;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
 };
-use std::sync::MutexGuard;
 
 macro_rules! plain_text {
     ($e:expr) => {
@@ -39,7 +39,8 @@ macro_rules! italic_text {
     };
 }
 
-fn create_bib_list(entries: Vec<BibliographyEntryReference>) -> List {
+/// Creates a list from a list of bib items
+pub fn create_bib_list(entries: Vec<BibliographyEntryReference>) -> List {
     let mut list = List::new();
 
     for entry in entries {
@@ -49,6 +50,7 @@ fn create_bib_list(entries: Vec<BibliographyEntryReference>) -> List {
     list
 }
 
+/// Returns the list item for a bib entry
 fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
     let entry = entry.lock().unwrap();
 
@@ -64,7 +66,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::TechReport(tr) => get_item_for_tech_report(&*entry, tr),
         BibliographyType::Thesis(t) => get_item_for_thesis(&*entry, t),
         BibliographyType::Unpublished(u) => get_item_for_unpublished(&*entry, u),
-        _ => unimplemented!(),
+        BibliographyType::Website(w) => get_item_for_website(&*entry, w),
     }
 }
 
@@ -334,10 +336,12 @@ fn get_item_for_thesis(entry: &BibliographyEntry, t: &Thesis) -> ListItem {
     ListItem::new(Line::Text(text), 0, true)
 }
 
+/// Returns the list item for an unpublished bib type
 fn get_item_for_unpublished(entry: &BibliographyEntry, u: &Unpublished) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
         .push(bold_text!(format!("{}: ", entry.key().clone())));
+
     text.subtext
         .push(plain_text!(format!("{}.", u.author.clone())));
     text.subtext
@@ -345,6 +349,34 @@ fn get_item_for_unpublished(entry: &BibliographyEntry, u: &Unpublished) -> ListI
     if let Some(date) = u.date.clone() {
         text.subtext
             .push(plain_text!(format!(" on {}", date.format("%d.%m.%y"))));
+    }
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+fn get_item_for_website(entry: &BibliographyEntry, w: &Website) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+
+    if let Some(title) = w.title.clone() {
+        text.subtext.push(italic_text!(format!("{} - ", title)));
+    }
+    text.subtext.push(plain_text!(format!("{}", w.url)));
+    if let Some(author) = w.author.clone() {
+        text.subtext.push(bold_text!(format!(" by {}", author)))
+    }
+    if let Some(accessed) = w.accessed_at.clone() {
+        text.subtext.push(plain_text!(format!(
+            "(accessed: {})",
+            accessed.format("%d.%m.%y")
+        )))
+    }
+    if let Some(date) = w.date.clone() {
+        text.subtext.push(plain_text!(format!(
+            ", Published On: {}",
+            date.format("%d.%m.%y")
+        )))
     }
 
     ListItem::new(Line::Text(text), 0, true)
