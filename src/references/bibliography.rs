@@ -4,6 +4,7 @@ use bibliographix::bibliography::bib_types::article::Article;
 use bibliographix::bibliography::bib_types::book::Book;
 use bibliographix::bibliography::bib_types::booklet::Booklet;
 use bibliographix::bibliography::bib_types::in_book::InBook;
+use bibliographix::bibliography::bib_types::in_collection::InCollection;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -50,6 +51,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::Book(b) => get_item_for_book(&*entry, b),
         BibliographyType::Booklet(b) => get_item_for_booklet(&*entry, b),
         BibliographyType::InBook(ib) => get_item_for_in_book(&*entry, ib),
+        BibliographyType::InCollection(ic) => get_item_for_in_collection(&*entry, ic),
         _ => unimplemented!(),
     }
 }
@@ -150,9 +152,8 @@ fn get_item_for_in_book(entry: &BibliographyEntry, ib: &InBook) -> ListItem {
         .push(plain_text!(format!("{}.", ib.author.clone())));
     text.subtext
         .push(plain_text!(format!("\"{}\"", ib.title.clone())));
-
     text.subtext
-        .push(plain_text!(format!("({})", ib.position.clone())));
+        .push(plain_text!(format!(" ({})", ib.position.clone())));
 
     if let Some(volume) = ib.volume.clone() {
         text.subtext.push(plain_text!(format!(", {}", volume)))
@@ -168,6 +169,38 @@ fn get_item_for_in_book(entry: &BibliographyEntry, ib: &InBook) -> ListItem {
         ", Published By: {}",
         ib.publisher.clone()
     )));
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+fn get_item_for_in_collection(entry: &BibliographyEntry, ic: &InCollection) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    text.subtext
+        .push(plain_text!(format!("{}.", ic.author.clone())));
+
+    if let Some(editor) = ic.editor.clone() {
+        text.subtext
+            .push(plain_text!(format!("(Editor: {})", editor)))
+    }
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", ic.title.clone())));
+
+    if let Some(position) = ic.position.clone() {
+        text.subtext.push(plain_text!(format!(" ({})", position)));
+    }
+
+    if let Some(volume) = ic.volume.clone() {
+        text.subtext.push(plain_text!(format!(", {}", volume)))
+    }
+    if let Some(edition) = ic.edition.clone() {
+        text.subtext.push(plain_text!(format!(", {}", edition)))
+    }
+    if let Some(series) = ic.series.clone() {
+        text.subtext.push(plain_text!("In: ".to_string()));
+        text.subtext.push(italic_text!(series))
+    }
 
     ListItem::new(Line::Text(text), 0, true)
 }

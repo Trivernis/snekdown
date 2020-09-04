@@ -19,7 +19,7 @@ path = "src/main.rs"
 [dependencies]
 charred = "0.3.3"
 asciimath-rs = "0.5.7"
-bibliographix = "0.3.0"
+bibliographix = "0.3.1"
 crossbeam-utils = "0.7.2"
 structopt = "0.3.14"
 minify = "1.1.1"
