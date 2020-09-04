@@ -7,6 +7,7 @@ use bibliographix::bibliography::bib_types::in_book::InBook;
 use bibliographix::bibliography::bib_types::in_collection::InCollection;
 use bibliographix::bibliography::bib_types::manual::Manual;
 use bibliographix::bibliography::bib_types::misc::Misc;
+use bibliographix::bibliography::bib_types::repository::Repository;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -56,6 +57,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::InCollection(ic) => get_item_for_in_collection(&*entry, ic),
         BibliographyType::Manual(m) => get_item_for_manual(&*entry, m),
         BibliographyType::Misc(m) => get_item_for_misc(&*entry, m),
+        BibliographyType::Repository(r) => get_item_for_repository(&*entry, r),
         _ => unimplemented!(),
     }
 }
@@ -259,5 +261,33 @@ fn get_item_for_misc(entry: &BibliographyEntry, m: &Misc) -> ListItem {
     if let Some(url) = m.url.clone() {
         text.subtext.push(plain_text!(format!(", URL: {}", url)));
     }
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns a list item for a repository bib entry
+fn get_item_for_repository(entry: &BibliographyEntry, r: &Repository) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+
+    text.subtext.push(italic_text!(r.title.clone()));
+    text.subtext
+        .push(plain_text!(format!(" by {}", r.author.clone())));
+
+    if let Some(url) = r.url.clone() {
+        text.subtext.push(plain_text!(format!(", URL: {}", url)))
+    }
+    if let Some(accessed) = r.accessed_at.clone() {
+        text.subtext.push(plain_text!(format!(
+            "(accessed: {})",
+            accessed.format("%d.%m.%y")
+        )))
+    }
+    if let Some(license) = r.license.clone() {
+        text.subtext
+            .push(plain_text!(format!(", License: {}", license)))
+    }
+
     ListItem::new(Line::Text(text), 0, true)
 }
