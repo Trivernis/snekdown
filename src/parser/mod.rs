@@ -9,6 +9,7 @@ use bibliographix::bib_manager::BibManager;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
+use regex::Regex;
 use std::fs::{read_to_string, File};
 use std::io;
 use std::io::{BufRead, BufReader, Cursor};
@@ -204,10 +205,31 @@ impl Parser {
         Ok(anchor)
     }
 
+    /// Imports a bibliography toml file
+    fn import_bib(&mut self, path: PathBuf) -> ParseResult<()> {
+        let f = File::open(path).map_err(|_| self.ctm.err())?;
+        self.document
+            .bibliography
+            .read_bib_file(&mut BufReader::new(f))
+            .map_err(|_| self.ctm.err())?;
+
+        Ok(())
+    }
+
+    /// Imports a path
     fn import(&mut self, path: String) -> ImportType {
         let path = self.transform_path(path);
+        lazy_static::lazy_static! {
+            static ref BIB_NAME: Regex = Regex::new(r".*\.bib\.toml$").unwrap();
+        }
+
+        if let Some(fname) = path.file_name().and_then(|f| Some(f.to_str().unwrap())) {
+            if BIB_NAME.is_match(fname) {
+                return ImportType::Bibliography(self.import_bib(path));
+            }
+        }
         match path.extension() {
-            Some(e) if e.to_str().unwrap() == "css" => {
+            Some(e) if e.to_str().unwrap().to_lowercase() == "css" => {
                 if let Ok(content) = read_to_string(path) {
                     ImportType::Stylesheet(Ok(content))
                 } else {
@@ -253,4 +275,5 @@ impl Parser {
 pub(crate) enum ImportType {
     Document(ParseResult<Arc<RwLock<ImportAnchor>>>),
     Stylesheet(ParseResult<String>),
+    Bibliography(ParseResult<()>),
 }

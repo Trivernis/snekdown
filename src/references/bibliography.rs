@@ -1,5 +1,5 @@
-use crate::elements::Inline;
-use crate::elements::{BoldText, ItalicText, Line, List, ListItem, PlainText, TextLine};
+use crate::elements::{Anchor, BoldText, ItalicText, Line, List, ListItem, PlainText, TextLine};
+use crate::elements::{Inline, Url};
 use bibliographix::bibliography::bib_types::article::Article;
 use bibliographix::bibliography::bib_types::book::Book;
 use bibliographix::bibliography::bib_types::booklet::Booklet;
@@ -39,12 +39,44 @@ macro_rules! italic_text {
     };
 }
 
+macro_rules! url_text {
+    ($e:expr) => {
+        Inline::Url(Url {
+            url: $e,
+            description: None,
+        })
+    };
+}
+
+macro_rules! list_item {
+    ($e:expr, $k:expr) => {
+        ListItem::new(
+            Line::Anchor(Anchor {
+                inner: Box::new(Line::Text($e)),
+                key: $k,
+            }),
+            0,
+            true,
+        )
+    };
+}
+
+const DATE_FORMAT: &str = "%d.%m.%Y";
+
 /// Creates a list from a list of bib items
 pub fn create_bib_list(entries: Vec<BibliographyEntryReference>) -> List {
     let mut list = List::new();
+    list.ordered = true;
 
+    let mut count = 1;
     for entry in entries {
+        entry
+            .lock()
+            .unwrap()
+            .raw_fields
+            .insert("ord".to_string(), count.to_string());
         list.add_item(get_item_for_entry(entry));
+        count += 1;
     }
 
     list
@@ -74,8 +106,6 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
 fn get_item_for_article(entry: &BibliographyEntry, a: &Article) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
-    text.subtext
         .push(plain_text!(format!("{}.", a.author.clone())));
     text.subtext
         .push(plain_text!(format!("\"{}\"", a.title.clone())));
@@ -90,23 +120,26 @@ fn get_item_for_article(entry: &BibliographyEntry, a: &Article) -> ListItem {
             .push(plain_text!(format!(", Number: {}", number)));
     }
     text.subtext
-        .push(plain_text!(format!(", {}", a.date.format("%d.%m.%y"))));
+        .push(plain_text!(format!(", {}", a.date.format(DATE_FORMAT))));
 
     if let Some(pages) = a.pages.clone() {
         text.subtext
             .push(plain_text!(format!(", Pages: {}", pages)));
     }
     if let Some(url) = a.url.clone() {
-        text.subtext.push(plain_text!(format!(", URL: {}", url)));
+        text.subtext.push(plain_text!(", URL: ".to_string()));
+        text.subtext.push(url_text!(url));
     }
-    ListItem::new(Line::Text(text), 0, true)
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
+
+    list_item!(text, entry.key())
 }
 
 /// Returns a list item for a book entry
 fn get_item_for_book(entry: &BibliographyEntry, b: &Book) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
     text.subtext
         .push(plain_text!(format!("{}.", b.author.clone())));
     text.subtext
@@ -128,21 +161,23 @@ fn get_item_for_book(entry: &BibliographyEntry, b: &Book) -> ListItem {
     )
     .to_string()));
     text.subtext
-        .push(plain_text!(format!("on {}", b.date.format("%d.%m.%y"))));
+        .push(plain_text!(format!("on {}", b.date.format(DATE_FORMAT))));
     if let Some(url) = b.url.clone() {
-        text.subtext.push(plain_text!(format!("URL: {}", url)))
+        text.subtext.push(plain_text!(", URL: ".to_string()));
+        text.subtext.push(url_text!(url));
+    }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
     }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for a booklet
 fn get_item_for_booklet(entry: &BibliographyEntry, b: &Booklet) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
     if let Some(author) = b.author.clone() {
-        text.subtext.push(plain_text!(format!("{}.", author)))
+        text.subtext.push(plain_text!(format!("{}. ", author)))
     }
     text.subtext
         .push(plain_text!(format!("\"{}\", Published ", b.title.clone())));
@@ -151,19 +186,20 @@ fn get_item_for_booklet(entry: &BibliographyEntry, b: &Booklet) -> ListItem {
     }
     if let Some(date) = b.date {
         text.subtext
-            .push(plain_text!(format!("on {}", date.format("%d.%m.%y"))))
+            .push(plain_text!(format!("on {}", date.format(DATE_FORMAT))))
+    }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
     }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for an in book bib entry
 fn get_item_for_in_book(entry: &BibliographyEntry, ib: &InBook) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
-    text.subtext
-        .push(plain_text!(format!("{}.", ib.author.clone())));
+        .push(plain_text!(format!("{}. ", ib.author.clone())));
     text.subtext
         .push(plain_text!(format!("\"{}\"", ib.title.clone())));
     text.subtext
@@ -183,17 +219,18 @@ fn get_item_for_in_book(entry: &BibliographyEntry, ib: &InBook) -> ListItem {
         ", Published By: {}",
         ib.publisher.clone()
     )));
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for an InCollection bib entry
 fn get_item_for_in_collection(entry: &BibliographyEntry, ic: &InCollection) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
-    text.subtext
-        .push(plain_text!(format!("{}.", ic.author.clone())));
+        .push(plain_text!(format!("{}. ", ic.author.clone())));
 
     if let Some(editor) = ic.editor.clone() {
         text.subtext
@@ -216,18 +253,19 @@ fn get_item_for_in_collection(entry: &BibliographyEntry, ic: &InCollection) -> L
         text.subtext.push(plain_text!("In: ".to_string()));
         text.subtext.push(italic_text!(series))
     }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for a manual
 fn get_item_for_manual(entry: &BibliographyEntry, m: &Manual) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     if let Some(author) = m.author.clone() {
-        text.subtext.push(plain_text!(format!("{}.", author)));
+        text.subtext.push(plain_text!(format!("{}. ", author)));
     }
     text.subtext
         .push(plain_text!(format!("\"{}\"", m.title.clone())));
@@ -241,20 +279,21 @@ fn get_item_for_manual(entry: &BibliographyEntry, m: &Manual) -> ListItem {
     }
     if let Some(date) = m.date {
         text.subtext
-            .push(plain_text!(format!(" on {}", date.format("%d.%m.%y"))))
+            .push(plain_text!(format!(" on {}", date.format(DATE_FORMAT))))
+    }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
     }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for a misc bib entry
 fn get_item_for_misc(entry: &BibliographyEntry, m: &Misc) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     if let Some(author) = m.author.clone() {
-        text.subtext.push(plain_text!(format!("{}.", author)));
+        text.subtext.push(plain_text!(format!("{}. ", author)));
     }
     if let Some(title) = m.title.clone() {
         text.subtext.push(plain_text!(format!("\"{}\"", title)));
@@ -264,83 +303,88 @@ fn get_item_for_misc(entry: &BibliographyEntry, m: &Misc) -> ListItem {
     }
     if let Some(date) = m.date {
         text.subtext
-            .push(plain_text!(format!("on {}", date.format("%d.%m.%y"))))
+            .push(plain_text!(format!("on {}", date.format(DATE_FORMAT))))
     }
     if let Some(url) = m.url.clone() {
         text.subtext.push(plain_text!(format!(", URL: {}", url)));
     }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns a list item for a repository bib entry
 fn get_item_for_repository(entry: &BibliographyEntry, r: &Repository) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     text.subtext.push(italic_text!(r.title.clone()));
     text.subtext
         .push(plain_text!(format!(" by {}", r.author.clone())));
 
     if let Some(url) = r.url.clone() {
-        text.subtext.push(plain_text!(format!(", URL: {}", url)))
+        text.subtext.push(plain_text!(", URL: ".to_string()));
+        text.subtext.push(url_text!(url));
     }
     if let Some(accessed) = r.accessed_at.clone() {
         text.subtext.push(plain_text!(format!(
             "(accessed: {})",
-            accessed.format("%d.%m.%y")
+            accessed.format(DATE_FORMAT)
         )))
     }
     if let Some(license) = r.license.clone() {
         text.subtext
             .push(plain_text!(format!(", License: {}", license)))
     }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for the tech report type
 fn get_item_for_tech_report(entry: &BibliographyEntry, tr: &TechReport) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     text.subtext
-        .push(plain_text!(format!("{}.", tr.author.clone())));
+        .push(plain_text!(format!("{}. ", tr.author.clone())));
     text.subtext
         .push(plain_text!(format!("\"{}\"", tr.title.clone())));
     text.subtext
-        .push(plain_text!(format!("by {}", tr.institution.clone())));
+        .push(plain_text!(format!(" by {}", tr.institution.clone())));
     text.subtext
-        .push(plain_text!(format!(" on {}", tr.date.format("%d.%m.%y"))));
+        .push(plain_text!(format!(" on {}", tr.date.format(DATE_FORMAT))));
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns a list item for a thesis
 fn get_item_for_thesis(entry: &BibliographyEntry, t: &Thesis) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     text.subtext
-        .push(plain_text!(format!("{}.", t.author.clone())));
+        .push(plain_text!(format!("{}. ", t.author.clone())));
     text.subtext
-        .push(plain_text!(format!("\"{}\"", t.title.clone())));
+        .push(plain_text!(format!("\"{}\" ", t.title.clone())));
     text.subtext
         .push(plain_text!(format!("at {}", t.school.clone())));
     text.subtext
-        .push(plain_text!(format!(" on {}", t.date.format("%d.%m.%y"))));
+        .push(plain_text!(format!(" on {}", t.date.format(DATE_FORMAT))));
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 /// Returns the list item for an unpublished bib type
 fn get_item_for_unpublished(entry: &BibliographyEntry, u: &Unpublished) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     text.subtext
         .push(plain_text!(format!("{}.", u.author.clone())));
@@ -348,36 +392,40 @@ fn get_item_for_unpublished(entry: &BibliographyEntry, u: &Unpublished) -> ListI
         .push(plain_text!(format!("\"{}\"", u.title.clone())));
     if let Some(date) = u.date.clone() {
         text.subtext
-            .push(plain_text!(format!(" on {}", date.format("%d.%m.%y"))));
+            .push(plain_text!(format!(" on {}", date.format(DATE_FORMAT))));
+    }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
     }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }
 
 fn get_item_for_website(entry: &BibliographyEntry, w: &Website) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
 
     if let Some(title) = w.title.clone() {
         text.subtext.push(italic_text!(format!("{} - ", title)));
     }
-    text.subtext.push(plain_text!(format!("{}", w.url)));
+    text.subtext.push(url_text!(w.url.clone()));
     if let Some(author) = w.author.clone() {
         text.subtext.push(bold_text!(format!(" by {}", author)))
     }
     if let Some(accessed) = w.accessed_at.clone() {
         text.subtext.push(plain_text!(format!(
             "(accessed: {})",
-            accessed.format("%d.%m.%y")
+            accessed.format(DATE_FORMAT)
         )))
     }
     if let Some(date) = w.date.clone() {
         text.subtext.push(plain_text!(format!(
             ", Published On: {}",
-            date.format("%d.%m.%y")
+            date.format(DATE_FORMAT)
         )))
     }
+    if let Some(notes) = entry.note.clone() {
+        text.subtext.push(plain_text!(notes))
+    }
 
-    ListItem::new(Line::Text(text), 0, true)
+    list_item!(text, entry.key())
 }

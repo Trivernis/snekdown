@@ -175,8 +175,8 @@ Bibliography entries can be defined and referenced anywhere in the document.
 
 Definition:
 ```md
-[book]:[author=Snek, title = "Snekdown Book"]
-[github]: https://github.com/trivernis/snekdown
+[SD_BOOK]:[type=book, author=Snek, title = "Snekdown Book" date="20.08.2020", publisher=Snek]
+[SD_GITHUB]: https://github.com/trivernis/snekdown
 ```
 
 Usage:
@@ -184,7 +184,28 @@ Usage:
 There is a book about snekdown[^book] and a github repo[^github].
 ```
 
-Bibliography entries are only shown when used in the document.
+Entries can also be defined in a separate toml file with the following data layout:
+
+```toml
+[BIB_KEY]
+key = "value"
+
+[SD_BOOK]
+type = "book"
+author = "Snek"
+title = "Snekdown Book"
+date = "20.08.2020"
+publisher = "Snek"
+
+[SD_GITHUB]
+type = "website"
+url = "https://github.com/trivernis/snekdown"
+```
+
+The valid types for entries and required fields can be found on in the [bibliographix README](https://github.com/Trivernis/bibliographix#bibliography-types-and-fields).
+
+Bibliography entries are not rendered. To render a list of used bibliography insert the
+`bib` placeholder at the place you want it to be rendered.
 
 
 ## Math

@@ -1,4 +1,5 @@
 use crate::elements::*;
+use crate::references::bibliography::create_bib_list;
 use chrono::prelude::*;
 use regex::Regex;
 
@@ -29,6 +30,7 @@ pub(crate) trait ProcessPlaceholders {
 const S_VALUE: &str = "value";
 
 const P_TOC: &str = "toc";
+const P_BIB: &str = "bib";
 const P_DATE: &str = "date";
 const P_TIME: &str = "time";
 const P_DATETIME: &str = "datetime";
@@ -47,6 +49,9 @@ impl ProcessPlaceholders for Document {
                     };
                     pholder.set_value(block!(Block::List(self.create_toc(ordered))))
                 }
+                P_BIB => pholder.set_value(block!(Block::List(create_bib_list(
+                    self.bibliography.get_entry_list_by_occurrence()
+                )))),
                 P_DATE => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: get_date_string()
                 }))),

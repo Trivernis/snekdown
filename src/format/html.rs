@@ -39,9 +39,10 @@ impl ToHtml for Line {
         match self {
             Line::Text(text) => text.to_html(),
             Line::Ruler(ruler) => ruler.to_html(),
-            Line::Anchor(anchor) => anchor.to_html(),
+            Line::RefLink(anchor) => anchor.to_html(),
             Line::Centered(centered) => centered.to_html(),
             Line::BibEntry(_) => "".to_string(),
+            Line::Anchor(a) => a.to_html(),
         }
     }
 }
@@ -494,7 +495,7 @@ impl ToHtml for Placeholder {
     }
 }
 
-impl ToHtml for Anchor {
+impl ToHtml for RefLink {
     fn to_html(&self) -> String {
         format!(
             "<a href='#{}'>{}</a>",
@@ -593,5 +594,15 @@ impl ToHtml for TemplateVariable {
 impl ToHtml for CharacterCode {
     fn to_html(&self) -> String {
         format!("&{};", encode_minimal(self.code.as_str()))
+    }
+}
+
+impl ToHtml for Anchor {
+    fn to_html(&self) -> String {
+        format!(
+            "<div id='{}'>{}</div>",
+            encode_attribute(self.key.as_str()),
+            self.inner.to_html()
+        )
     }
 }

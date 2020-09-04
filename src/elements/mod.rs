@@ -57,6 +57,7 @@ pub enum Block {
 pub enum Line {
     Text(TextLine),
     Ruler(Ruler),
+    RefLink(RefLink),
     Anchor(Anchor),
     Centered(Centered),
     BibEntry(BibEntry),
@@ -240,9 +241,15 @@ pub struct Placeholder {
 }
 
 #[derive(Clone, Debug)]
-pub struct Anchor {
+pub struct RefLink {
     pub(crate) description: Box<Line>,
     pub(crate) reference: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Anchor {
+    pub(crate) inner: Box<Line>,
+    pub(crate) key: String,
 }
 
 #[derive(Clone, Debug)]
@@ -318,7 +325,8 @@ impl Document {
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
                 if !sec.get_hide_in_toc() {
-                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, ordered);
+                    let mut item =
+                        ListItem::new(Line::RefLink(sec.header.get_anchor()), 1, ordered);
                     item.children.append(&mut sec.get_toc_list(ordered).items);
                     list.add_item(item);
                 }
@@ -419,7 +427,8 @@ impl Section {
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
                 if !sec.get_hide_in_toc() {
-                    let mut item = ListItem::new(Line::Anchor(sec.header.get_anchor()), 1, ordered);
+                    let mut item =
+                        ListItem::new(Line::RefLink(sec.header.get_anchor()), 1, ordered);
                     item.children.append(&mut sec.get_toc_list(ordered).items);
                     list.add_item(item);
                 }
@@ -483,8 +492,8 @@ impl Header {
         }
     }
 
-    pub fn get_anchor(&self) -> Anchor {
-        Anchor {
+    pub fn get_anchor(&self) -> RefLink {
+        RefLink {
             description: Box::new(self.line.clone()),
             reference: self.anchor.clone(),
         }
@@ -715,6 +724,10 @@ impl BibReference {
                 let mut template = PlaceholderTemplate::new(display.get().as_string());
                 let mut value_map = HashMap::new();
                 value_map.insert("key".to_string(), entry.key());
+
+                if let Some(ord) = entry.raw_fields.get("ord") {
+                    value_map.insert("number".to_string(), ord.clone());
+                }
                 template.set_replacements(value_map);
                 return template.render();
             }
