@@ -1,6 +1,7 @@
 use crate::elements::Inline;
 use crate::elements::{BoldText, ItalicText, Line, List, ListItem, PlainText, TextLine};
 use bibliographix::bibliography::bib_types::article::Article;
+use bibliographix::bibliography::bib_types::book::Book;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -44,6 +45,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
 
     match &entry.bib_type {
         BibliographyType::Article(a) => get_item_for_article(&*entry, a),
+        BibliographyType::Book(b) => get_item_for_book(&*entry, b),
         _ => unimplemented!(),
     }
 }
@@ -51,17 +53,17 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
 /// Returns the formatted article bib entry
 fn get_item_for_article(entry: &BibliographyEntry, a: &Article) -> ListItem {
     let mut text = TextLine::new();
-    text.subtext.push(bold_text!(entry.key().clone()));
     text.subtext
-        .push(plain_text!(format!(": {}.", a.author.clone())));
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
     text.subtext
-        .push(plain_text!(format!("\"{}\"", a.title.clone()).to_string()));
+        .push(plain_text!(format!("{}.", a.author.clone())));
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", a.title.clone())));
     text.subtext.push(plain_text!("In: ".to_string()));
     text.subtext.push(italic_text!(a.journal.clone()));
 
     if let Some(volume) = a.volume.clone() {
-        text.subtext
-            .push(italic_text!(format!(", {}", volume).to_string()))
+        text.subtext.push(italic_text!(format!(", {}", volume)))
     }
     if let Some(number) = a.number.clone() {
         text.subtext
@@ -72,11 +74,44 @@ fn get_item_for_article(entry: &BibliographyEntry, a: &Article) -> ListItem {
 
     if let Some(pages) = a.pages.clone() {
         text.subtext
-            .push(plain_text!(format!(", Pages: {}", pages).to_string()));
+            .push(plain_text!(format!(", Pages: {}", pages)));
     }
     if let Some(url) = a.url.clone() {
-        text.subtext
-            .push(plain_text!(format!("URL: {}", url).to_string()));
+        text.subtext.push(plain_text!(format!("URL: {}", url)));
     }
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns a list item for a book entry
+fn get_item_for_book(entry: &BibliographyEntry, b: &Book) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    text.subtext
+        .push(plain_text!(format!("{}.", b.author.clone())));
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", b.title.clone())));
+
+    if let Some(volume) = b.volume.clone() {
+        text.subtext.push(plain_text!(format!(", {}", volume)))
+    }
+    if let Some(edition) = b.edition.clone() {
+        text.subtext.push(plain_text!(format!(", {}", edition)))
+    }
+    if let Some(series) = b.series.clone() {
+        text.subtext.push(plain_text!(format!("In: ")));
+        text.subtext.push(italic_text!(series))
+    }
+    text.subtext.push(plain_text!(format!(
+        "Published By: {}",
+        b.publisher.clone()
+    )
+    .to_string()));
+    text.subtext
+        .push(plain_text!(format!("at {}", b.date.format("%d.%m.%y"))));
+    if let Some(url) = b.url.clone() {
+        text.subtext.push(plain_text!(format!("URL: {}", url)))
+    }
+
     ListItem::new(Line::Text(text), 0, true)
 }
