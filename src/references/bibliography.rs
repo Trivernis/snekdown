@@ -10,6 +10,7 @@ use bibliographix::bibliography::bib_types::misc::Misc;
 use bibliographix::bibliography::bib_types::repository::Repository;
 use bibliographix::bibliography::bib_types::tech_report::TechReport;
 use bibliographix::bibliography::bib_types::thesis::Thesis;
+use bibliographix::bibliography::bib_types::unpublished::Unpublished;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -62,6 +63,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::Repository(r) => get_item_for_repository(&*entry, r),
         BibliographyType::TechReport(tr) => get_item_for_tech_report(&*entry, tr),
         BibliographyType::Thesis(t) => get_item_for_thesis(&*entry, t),
+        BibliographyType::Unpublished(u) => get_item_for_unpublished(&*entry, u),
         _ => unimplemented!(),
     }
 }
@@ -319,8 +321,7 @@ fn get_item_for_thesis(entry: &BibliographyEntry, t: &Thesis) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
         .push(bold_text!(format!("{}: ", entry.key().clone())));
-    text.subtext
-        .push(bold_text!(format!("{}: ", entry.key().clone())));
+
     text.subtext
         .push(plain_text!(format!("{}.", t.author.clone())));
     text.subtext
@@ -329,6 +330,22 @@ fn get_item_for_thesis(entry: &BibliographyEntry, t: &Thesis) -> ListItem {
         .push(plain_text!(format!("at {}", t.school.clone())));
     text.subtext
         .push(plain_text!(format!(" on {}", t.date.format("%d.%m.%y"))));
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+fn get_item_for_unpublished(entry: &BibliographyEntry, u: &Unpublished) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    text.subtext
+        .push(plain_text!(format!("{}.", u.author.clone())));
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", u.title.clone())));
+    if let Some(date) = u.date.clone() {
+        text.subtext
+            .push(plain_text!(format!(" on {}", date.format("%d.%m.%y"))));
+    }
 
     ListItem::new(Line::Text(text), 0, true)
 }
