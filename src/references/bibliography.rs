@@ -2,6 +2,7 @@ use crate::elements::Inline;
 use crate::elements::{BoldText, ItalicText, Line, List, ListItem, PlainText, TextLine};
 use bibliographix::bibliography::bib_types::article::Article;
 use bibliographix::bibliography::bib_types::book::Book;
+use bibliographix::bibliography::bib_types::booklet::Booklet;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -46,6 +47,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
     match &entry.bib_type {
         BibliographyType::Article(a) => get_item_for_article(&*entry, a),
         BibliographyType::Book(b) => get_item_for_book(&*entry, b),
+        BibliographyType::Booklet(b) => get_item_for_booklet(&*entry, b),
         _ => unimplemented!(),
     }
 }
@@ -108,9 +110,30 @@ fn get_item_for_book(entry: &BibliographyEntry, b: &Book) -> ListItem {
     )
     .to_string()));
     text.subtext
-        .push(plain_text!(format!("at {}", b.date.format("%d.%m.%y"))));
+        .push(plain_text!(format!("on {}", b.date.format("%d.%m.%y"))));
     if let Some(url) = b.url.clone() {
         text.subtext.push(plain_text!(format!("URL: {}", url)))
+    }
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns the list item for a booklet
+fn get_item_for_booklet(entry: &BibliographyEntry, b: &Booklet) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    if let Some(author) = b.author.clone() {
+        text.subtext.push(plain_text!(format!("{}.", author)))
+    }
+    text.subtext
+        .push(plain_text!(format!("\"{}\", Published ", b.title.clone())));
+    if let Some(how_pub) = b.how_published.clone() {
+        text.subtext.push(plain_text!(format!("as {} ", how_pub)))
+    }
+    if let Some(date) = b.date {
+        text.subtext
+            .push(plain_text!(format!("on {}", date.format("%d.%m.%y"))))
     }
 
     ListItem::new(Line::Text(text), 0, true)
