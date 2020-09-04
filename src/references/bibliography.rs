@@ -9,6 +9,7 @@ use bibliographix::bibliography::bib_types::manual::Manual;
 use bibliographix::bibliography::bib_types::misc::Misc;
 use bibliographix::bibliography::bib_types::repository::Repository;
 use bibliographix::bibliography::bib_types::tech_report::TechReport;
+use bibliographix::bibliography::bib_types::thesis::Thesis;
 use bibliographix::bibliography::bib_types::BibliographyType;
 use bibliographix::bibliography::bibliography_entry::{
     BibliographyEntry, BibliographyEntryReference,
@@ -60,6 +61,7 @@ fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
         BibliographyType::Misc(m) => get_item_for_misc(&*entry, m),
         BibliographyType::Repository(r) => get_item_for_repository(&*entry, r),
         BibliographyType::TechReport(tr) => get_item_for_tech_report(&*entry, tr),
+        BibliographyType::Thesis(t) => get_item_for_thesis(&*entry, t),
         _ => unimplemented!(),
     }
 }
@@ -294,10 +296,12 @@ fn get_item_for_repository(entry: &BibliographyEntry, r: &Repository) -> ListIte
     ListItem::new(Line::Text(text), 0, true)
 }
 
+/// Returns the list item for the tech report type
 fn get_item_for_tech_report(entry: &BibliographyEntry, tr: &TechReport) -> ListItem {
     let mut text = TextLine::new();
     text.subtext
         .push(bold_text!(format!("{}: ", entry.key().clone())));
+
     text.subtext
         .push(plain_text!(format!("{}.", tr.author.clone())));
     text.subtext
@@ -306,6 +310,25 @@ fn get_item_for_tech_report(entry: &BibliographyEntry, tr: &TechReport) -> ListI
         .push(plain_text!(format!("by {}", tr.institution.clone())));
     text.subtext
         .push(plain_text!(format!(" on {}", tr.date.format("%d.%m.%y"))));
+
+    ListItem::new(Line::Text(text), 0, true)
+}
+
+/// Returns a list item for a thesis
+fn get_item_for_thesis(entry: &BibliographyEntry, t: &Thesis) -> ListItem {
+    let mut text = TextLine::new();
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    text.subtext
+        .push(bold_text!(format!("{}: ", entry.key().clone())));
+    text.subtext
+        .push(plain_text!(format!("{}.", t.author.clone())));
+    text.subtext
+        .push(plain_text!(format!("\"{}\"", t.title.clone())));
+    text.subtext
+        .push(plain_text!(format!("at {}", t.school.clone())));
+    text.subtext
+        .push(plain_text!(format!(" on {}", t.date.format("%d.%m.%y"))));
 
     ListItem::new(Line::Text(text), 0, true)
 }
