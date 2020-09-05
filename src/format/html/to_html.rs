@@ -1,6 +1,7 @@
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::PlaceholderTemplate;
+use crate::references::configuration::keys::META_LANG;
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::encode_attribute;
@@ -101,11 +102,11 @@ impl ToHtml for Document {
             "".to_string()
         };
         if self.is_root {
-            let language = if let Some(entry) = self.config.get_entry("lang") {
-                entry.get().as_string()
-            } else {
-                "en".to_string()
-            };
+            let language = self
+                .config
+                .get_entry(META_LANG)
+                .map(|e| e.get().as_string())
+                .unwrap_or("en".to_string());
             let style = minify(std::include_str!("assets/style.css"));
             writer.write("<!DOCTYPE html".to_string())?;
             writer.write("<html lang=\"".to_string())?;

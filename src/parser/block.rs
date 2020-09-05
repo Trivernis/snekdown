@@ -7,6 +7,7 @@ use crate::parser::inline::ParseInline;
 use crate::parser::line::ParseLine;
 use crate::parser::ImportType;
 use crate::Parser;
+use std::collections::HashMap;
 
 pub(crate) trait ParseBlock {
     fn parse_block(&mut self) -> ParseResult<Block>;
@@ -319,15 +320,19 @@ impl ParseBlock for Parser {
             self.section_return = Some(0);
             return Err(self.ctm.rewind_with_error(start_index));
         }
+        let metadata = self
+            .parse_inline_metadata()
+            .ok()
+            .map(|m| m.into())
+            .unwrap_or(HashMap::new());
 
         self.ctm.seek_whitespace();
 
-        match self.import(path.clone()) {
+        match self.import(path.clone(), metadata) {
             ImportType::Document(Ok(anchor)) => Ok(Some(Import { path, anchor })),
-            ImportType::Stylesheet(Ok(content)) => {
-                self.document.stylesheets.push(content);
-                Ok(None)
-            }
+            ImportType::Stylesheet(_) => Ok(None),
+            ImportType::Bibliography(_) => Ok(None),
+            ImportType::Manifest(_) => Ok(None),
             _ => Err(self.ctm.err()),
         }
     }

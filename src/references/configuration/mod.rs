@@ -1,13 +1,9 @@
 use crate::elements::MetadataValue;
-use crate::references::configuration::config::RootConfig;
-use crate::references::configuration::keys::{
-    BIB_DISPLAY, BIB_HIDE_UNUSED, BIB_REF_DISPLAY, META_AUTHOR, META_DATE, META_LANG, META_TITLE,
-};
+use crate::references::configuration::keys::{BIB_REF_DISPLAY, META_LANG};
 use crate::references::templates::Template;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
-pub mod config;
 pub(crate) mod keys;
 
 #[derive(Clone, Debug)]
@@ -57,46 +53,20 @@ impl ConfigEntry {
     }
 }
 
+impl Default for Configuration {
+    fn default() -> Self {
+        let mut self_config = Self::new();
+        self_config.set(BIB_REF_DISPLAY, Value::String("number".to_string()));
+        self_config.set(META_LANG, Value::String("en".to_string()));
+
+        self_config
+    }
+}
+
 impl Configuration {
     pub fn new() -> Self {
         Self {
             config: Arc::new(RwLock::new(HashMap::new())),
-        }
-    }
-
-    pub fn default() -> Self {
-        let mut self_config = Self::new();
-        lazy_static::lazy_static! { static ref CONFIG: RootConfig = toml::from_str(std::include_str!("default.toml")).unwrap();}
-        self_config.assign_config(&CONFIG);
-
-        self_config
-    }
-
-    pub fn assign_config(&mut self, config: &RootConfig) {
-        if let Some(bib) = &config.bibliography {
-            if let Some(cfg) = &bib.entry_display {
-                self.set(BIB_DISPLAY, Value::String(cfg.clone()))
-            }
-            if let Some(cfg) = &bib.reference_display {
-                self.set(BIB_REF_DISPLAY, Value::String(cfg.clone()))
-            }
-            if let Some(cfg) = &bib.hide_unused {
-                self.set(BIB_HIDE_UNUSED, Value::Bool(*cfg));
-            }
-        }
-        if let Some(meta) = &config.metadata {
-            if let Some(cfg) = &meta.author {
-                self.set(META_AUTHOR, Value::String(cfg.clone()))
-            }
-            if let Some(cfg) = &meta.date {
-                self.set(META_DATE, Value::String(cfg.clone()))
-            }
-            if let Some(cfg) = &meta.title {
-                self.set(META_TITLE, Value::String(cfg.clone()))
-            }
-            if let Some(lang) = &meta.language {
-                self.set(META_LANG, Value::String(lang.clone()))
-            }
         }
     }
 
@@ -144,5 +114,22 @@ impl Configuration {
             MetadataValue::Template(t) => self.set(key, Value::Template(t)),
             _ => {}
         }
+    }
+
+    pub fn set_from_toml(&mut self, value: &toml::Value) -> Option<()> {
+        let table = value.as_table()?;
+        table.iter().for_each(|(k, v)| {
+            match v {
+                toml::Value::Table(_) => self.set_from_toml(v).unwrap_or(()),
+                toml::Value::Float(f) => self.set(k, Value::Float(*f)),
+                toml::Value::Integer(i) => self.set(k, Value::Integer(*i)),
+                toml::Value::String(s) => self.set(k, Value::String(s.clone())),
+                toml::Value::Boolean(b) => self.set(k, Value::Bool(*b)),
+                toml::Value::Datetime(dt) => self.set(k, Value::String(dt.to_string())),
+                _ => {}
+            };
+        });
+
+        Some(())
     }
 }

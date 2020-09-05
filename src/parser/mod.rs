@@ -4,12 +4,13 @@ pub(crate) mod line;
 
 use self::block::ParseBlock;
 use crate::elements::{Document, ImportAnchor};
-use crate::references::configuration::Configuration;
+use crate::references::configuration::{Configuration, Value};
 use bibliographix::bib_manager::BibManager;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use regex::Regex;
+use std::collections::HashMap;
 use std::fs::{read_to_string, File};
 use std::io;
 use std::io::{BufRead, BufReader, Cursor};
@@ -19,6 +20,14 @@ use std::thread;
 
 pub type ParseResult<T> = TapeResult<T>;
 pub type ParseError = TapeError;
+
+const DEFAULT_IMPORTS: &'static [(&str, &str)] = &[
+    ("snekdown.toml", "manifest"),
+    ("manifest.toml", "manifest"),
+    ("bibliography.toml", "bibliography"),
+    ("bibliography.bib.toml", "bibliography"),
+    ("style.css", "stylesheet"),
+];
 
 pub struct Parser {
     pub(crate) ctm: CharTapeMachine,
@@ -216,27 +225,59 @@ impl Parser {
         Ok(())
     }
 
-    /// Imports a path
-    fn import(&mut self, path: String) -> ImportType {
-        let path = self.transform_path(path);
-        lazy_static::lazy_static! {
-            static ref BIB_NAME: Regex = Regex::new(r".*\.bib\.toml$").unwrap();
-        }
+    /// Returns the text of an imported text file
+    fn import_text_file(&self, path: PathBuf) -> ParseResult<String> {
+        read_to_string(path).map_err(|_| self.ctm.err())
+    }
 
-        if let Some(fname) = path.file_name().and_then(|f| Some(f.to_str().unwrap())) {
-            if BIB_NAME.is_match(fname) {
-                return ImportType::Bibliography(self.import_bib(path));
+    fn import_stylesheet(&mut self, path: PathBuf) -> ParseResult<()> {
+        let content = self.import_text_file(path)?;
+        self.document.stylesheets.push(content);
+
+        Ok(())
+    }
+
+    fn import_manifest(&mut self, path: PathBuf) -> ParseResult<()> {
+        let contents = self.import_text_file(path)?;
+        let value = contents
+            .parse::<toml::Value>()
+            .map_err(|_| self.ctm.err())?;
+        self.document.config.set_from_toml(&value);
+
+        Ok(())
+    }
+
+    /// Imports a path
+    fn import(&mut self, path: String, args: HashMap<String, Value>) -> ImportType {
+        let path = self.transform_path(path);
+        match args.get("type").map(|e| e.as_string().to_lowercase()) {
+            Some(s) if s == "stylesheet".to_string() => {
+                ImportType::Stylesheet(self.import_stylesheet(path))
             }
-        }
-        match path.extension() {
-            Some(e) if e.to_str().unwrap().to_lowercase() == "css" => {
-                if let Ok(content) = read_to_string(path) {
-                    ImportType::Stylesheet(Ok(content))
-                } else {
-                    ImportType::Stylesheet(Err(ParseError::new(self.ctm.get_index())))
+            Some(s) if s == "document".to_string() => {
+                ImportType::Document(self.import_document(path))
+            }
+            Some(s) if s == "bibliography".to_string() => {
+                ImportType::Bibliography(self.import_bib(path))
+            }
+            Some(s) if s == "manifest".to_string() || s == "config" => {
+                ImportType::Manifest(self.import_manifest(path))
+            }
+            _ => {
+                lazy_static::lazy_static! {
+                    static ref BIB_NAME: Regex = Regex::new(r".*\.bib\.toml$").unwrap();
+                }
+                if let Some(fname) = path.file_name().and_then(|f| Some(f.to_str().unwrap())) {
+                    if BIB_NAME.is_match(fname) {
+                        return ImportType::Bibliography(self.import_bib(path));
+                    }
+                }
+                match path.extension().map(|e| e.to_str().unwrap().to_lowercase()) {
+                    Some(e) if e == "css" => ImportType::Stylesheet(self.import_stylesheet(path)),
+                    Some(e) if e == "toml" => ImportType::Manifest(self.import_manifest(path)),
+                    _ => ImportType::Document(self.import_document(path)),
                 }
             }
-            _ => ImportType::Document(self.import_document(path)),
         }
     }
 
@@ -263,6 +304,14 @@ impl Parser {
 
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
+        if !self.is_child {
+            for (path, file_type) in DEFAULT_IMPORTS {
+                self.import(
+                    path.to_string(),
+                    maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},
+                );
+            }
+        }
         wg.wait();
         self.document.post_process();
         let document = self.document.clone();
@@ -274,6 +323,7 @@ impl Parser {
 
 pub(crate) enum ImportType {
     Document(ParseResult<Arc<RwLock<ImportAnchor>>>),
-    Stylesheet(ParseResult<String>),
+    Stylesheet(ParseResult<()>),
     Bibliography(ParseResult<()>),
+    Manifest(ParseResult<()>),
 }

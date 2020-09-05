@@ -1,7 +1,7 @@
 pub mod tokens;
 
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::{ConfigRefEntry, Configuration};
+use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::elements::special::Expression;
@@ -10,6 +10,7 @@ use bibliographix::bibliography::bibliography_entry::BibliographyEntryReference;
 use bibliographix::references::bib_reference::BibRefAnchor;
 use std::collections::HashMap;
 use std::fs::read;
+use std::iter::FromIterator;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
@@ -660,6 +661,19 @@ impl Metadata for InlineMetadata {
         }
 
         string_map
+    }
+}
+
+impl Into<HashMap<String, Value>> for InlineMetadata {
+    fn into(self) -> HashMap<String, Value> {
+        HashMap::from_iter(self.data.iter().filter_map(|(k, v)| match v {
+            MetadataValue::String(s) => Some((k.clone(), Value::String(s.clone()))),
+            MetadataValue::Bool(b) => Some((k.clone(), Value::Bool(*b))),
+            MetadataValue::Integer(i) => Some((k.clone(), Value::Integer(*i))),
+            MetadataValue::Float(f) => Some((k.clone(), Value::Float(*f))),
+            MetadataValue::Template(t) => Some((k.clone(), Value::Template(t.clone()))),
+            _ => None,
+        }))
     }
 }
 
