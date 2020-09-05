@@ -56,7 +56,7 @@ impl ConfigEntry {
 impl Default for Configuration {
     fn default() -> Self {
         let mut self_config = Self::new();
-        self_config.set(BIB_REF_DISPLAY, Value::String("number".to_string()));
+        self_config.set(BIB_REF_DISPLAY, Value::String("{{number}}".to_string()));
         self_config.set(META_LANG, Value::String("en".to_string()));
 
         self_config

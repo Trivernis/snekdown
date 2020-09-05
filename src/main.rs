@@ -88,15 +88,18 @@ fn render(opt: &Opt) -> Parser {
     );
     let start_render = Instant::now();
     let file = OpenOptions::new()
-        .write(true)
         .read(true)
+        .write(true)
+        .truncate(true)
+        .create(true)
         .open(&opt.output)
         .unwrap();
     let writer = BufWriter::new(file);
     match opt.format.as_str() {
         "html" => {
             let mut writer = HTMLWriter::new(Box::new(writer));
-            document.to_html(&mut writer).unwrap()
+            document.to_html(&mut writer).unwrap();
+            writer.flush().unwrap();
         }
         _ => println!("Unknown format {}", opt.format),
     }

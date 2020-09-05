@@ -355,6 +355,7 @@ impl Document {
         self.elements.reverse();
         let mut count: usize = 0;
         let mut last_section: Option<(u8, usize)> = None;
+
         while let Some(element) = self.elements.pop() {
             match element {
                 Block::Section(sec) => {
@@ -733,6 +734,7 @@ impl BibReference {
     pub(crate) fn get_formatted(&self) -> String {
         if let Some(entry) = &self.entry_anchor.lock().unwrap().entry {
             let entry = entry.lock().unwrap();
+
             if let Some(display) = &self.display {
                 let display = display.read().unwrap();
                 let mut template = PlaceholderTemplate::new(display.get().as_string());

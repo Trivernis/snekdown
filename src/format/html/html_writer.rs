@@ -25,4 +25,9 @@ impl HTMLWriter {
     pub fn write_attribute(&mut self, attribute_value: String) -> io::Result<()> {
         self.write(htmlescape::encode_attribute(attribute_value.as_str()))
     }
+
+    /// Flushes the writer
+    pub fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
+    }
 }
