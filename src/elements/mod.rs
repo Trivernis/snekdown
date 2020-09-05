@@ -737,3 +737,16 @@ impl BibReference {
         return "citation needed".to_string();
     }
 }
+
+impl MetadataValue {
+    pub fn to_string(&self) -> String {
+        match self {
+            MetadataValue::String(s) => s.clone(),
+            MetadataValue::Placeholder(_) => "".to_string(),
+            MetadataValue::Integer(i) => i.to_string(),
+            MetadataValue::Float(f) => f.to_string(),
+            MetadataValue::Bool(b) => b.to_string(),
+            MetadataValue::Template(_) => "".to_string(),
+        }
+    }
+}

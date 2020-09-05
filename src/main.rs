@@ -1,8 +1,10 @@
 use colored::Colorize;
 use notify::{watcher, RecursiveMode, Watcher};
-use snekdown::format::html::ToHtml;
+use snekdown::format::html::html_writer::HTMLWriter;
+use snekdown::format::html::to_html::ToHtml;
 use snekdown::Parser;
-use std::fs::write;
+use std::fs::OpenOptions;
+use std::io::BufWriter;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
@@ -85,8 +87,17 @@ fn render(opt: &Opt) -> Parser {
         format!("Parsing took:     {:?}", start.elapsed()).italic()
     );
     let start_render = Instant::now();
+    let file = OpenOptions::new()
+        .write(true)
+        .read(true)
+        .open(&opt.output)
+        .unwrap();
+    let writer = BufWriter::new(file);
     match opt.format.as_str() {
-        "html" => write(opt.output.to_str().unwrap(), document.to_html()).unwrap(),
+        "html" => {
+            let mut writer = HTMLWriter::new(Box::new(writer));
+            document.to_html(&mut writer).unwrap()
+        }
         _ => println!("Unknown format {}", opt.format),
     }
     println!(

@@ -1,0 +1,631 @@
+use crate::elements::*;
+use crate::format::html::html_writer::HTMLWriter;
+use crate::format::PlaceholderTemplate;
+use crate::references::templates::{Template, TemplateVariable};
+use asciimath_rs::format::mathml::ToMathML;
+use htmlescape::encode_attribute;
+use minify::html::minify;
+use std::cell::RefCell;
+use std::io;
+use syntect::highlighting::ThemeSet;
+use syntect::html::highlighted_html_for_string;
+use syntect::parsing::SyntaxSet;
+
+pub trait ToHtml {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()>;
+}
+
+impl ToHtml for Element {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        match self {
+            Element::Block(block) => block.to_html(writer),
+            Element::Inline(inline) => inline.to_html(writer),
+            Element::Line(line) => line.to_html(writer),
+        }
+    }
+}
+
+impl ToHtml for Line {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        match self {
+            Line::Text(text) => text.to_html(writer),
+            Line::Ruler(ruler) => ruler.to_html(writer),
+            Line::RefLink(anchor) => anchor.to_html(writer),
+            Line::Centered(centered) => centered.to_html(writer),
+            Line::Anchor(a) => a.to_html(writer),
+            _ => Ok(()),
+        }
+    }
+}
+
+impl ToHtml for Inline {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        match self {
+            Inline::Url(url) => url.to_html(writer),
+            Inline::Monospace(mono) => mono.to_html(writer),
+            Inline::Striked(striked) => striked.to_html(writer),
+            Inline::Plain(plain) => plain.to_html(writer),
+            Inline::Italic(italic) => italic.to_html(writer),
+            Inline::Underlined(under) => under.to_html(writer),
+            Inline::Bold(bold) => bold.to_html(writer),
+            Inline::Image(img) => img.to_html(writer),
+            Inline::Placeholder(placeholder) => placeholder.read().unwrap().to_html(writer),
+            Inline::Superscript(superscript) => superscript.to_html(writer),
+            Inline::Checkbox(checkbox) => checkbox.to_html(writer),
+            Inline::Emoji(emoji) => emoji.to_html(writer),
+            Inline::Colored(colored) => colored.to_html(writer),
+            Inline::BibReference(bibref) => bibref.read().unwrap().to_html(writer),
+            Inline::TemplateVar(var) => var.read().unwrap().to_html(writer),
+            Inline::Math(m) => m.to_html(writer),
+            Inline::LineBreak => writer.write("<br>".to_string()),
+            Inline::CharacterCode(code) => code.to_html(writer),
+        }
+    }
+}
+
+impl ToHtml for Block {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        match self {
+            Block::Paragraph(para) => para.to_html(writer),
+            Block::List(list) => list.to_html(writer),
+            Block::Table(table) => table.to_html(writer),
+            Block::CodeBlock(code) => code.to_html(writer),
+            Block::Quote(quote) => quote.to_html(writer),
+            Block::Section(section) => section.to_html(writer),
+            Block::Import(import) => import.to_html(writer),
+            Block::Placeholder(placeholder) => placeholder.read().unwrap().to_html(writer),
+            Block::MathBlock(m) => m.to_html(writer),
+            _ => Ok(()),
+        }
+    }
+}
+
+impl ToHtml for MetadataValue {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        match self {
+            MetadataValue::String(string) => writer.write_escaped(string.clone()),
+            MetadataValue::Integer(num) => writer.write(num.to_string()),
+            MetadataValue::Placeholder(ph) => ph.read().unwrap().to_html(writer),
+            MetadataValue::Bool(b) => writer.write(b.to_string()),
+            MetadataValue::Float(f) => writer.write(f.to_string()),
+            MetadataValue::Template(t) => t.to_html(writer),
+        }
+    }
+}
+
+impl ToHtml for Document {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        let path = if let Some(path) = &self.path {
+            format!("path='{}'", encode_attribute(path.as_str()))
+        } else {
+            "".to_string()
+        };
+        if self.is_root {
+            let language = if let Some(entry) = self.config.get_entry("lang") {
+                entry.get().as_string()
+            } else {
+                "en".to_string()
+            };
+            let style = minify(std::include_str!("assets/style.css"));
+            writer.write("<!DOCTYPE html".to_string())?;
+            writer.write("<html lang=\"".to_string())?;
+            writer.write_attribute(language)?;
+            writer.write("\"/><head ".to_string())?;
+            writer.write(path)?;
+            writer.write("/>".to_string())?;
+            writer.write("<meta charset='UTF-8'><script id='MathJax-script' async src='https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js'></script>".to_string())?;
+            writer.write("<style>".to_string())?;
+            writer.write(style)?;
+            writer.write("</style>".to_string())?;
+
+            for stylesheet in &self.stylesheets {
+                writer.write("<style>".to_string())?;
+                writer.write(stylesheet.clone())?;
+                writer.write("</style>".to_string())?;
+            }
+            writer.write("</head><body><div class='content'>".to_string())?;
+            for element in &self.elements {
+                element.to_html(writer)?;
+            }
+            writer.write("</div></body></html>".to_string())?;
+        } else {
+            writer.write("<div class='documentImport' document-import='true' ".to_string())?;
+            writer.write(path)?;
+            writer.write(">".to_string())?;
+
+            for element in &self.elements {
+                element.to_html(writer)?;
+            }
+            writer.write("</div>".to_string())?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ToHtml for Math {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<math xmlns='http://www.w3.org/1998/Math/MathML'>".to_string())?;
+        writer.write(self.expression.to_mathml())?;
+
+        writer.write("</math>".to_string())
+    }
+}
+
+impl ToHtml for MathBlock {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write(
+            "<math xmlns='http://www.w3.org/1998/Math/MathML' display='block'>".to_string(),
+        )?;
+        writer.write(self.expression.to_mathml())?;
+
+        writer.write("</math>".to_string())
+    }
+}
+
+impl ToHtml for Import {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        let anchor = self.anchor.read().unwrap();
+        if let Some(document) = &anchor.document {
+            document.to_html(writer)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl ToHtml for Section {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<section>".to_string())?;
+        self.header.to_html(writer)?;
+        for element in &self.elements {
+            element.to_html(writer)?;
+        }
+        writer.write("</section>".to_string())
+    }
+}
+
+impl ToHtml for Header {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write(format!("<h{}", self.size))?;
+        writer.write(" id=\"".to_string())?;
+        writer.write_attribute(self.anchor.clone())?;
+        writer.write("\">".to_string())?;
+        self.line.to_html(writer)?;
+
+        writer.write(format!("</h{}>", self.size))
+    }
+}
+
+impl ToHtml for Paragraph {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<div class='paragraph'>".to_string())?;
+        for element in &self.elements {
+            element.to_html(writer)?;
+            writer.write("<br>".to_string())?;
+        }
+
+        writer.write("</div>".to_string())
+    }
+}
+
+impl ToHtml for List {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        if self.ordered {
+            writer.write("<ol>".to_string())?;
+            for item in &self.items {
+                item.to_html(writer)?;
+            }
+            writer.write("</ol>".to_string())
+        } else {
+            writer.write("<ul>".to_string())?;
+            for item in &self.items {
+                item.to_html(writer)?;
+            }
+
+            writer.write("</ul>".to_string())
+        }
+    }
+}
+
+impl ToHtml for ListItem {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<li>".to_string())?;
+        self.text.to_html(writer)?;
+
+        if let Some(first) = self.children.first() {
+            if first.ordered {
+                writer.write("<ol>".to_string())?;
+                for item in &self.children {
+                    item.to_html(writer)?;
+                }
+                writer.write("</ol>".to_string())?;
+            } else {
+                writer.write("<ul>".to_string())?;
+                for item in &self.children {
+                    item.to_html(writer)?;
+                }
+                writer.write("</ul>".to_string())?;
+            }
+        }
+
+        writer.write("</li>".to_string())
+    }
+}
+
+impl ToHtml for Table {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<div class='tableWrapper'><table><tr>".to_string())?;
+
+        for cell in &self.header.cells {
+            writer.write("<th>".to_string())?;
+            cell.text.to_html(writer)?;
+            writer.write("</th>".to_string())?;
+        }
+        writer.write("</tr>".to_string())?;
+        for row in &self.rows {
+            row.to_html(writer)?;
+        }
+
+        writer.write("</table></div>".to_string())
+    }
+}
+
+impl ToHtml for Row {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<tr>".to_string())?;
+
+        for cell in &self.cells {
+            cell.to_html(writer)?;
+        }
+
+        writer.write("</tr>".to_string())
+    }
+}
+
+impl ToHtml for Cell {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<td>".to_string())?;
+        self.text.to_html(writer)?;
+
+        writer.write("</td>".to_string())
+    }
+}
+
+thread_local! {static PS: RefCell<SyntaxSet> = RefCell::new(SyntaxSet::load_defaults_nonewlines());}
+thread_local! {static TS: RefCell<ThemeSet> = RefCell::new(ThemeSet::load_defaults());}
+
+impl ToHtml for CodeBlock {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<div><code".to_string())?;
+        if self.language.len() > 0 {
+            writer.write(" lang=\"".to_string())?;
+            writer.write_attribute(self.language.clone())?;
+            writer.write("\">".to_string())?;
+            PS.with(|ps_cell| {
+                let ps = ps_cell.borrow();
+                if let Some(syntax) = ps.find_syntax_by_token(self.language.as_str()) {
+                    TS.with(|ts_cell| {
+                        let ts = ts_cell.borrow();
+
+                        let _ = writer.write(highlighted_html_for_string(
+                            self.code.as_str(),
+                            &ps,
+                            syntax,
+                            &ts.themes["InspiredGitHub"],
+                        ));
+                    })
+                } else {
+                    let _ = writer.write("<pre>".to_string());
+                    let _ = writer.write(self.code.clone());
+                    let _ = writer.write("</pre>".to_string());
+                }
+            })
+        } else {
+            writer.write("><pre>".to_string())?;
+            writer.write_escaped(self.code.clone())?;
+            writer.write("</pre>".to_string())?;
+        }
+
+        writer.write("</code></div>".to_string())
+    }
+}
+
+impl ToHtml for Quote {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<div class='quote'><blockquote>".to_string())?;
+        for line in &self.text {
+            line.to_html(writer)?;
+            writer.write("<br>".to_string())?;
+        }
+        if let Some(meta) = self.metadata.clone() {
+            writer.write("<span class='metadata'>".to_string())?;
+            meta.to_html(writer)?;
+            writer.write("</span>".to_string())?;
+        }
+        writer.write("</blockquote></div>".to_string())
+    }
+}
+
+impl ToHtml for Ruler {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<hr>".to_string())
+    }
+}
+
+impl ToHtml for TextLine {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        for text in &self.subtext {
+            text.to_html(writer)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ToHtml for Image {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        let mut style = String::new();
+
+        let url = if let Some(content) = self.get_content() {
+            let mime_type = mime_guess::from_path(&self.url.url).first_or(mime::IMAGE_PNG);
+            format!(
+                "data:{};base64,{}",
+                mime_type.to_string(),
+                base64::encode(content)
+            )
+        } else {
+            encode_attribute(self.url.url.as_str())
+        };
+        if let Some(meta) = &self.metadata {
+            if let Some(width) = meta.get_string("width") {
+                style = format!("{}width: {};", style, width)
+            }
+            if let Some(height) = meta.get_string("height") {
+                style = format!("{}height: {};", style, height)
+            }
+        }
+        if let Some(description) = self.url.description.clone() {
+            writer.write("<div class='figure'><a href='".to_string())?;
+            writer.write_attribute(self.url.url.clone())?;
+            writer.write("'><img src='".to_string())?;
+            writer.write(url)?;
+            writer.write("' style='".to_string())?;
+            writer.write_attribute(style)?;
+            writer.write("'/></a><br><label class='imageDescripton'>".to_string())?;
+            for item in description {
+                item.to_html(writer)?;
+                writer.write("&#32;".to_string())?;
+            }
+            writer.write("</label></div>".to_string())?;
+        } else {
+            writer.write("<a href='".to_string())?;
+            writer.write(url.clone())?;
+            writer.write("'><img src='".to_string())?;
+            writer.write(url)?;
+            writer.write("' style='".to_string())?;
+            writer.write(style)?;
+            writer.write("'/></a>".to_string())?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ToHtml for BoldText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<b>".to_string())?;
+        for element in &self.value {
+            element.to_html(writer)?;
+        }
+        writer.write("</b>".to_string())
+    }
+}
+
+impl ToHtml for UnderlinedText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<u>".to_string())?;
+        for element in &self.value {
+            element.to_html(writer)?;
+        }
+        writer.write("</u>".to_string())
+    }
+}
+
+impl ToHtml for ItalicText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<i>".to_string())?;
+        for element in &self.value {
+            element.to_html(writer)?;
+        }
+        writer.write("</i>".to_string())
+    }
+}
+
+impl ToHtml for StrikedText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<del>".to_string())?;
+        for element in &self.value {
+            element.to_html(writer)?;
+        }
+        writer.write("</del>".to_string())
+    }
+}
+
+impl ToHtml for SuperscriptText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<sup>".to_string())?;
+        for element in &self.value {
+            element.to_html(writer)?;
+        }
+        writer.write("</sup>".to_string())
+    }
+}
+
+impl ToHtml for MonospaceText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<code class='inlineCode'>".to_string())?;
+        writer.write_escaped(self.value.clone())?;
+
+        writer.write("</code>".to_string())
+    }
+}
+
+impl ToHtml for Url {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<a href='".to_string())?;
+        writer.write(self.url.clone())?;
+        writer.write("'>".to_string())?;
+        if let Some(description) = self.description.clone() {
+            for desc in description {
+                desc.to_html(writer)?;
+            }
+        } else {
+            writer.write_escaped(self.url.clone())?;
+        }
+
+        writer.write("</a>".to_string())
+    }
+}
+
+impl ToHtml for PlainText {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write_escaped(self.value.clone())
+    }
+}
+
+impl ToHtml for Placeholder {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        if let Some(value) = &self.value {
+            value.to_html(writer)
+        } else {
+            writer.write("Unknown placeholder '".to_string())?;
+            writer.write_escaped(self.name.clone())?;
+            writer.write_escaped("'".to_string())
+        }
+    }
+}
+
+impl ToHtml for RefLink {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<a href='#".to_string())?;
+        writer.write_escaped(self.reference.clone())?;
+        writer.write("'>".to_string())?;
+        self.description.to_html(writer)?;
+
+        writer.write("</a>".to_string())
+    }
+}
+
+impl ToHtml for InlineMetadata {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        if let Some(MetadataValue::String(format)) = self.data.get("display") {
+            let mut template = PlaceholderTemplate::new(format.clone());
+            self.data
+                .iter()
+                .for_each(|(k, v)| template.add_replacement(k, &v.to_string()));
+
+            writer.write(template.render())?;
+        } else {
+            for (k, v) in &self.data {
+                writer.write_escaped(format!("{}={},", k, v.to_string()))?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl ToHtml for Centered {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<div class='centered'>".to_string())?;
+        self.line.to_html(writer)?;
+
+        writer.write("</div>".to_string())
+    }
+}
+
+impl ToHtml for Checkbox {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<input type='checkbox' disabled ".to_string())?;
+        if self.value {
+            writer.write("checked".to_string())?;
+        }
+
+        writer.write("/>".to_string())
+    }
+}
+
+impl ToHtml for Emoji {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<span class='emoji' emoji-name='".to_string())?;
+        writer.write_attribute(self.name.clone())?;
+        writer.write("'>".to_string())?;
+        writer.write(self.value.to_string())?;
+
+        writer.write("</span>".to_string())
+    }
+}
+
+impl ToHtml for Colored {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<span class='colored' style='color:".to_string())?;
+        writer.write_attribute(self.color.clone())?;
+        writer.write(";'>".to_string())?;
+        self.value.to_html(writer)?;
+
+        writer.write("</span>".to_string())
+    }
+}
+
+impl ToHtml for BibReference {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<sup><a href='#".to_string())?;
+        writer.write_escaped(self.key.clone())?;
+        writer.write("'>".to_string())?;
+        writer.write(self.get_formatted())?;
+
+        writer.write("</a></sup>".to_string())
+    }
+}
+
+impl ToHtml for Template {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        for element in &self.text {
+            element.to_html(writer)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ToHtml for TemplateVariable {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        if let Some(value) = &self.value {
+            writer.write_escaped(self.prefix.clone())?;
+            value.to_html(writer)?;
+            writer.write_escaped(self.suffix.clone())?;
+        }
+
+        Ok(())
+    }
+}
+
+impl ToHtml for CharacterCode {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("&".to_string())?;
+        writer.write_escaped(self.code.clone())?;
+
+        writer.write(";".to_string())
+    }
+}
+
+impl ToHtml for Anchor {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<div id='".to_string())?;
+        writer.write_attribute(self.key.clone())?;
+        writer.write("'>".to_string())?;
+        self.inner.to_html(writer)?;
+
+        writer.write("</div>".to_string())
+    }
+}
