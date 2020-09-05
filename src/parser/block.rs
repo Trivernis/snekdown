@@ -328,7 +328,7 @@ impl ParseBlock for Parser {
 
         self.ctm.seek_whitespace();
 
-        match self.import(path.clone(), metadata) {
+        match self.import(path.clone(), &metadata) {
             ImportType::Document(Ok(anchor)) => Ok(Some(Import { path, anchor })),
             ImportType::Stylesheet(_) => Ok(None),
             ImportType::Bibliography(_) => Ok(None),

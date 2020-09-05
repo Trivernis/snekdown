@@ -72,9 +72,17 @@ Imports are parsed via multithreading.
 
 <[document.md]
 
-<[style.css]
+<[style.css][type=stylesheet]
 ```
 
+The parser differentiates four different types of imported files.
+
+- `document`            - The default import which is just another snekdown document
+- `stylesheet`          - CSS Stylesheets that are inclued when rendering
+- `bibliography`        - A file including bibliography
+- `config`/`manifest`   - A config file that contains metadata
+
+If no type is provided the parser guesses the type of file from the extension.
 
 ### Tables
 
@@ -133,6 +141,26 @@ Placeholder
 [key = [[placeholder]]]
 ```
 
+Metadata can also be defined in a separate toml file with simple key-value pairs.
+Example:
+
+```toml
+# bibliography.bib.toml
+[Meta]
+author = "Snek"
+published = "2020"
+test-key = ["test value", "test value 2"]
+
+[imports]
+ignored-imports = ["style.css"]         # those files won't get imported
+included-stylesheets = ["style2.css"]   # stylesheets that should be included
+included-configs = []                   # other metadata files that should be included
+included-bibliography = ["nextbib.toml"]# bibliography that should be included
+```
+
+The `[Section]` keys are not relevant as the structure gets flattened before the values are read.
+
+
 #### Usage
 
 ```
@@ -187,6 +215,7 @@ There is a book about snekdown[^book] and a github repo[^github].
 Entries can also be defined in a separate toml file with the following data layout:
 
 ```toml
+# snekdown.toml
 [BIB_KEY]
 key = "value"
 
@@ -233,7 +262,7 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [x] Emojis (\:emoji:)
 - [x] Colors
 - [x] Watching and rendering on change
-- [ ] Metadata files
+- [x] Metadata files
 - [x] Bibliography
 - [x] Math
 - [ ] Text sizes

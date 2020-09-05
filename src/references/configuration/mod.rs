@@ -1,6 +1,7 @@
 use crate::elements::MetadataValue;
 use crate::references::configuration::keys::{BIB_REF_DISPLAY, META_LANG};
 use crate::references::templates::Template;
+use serde::export::TryFrom;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
 
@@ -13,6 +14,7 @@ pub enum Value {
     Float(f64),
     Integer(i64),
     Template(Template),
+    Array(Vec<Value>),
 }
 
 #[derive(Clone, Debug)]
@@ -34,6 +36,9 @@ impl Value {
             Value::Integer(int) => format!("{}", int),
             Value::Float(f) => format!("{:02}", f),
             Value::Bool(b) => format!("{}", b),
+            Value::Array(a) => a.iter().fold("".to_string(), |a, b| {
+                format!("{} \"{}\"", a, b.as_string())
+            }),
             _ => "".to_string(),
         }
     }
@@ -117,19 +122,35 @@ impl Configuration {
     }
 
     pub fn set_from_toml(&mut self, value: &toml::Value) -> Option<()> {
-        let table = value.as_table()?;
+        let table = value.as_table().cloned()?;
         table.iter().for_each(|(k, v)| {
             match v {
                 toml::Value::Table(_) => self.set_from_toml(v).unwrap_or(()),
-                toml::Value::Float(f) => self.set(k, Value::Float(*f)),
-                toml::Value::Integer(i) => self.set(k, Value::Integer(*i)),
-                toml::Value::String(s) => self.set(k, Value::String(s.clone())),
-                toml::Value::Boolean(b) => self.set(k, Value::Bool(*b)),
-                toml::Value::Datetime(dt) => self.set(k, Value::String(dt.to_string())),
-                _ => {}
+                _ => self.set(k, Value::try_from(v.clone()).unwrap()),
             };
         });
 
         Some(())
+    }
+}
+
+impl TryFrom<toml::Value> for Value {
+    type Error = ();
+
+    fn try_from(value: toml::Value) -> Result<Self, Self::Error> {
+        match value {
+            toml::Value::Table(_) => Err(()),
+            toml::Value::Float(f) => Ok(Value::Float(f)),
+            toml::Value::Integer(i) => Ok(Value::Integer(i)),
+            toml::Value::String(s) => Ok(Value::String(s)),
+            toml::Value::Boolean(b) => Ok(Value::Bool(b)),
+            toml::Value::Datetime(dt) => Ok(Value::String(dt.to_string())),
+            toml::Value::Array(a) => Ok(Value::Array(
+                a.iter()
+                    .cloned()
+                    .filter_map(|e| Value::try_from(e).ok())
+                    .collect::<Vec<Value>>(),
+            )),
+        }
     }
 }

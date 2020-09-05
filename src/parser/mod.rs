@@ -4,6 +4,9 @@ pub(crate) mod line;
 
 use self::block::ParseBlock;
 use crate::elements::{Document, ImportAnchor};
+use crate::references::configuration::keys::{
+    IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_IGNORE, IMP_STYLESHEETS,
+};
 use crate::references::configuration::{Configuration, Value};
 use bibliographix::bib_manager::BibManager;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
@@ -25,7 +28,7 @@ const DEFAULT_IMPORTS: &'static [(&str, &str)] = &[
     ("snekdown.toml", "manifest"),
     ("manifest.toml", "manifest"),
     ("bibliography.toml", "bibliography"),
-    ("bibliography.bib.toml", "bibliography"),
+    ("bibliography2.bib.toml", "bibliography"),
     ("style.css", "stylesheet"),
 ];
 
@@ -248,8 +251,27 @@ impl Parser {
     }
 
     /// Imports a path
-    fn import(&mut self, path: String, args: HashMap<String, Value>) -> ImportType {
+    fn import(&mut self, path: String, args: &HashMap<String, Value>) -> ImportType {
         let path = self.transform_path(path);
+        if let Some(fname) = path
+            .file_name()
+            .and_then(|f| Some(f.to_str().unwrap().to_string()))
+        {
+            if let Some(Value::Array(ignore)) = self
+                .document
+                .config
+                .get_entry(IMP_IGNORE)
+                .and_then(|e| Some(e.get().clone()))
+            {
+                let ignore = ignore
+                    .iter()
+                    .map(|v| v.as_string())
+                    .collect::<Vec<String>>();
+                if ignore.contains(&fname) {
+                    return ImportType::None;
+                }
+            }
+        }
         match args.get("type").map(|e| e.as_string().to_lowercase()) {
             Some(s) if s == "stylesheet".to_string() => {
                 ImportType::Stylesheet(self.import_stylesheet(path))
@@ -308,16 +330,58 @@ impl Parser {
             for (path, file_type) in DEFAULT_IMPORTS {
                 self.import(
                     path.to_string(),
-                    maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},
+                    &maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},
                 );
             }
         }
         wg.wait();
+        if !self.is_child {
+            self.import_from_config();
+        }
         self.document.post_process();
         let document = self.document.clone();
         self.document = Document::new(!self.is_child);
 
         document
+    }
+
+    /// Imports files from the configs import values
+    fn import_from_config(&mut self) {
+        if let Some(Value::Array(mut imp)) = self
+            .document
+            .config
+            .get_entry(IMP_STYLESHEETS)
+            .and_then(|e| Some(e.get().clone()))
+        {
+            let args =
+                maplit::hashmap! {"type".to_string() => Value::String("stylesheet".to_string())};
+            while let Some(Value::String(s)) = imp.pop() {
+                self.import(s, &args);
+            }
+        }
+        if let Some(Value::Array(mut imp)) = self
+            .document
+            .config
+            .get_entry(IMP_CONFIGS)
+            .and_then(|e| Some(e.get().clone()))
+        {
+            let args = maplit::hashmap! {"type".to_string() => Value::String("config".to_string())};
+            while let Some(Value::String(s)) = imp.pop() {
+                self.import(s, &args);
+            }
+        }
+        if let Some(Value::Array(mut imp)) = self
+            .document
+            .config
+            .get_entry(IMP_BIBLIOGRAPHY)
+            .and_then(|e| Some(e.get().clone()))
+        {
+            let args =
+                maplit::hashmap! {"type".to_string() => Value::String("bibliography".to_string())};
+            while let Some(Value::String(s)) = imp.pop() {
+                self.import(s, &args);
+            }
+        }
     }
 }
 
@@ -326,4 +390,5 @@ pub(crate) enum ImportType {
     Stylesheet(ParseResult<()>),
     Bibliography(ParseResult<()>),
     Manifest(ParseResult<()>),
+    None,
 }
