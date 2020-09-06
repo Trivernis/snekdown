@@ -202,11 +202,17 @@ impl ParseLine for Parser {
             let mut string_map = meta.get_string_map();
             string_map.insert(K_KEY.to_string(), key.clone());
 
-            if let Some(entry) = BibliographyEntry::from_hash_map(&string_map) {
-                *entry
-            } else {
-                eprintln!("Failed to parse bib entry with key {}", key);
-                return Err(self.ctm.rewind_with_error(start_index));
+            match BibliographyEntry::from_hash_map(&string_map) {
+                Ok(entry) => *entry,
+                Err(msg) => {
+                    log::error!(
+                        "Failed to parse bib entry with key '{}': {}\n\t--> {}\n",
+                        key,
+                        msg,
+                        self.get_position_string()
+                    );
+                    return Err(self.ctm.rewind_with_error(start_index));
+                }
             }
         } else {
             let url = self
@@ -217,11 +223,17 @@ impl ParseLine for Parser {
             map.insert(K_URL.to_string(), url);
             map.insert(K_KEY.to_string(), key.clone());
 
-            if let Some(entry) = BibliographyEntry::from_hash_map(&map) {
-                *entry
-            } else {
-                eprintln!("Failed to parse bib entry with key {}", key);
-                return Err(self.ctm.rewind_with_error(start_index));
+            match BibliographyEntry::from_hash_map(&map) {
+                Ok(entry) => *entry,
+                Err(msg) => {
+                    log::error!(
+                        "Failed to parse bib entry with key '{}': {}\n\t--> {}\n",
+                        key,
+                        msg,
+                        self.get_position_string()
+                    );
+                    return Err(self.ctm.rewind_with_error(start_index));
+                }
             }
         };
 

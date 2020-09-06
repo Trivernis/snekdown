@@ -1,4 +1,4 @@
-use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
+use indicatif::{ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::fs::read;
 use std::path::PathBuf;
@@ -32,7 +32,7 @@ impl DownloadManager {
         let pb = Arc::new(Mutex::new(ProgressBar::new(self.downloads.len() as u64)));
         pb.lock().unwrap().set_style(
             ProgressStyle::default_bar()
-                .template("Reading Imports: [{bar:40.cyan/blue}]")
+                .template("Fetching Embeds: [{bar:40.cyan/blue}]")
                 .progress_chars("=> "),
         );
         let pb_cloned = Arc::clone(&pb);
@@ -41,9 +41,7 @@ impl DownloadManager {
             d.lock().unwrap().download();
             pb.lock().unwrap().inc(1);
         });
-        pb.lock()
-            .unwrap()
-            .finish_with_message("All downloads finished!");
+        pb.lock().unwrap().finish_and_clear();
     }
 }
 

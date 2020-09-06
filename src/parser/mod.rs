@@ -210,7 +210,7 @@ impl Parser {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
                 log::warn!(
-                    "Import of \"{}\" failed: Cyclic import.\n\t--> {}\n",
+                    "Import of \"{}\" failed: Already imported.\n\t--> {}\n",
                     path.to_str().unwrap(),
                     self.get_position_string(),
                 );

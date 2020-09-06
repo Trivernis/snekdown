@@ -54,7 +54,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bibliographix"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "chrono 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1204,11 +1204,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "snekdown"
-version = "0.26.5"
+version = "0.26.6"
 dependencies = [
  "asciimath-rs 0.5.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "bibliographix 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bibliographix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "charred 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "chrono 0.4.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "colored 1.9.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1680,7 +1680,7 @@ dependencies = [
 "checksum atty 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
 "checksum autocfg 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "f8aac770f1885fd7e387acedd76065302551364496e46b3dd00860b2f8359b9d"
 "checksum base64 0.12.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3441f0f7b02788e948e47f457ca01f1d7e6d92c693bc132c22b087d3141c03ff"
-"checksum bibliographix 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a2a4e7a8fa9104c899346763b98d489704d1e00a95d2c3cc8b34d179ee350a35"
+"checksum bibliographix 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "39034545c510b822e3e5bd76147f869bae617d52961add6313ad0696084585c1"
 "checksum bincode 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f30d3a39baa26f9651f17b375061f3233dde33424a8b72b0dbe93a68a0bc896d"
 "checksum bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 "checksum bumpalo 3.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2e8c087f005730276d1096a652e92a8bacee2e2472bcc9715a74d2bec38b5820"

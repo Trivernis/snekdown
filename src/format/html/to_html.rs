@@ -12,6 +12,8 @@ use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
 
+const MATHJAX_URL: &str = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+
 pub trait ToHtml {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()>;
 }
@@ -97,6 +99,10 @@ impl ToHtml for MetadataValue {
 impl ToHtml for Document {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
         let downloads = Arc::clone(&self.downloads);
+        let mathjax = downloads
+            .lock()
+            .unwrap()
+            .add_download(MATHJAX_URL.to_string());
         downloads.lock().unwrap().download_all();
         let path = if let Some(path) = &self.path {
             format!("path=\"{}\"", encode_attribute(path.as_str()))
@@ -116,7 +122,12 @@ impl ToHtml for Document {
             writer.write("\"><head ".to_string())?;
             writer.write(path)?;
             writer.write("/>".to_string())?;
-            writer.write("<meta charset=\"UTF-8\"><script id=\"MathJax-script\" async src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>".to_string())?;
+            writer.write("<meta charset=\"UTF-8\">".to_string())?;
+            if let Some(data) = std::mem::replace(&mut mathjax.lock().unwrap().data, None) {
+                writer.write("<script id=\"MathJax-script\">".to_string())?;
+                writer.write_escaped(minify(String::from_utf8(data).unwrap().as_str()))?;
+                writer.write("</script>".to_string())?;
+            }
             writer.write("<style>".to_string())?;
             writer.write(style)?;
             writer.write("</style>".to_string())?;
@@ -500,6 +511,8 @@ impl ToHtml for Placeholder {
         if let Some(value) = &self.value {
             value.to_html(writer)
         } else {
+            log::debug!("Unknown placeholder [[{}]]", self.name.clone());
+            writer.write_escaped(format!("[[{}]]", self.name.clone()))?;
             writer.write("<!--Unknown placeholder \"".to_string())?;
             writer.write_escaped(self.name.clone())?;
             writer.write("\"-->".to_string())

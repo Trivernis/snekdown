@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.26.5"
+version = "0.26.6"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -19,7 +19,7 @@ path = "src/main.rs"
 [dependencies]
 charred = "0.3.3"
 asciimath-rs = "0.5.7"
-bibliographix = "0.4.0"
+bibliographix = "0.5.0"
 crossbeam-utils = "0.7.2"
 structopt = "0.3.14"
 minify = "1.1.1"
