@@ -3,6 +3,7 @@ pub(crate) mod inline;
 pub(crate) mod line;
 
 use self::block::ParseBlock;
+use crate::elements::tokens::LB;
 use crate::elements::{Document, ImportAnchor};
 use crate::references::configuration::keys::{
     IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_IGNORE, IMP_STYLESHEETS,
@@ -10,7 +11,6 @@ use crate::references::configuration::keys::{
 use crate::references::configuration::{Configuration, Value};
 use bibliographix::bib_manager::BibManager;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
-use colored::*;
 use crossbeam_utils::sync::WaitGroup;
 use regex::Regex;
 use std::collections::HashMap;
@@ -154,6 +154,25 @@ impl Parser {
         self.paths.lock().unwrap().clone()
     }
 
+    /// Returns a string of the current position in the file
+    pub(crate) fn get_position_string(&self) -> String {
+        let char_index = self.ctm.get_index();
+        let text = self.ctm.get_text();
+        let mut text_unil = text[..char_index].to_vec();
+        let line_number = text_unil.iter().filter(|c| c == &&LB).count();
+        text_unil.reverse();
+        let mut inline_pos = 0;
+
+        while text_unil[inline_pos] != LB {
+            inline_pos += 1;
+        }
+        if let Some(path) = &self.path {
+            format!("{}:{}:{}", path.to_str().unwrap(), line_number, inline_pos)
+        } else {
+            format!("{}:{}", line_number, inline_pos)
+        }
+    }
+
     /// transform an import path to be relative to the current parsers file
     fn transform_path(&mut self, path: String) -> PathBuf {
         let mut path = PathBuf::from(path);
@@ -172,27 +191,20 @@ impl Parser {
     /// starts up a new thread to parse the imported document
     fn import_document(&mut self, path: PathBuf) -> ParseResult<Arc<RwLock<ImportAnchor>>> {
         if !path.exists() || !path.is_file() {
-            println!(
-                "{}",
-                format!(
-                    "Import of \"{}\" failed: The file doesn't exist.",
-                    path.to_str().unwrap()
-                )
-                .red()
+            log::error!(
+                "Import of \"{}\" failed: The file doesn't exist.\n\t--> {}\n",
+                path.to_str().unwrap(),
+                self.get_position_string(),
             );
-            eprintln!("file {} does not exist", path.to_str().unwrap());
             return Err(self.ctm.assert_error(None));
         }
         {
             let mut paths = self.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
-                eprintln!(
-                    "{}",
-                    format!(
-                        "Import of \"{}\" failed: Cyclic import.",
-                        path.to_str().unwrap()
-                    )
-                    .yellow()
+                log::warn!(
+                    "Import of \"{}\" failed: Cyclic import.\n\t--> {}\n",
+                    path.to_str().unwrap(),
+                    self.get_position_string(),
                 );
                 return Err(self.ctm.assert_error(None));
             }
@@ -252,7 +264,20 @@ impl Parser {
 
     /// Imports a path
     fn import(&mut self, path: String, args: &HashMap<String, Value>) -> ImportType {
+        log::debug!(
+            "Importing file {}\n\t--> {}\n",
+            path,
+            self.get_position_string()
+        );
         let path = self.transform_path(path);
+        if !path.exists() {
+            log::error!(
+                "Import of \"{}\" failed: The file doesn't exist.\n\t--> {}\n",
+                path.to_str().unwrap(),
+                self.get_position_string(),
+            );
+            return ImportType::None;
+        }
         if let Some(fname) = path
             .file_name()
             .and_then(|f| Some(f.to_str().unwrap().to_string()))
@@ -328,10 +353,12 @@ impl Parser {
         self.wg = WaitGroup::new();
         if !self.is_child {
             for (path, file_type) in DEFAULT_IMPORTS {
-                self.import(
-                    path.to_string(),
-                    &maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},
-                );
+                if PathBuf::from(path).exists() {
+                    self.import(
+                        path.to_string(),
+                        &maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},
+                    );
+                }
             }
         }
         wg.wait();

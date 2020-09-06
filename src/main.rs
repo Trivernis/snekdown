@@ -1,4 +1,6 @@
 use colored::Colorize;
+use env_logger::Env;
+use log::{Level, LevelFilter};
 use notify::{watcher, RecursiveMode, Watcher};
 use snekdown::format::html::html_writer::HTMLWriter;
 use snekdown::format::html::to_html::ToHtml;
@@ -40,14 +42,31 @@ enum SubCommand {
 
 fn main() {
     let opt: Opt = Opt::from_args();
-    if !opt.input.exists() {
-        println!(
-            "{}",
-            format!(
-                "The input file {} could not be found",
-                opt.input.to_str().unwrap()
+    env_logger::Builder::from_env(Env::default().filter_or("SNEKDOWN_LOG", "info"))
+        .filter_module("reqwest", LevelFilter::Warn)
+        .filter_module("hyper", LevelFilter::Warn)
+        .filter_module("mio", LevelFilter::Warn)
+        .filter_module("want", LevelFilter::Warn)
+        .format(|buf, record| {
+            use std::io::Write;
+            let color = get_level_style(record.level());
+            writeln!(
+                buf,
+                "{}: {}",
+                record
+                    .level()
+                    .to_string()
+                    .to_lowercase()
+                    .as_str()
+                    .color(color),
+                record.args()
             )
-            .red()
+        })
+        .init();
+    if !opt.input.exists() {
+        log::error!(
+            "The input file {} could not be found",
+            opt.input.to_str().unwrap()
         );
         return;
     }
@@ -58,6 +77,16 @@ fn main() {
         }
         Some(SubCommand::Watch) => watch(&opt),
     };
+}
+
+fn get_level_style(level: Level) -> colored::Color {
+    match level {
+        Level::Trace => colored::Color::Magenta,
+        Level::Debug => colored::Color::Blue,
+        Level::Info => colored::Color::Green,
+        Level::Warn => colored::Color::Yellow,
+        Level::Error => colored::Color::Red,
+    }
 }
 
 /// Watches a file with all of its imports and renders on change
@@ -82,10 +111,8 @@ fn render(opt: &Opt) -> Parser {
     let start = Instant::now();
     let mut parser = Parser::new_from_file(opt.input.clone()).unwrap();
     let document = parser.parse();
-    println!(
-        "{}",
-        format!("Parsing took:     {:?}", start.elapsed()).italic()
-    );
+
+    log::info!("Parsing took:     {:?}", start.elapsed());
     let start_render = Instant::now();
     let file = OpenOptions::new()
         .read(true)
@@ -101,16 +128,10 @@ fn render(opt: &Opt) -> Parser {
             document.to_html(&mut writer).unwrap();
             writer.flush().unwrap();
         }
-        _ => println!("Unknown format {}", opt.format),
+        _ => log::error!("Unknown format {}", opt.format),
     }
-    println!(
-        "{}",
-        format!("Rendering took:   {:?}", start_render.elapsed()).italic()
-    );
-    println!(
-        "{}",
-        format!("Total:            {:?}", start.elapsed()).italic()
-    );
+    log::info!("Rendering took:   {:?}", start_render.elapsed());
+    log::info!("Total:            {:?}", start.elapsed());
 
     parser
 }

@@ -32,30 +32,40 @@ impl ParseBlock for Parser {
             }
         }
         let token = if let Ok(section) = self.parse_section() {
+            log::trace!("Block::Section");
             Block::Section(section)
         } else if let Some(_) = self.section_return {
             return Err(self.ctm.err());
         } else if let Ok(list) = self.parse_list() {
+            log::trace!("Block::List");
             Block::List(list)
         } else if let Ok(table) = self.parse_table() {
+            log::trace!("Block::Table");
             Block::Table(table)
         } else if let Ok(code_block) = self.parse_code_block() {
+            log::trace!("Block::CodeBlock");
             Block::CodeBlock(code_block)
         } else if let Ok(math_block) = self.parse_math_block() {
+            log::trace!("Block::MathBlock");
             Block::MathBlock(math_block)
         } else if let Ok(quote) = self.parse_quote() {
+            log::trace!("Block::Quote");
             Block::Quote(quote)
         } else if let Ok(import) = self.parse_import() {
             if let Some(import) = import {
+                log::trace!("Block::Import");
                 Block::Import(import)
             } else {
+                log::trace!("Block::Null");
                 Block::Null
             }
         } else if let Some(_) = self.section_return {
             return Err(self.ctm.err());
         } else if let Ok(pholder) = self.parse_placeholder() {
+            log::trace!("Block::Placeholder");
             Block::Placeholder(pholder)
         } else if let Ok(paragraph) = self.parse_paragraph() {
+            log::trace!("Block::Paragraph");
             Block::Paragraph(paragraph)
         } else {
             return Err(self.ctm.err());

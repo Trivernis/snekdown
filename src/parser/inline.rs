@@ -60,44 +60,62 @@ impl ParseInline for Parser {
     fn parse_inline(&mut self) -> ParseResult<Inline> {
         if self.parse_variables {
             if let Ok(var) = self.parse_template_variable() {
+                log::trace!("Inline::TemplateVar");
                 return Ok(Inline::TemplateVar(var));
             }
         }
         if self.ctm.check_char(&PIPE) || self.ctm.check_char(&LB) {
             Err(self.ctm.err())
         } else if self.ctm.check_eof() {
+            log::trace!("EOF");
             Err(self.ctm.err())
         } else if let Ok(image) = self.parse_image() {
+            log::trace!("Inline::Image");
             Ok(Inline::Image(image))
         } else if let Ok(url) = self.parse_url(false) {
+            log::trace!("Inline::Url");
             Ok(Inline::Url(url))
         } else if let Ok(pholder) = self.parse_placeholder() {
+            log::trace!("Inline::Placeholder");
             Ok(Inline::Placeholder(pholder))
         } else if let Ok(bold) = self.parse_bold() {
+            log::trace!("Inline::Bold");
             Ok(Inline::Bold(bold))
         } else if let Ok(italic) = self.parse_italic() {
+            log::trace!("Inline::Italic");
             Ok(Inline::Italic(italic))
         } else if let Ok(under) = self.parse_underlined() {
+            log::trace!("Inline::Underlined");
             Ok(Inline::Underlined(under))
         } else if let Ok(mono) = self.parse_monospace() {
+            log::trace!("Inline::Monospace");
             Ok(Inline::Monospace(mono))
         } else if let Ok(striked) = self.parse_striked() {
+            log::trace!("Inline::Striked");
             Ok(Inline::Striked(striked))
         } else if let Ok(superscript) = self.parse_superscript() {
+            log::trace!("Inline::Superscript");
             Ok(Inline::Superscript(superscript))
         } else if let Ok(checkbox) = self.parse_checkbox() {
+            log::trace!("Inline::Checkbox");
             Ok(Inline::Checkbox(checkbox))
         } else if let Ok(emoji) = self.parse_emoji() {
+            log::trace!("Inline::Emoji");
             Ok(Inline::Emoji(emoji))
         } else if let Ok(colored) = self.parse_colored() {
+            log::trace!("Inline::Colored");
             Ok(Inline::Colored(colored))
         } else if let Ok(bibref) = self.parse_bibref() {
+            log::trace!("Inline::BibReference");
             Ok(Inline::BibReference(bibref))
         } else if let Ok(math) = self.parse_math() {
+            log::trace!("Inline::Math");
             Ok(Inline::Math(math))
         } else if let Ok(char_code) = self.parse_character_code() {
+            log::trace!("Inline::Character Code");
             Ok(Inline::CharacterCode(char_code))
         } else {
+            log::trace!("Inline::Plain");
             Ok(Inline::Plain(self.parse_plain()?))
         }
     }

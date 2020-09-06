@@ -24,15 +24,20 @@ impl ParseLine for Parser {
     /// parses inline definitions
     fn parse_line(&mut self) -> ParseResult<Line> {
         if self.ctm.check_eof() {
+            log::trace!("EOF");
             Err(self.ctm.err())
         } else {
             if let Ok(ruler) = self.parse_ruler() {
+                log::trace!("Line::Ruler");
                 Ok(Line::Ruler(ruler))
             } else if let Ok(centered) = self.parse_centered() {
+                log::trace!("Line::Centered");
                 Ok(Line::Centered(centered))
             } else if let Ok(bib) = self.parse_bib_entry() {
+                log::trace!("Line::BibEntry");
                 Ok(Line::BibEntry(bib))
             } else if let Ok(text) = self.parse_text_line() {
+                log::trace!("Line::Text");
                 Ok(Line::Text(text))
             } else {
                 Err(self.ctm.err())
@@ -49,6 +54,7 @@ impl ParseLine for Parser {
             .iter()
             .for_each(|e| anchor.push(*e));
         anchor.retain(|c| !c.is_whitespace());
+        log::trace!("Line::Header");
         Ok(Header::new(line, anchor))
     }
 
@@ -78,6 +84,7 @@ impl ParseLine for Parser {
         }
 
         let item = ListItem::new(self.parse_line()?, level as u16, ordered);
+        log::trace!("Line::ListItem");
 
         Ok(item)
     }
@@ -124,6 +131,7 @@ impl ParseLine for Parser {
         }
 
         if row.cells.len() > 0 {
+            log::trace!("Line::TableRow");
             Ok(row)
         } else {
             return Err(self.ctm.rewind_with_error(start_index));
