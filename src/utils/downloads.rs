@@ -97,14 +97,17 @@ impl PendingDownload {
 
     /// Stores the data to a cache file to retrieve it later
     fn store_to_cache(&self, data: &Vec<u8>) {
-        let cache_file = get_cached_path(PathBuf::from(&self.path));
-        fs::write(&cache_file, data.clone()).unwrap_or_else(|_| {
-            log::warn!(
-                "Failed to write file to cache: {} -> {:?}",
-                self.path.clone(),
-                cache_file
-            )
-        });
+        if self.use_cache {
+            let cache_file = get_cached_path(PathBuf::from(&self.path));
+            log::debug!("Writing to cache {} -> {:?}", self.path, cache_file);
+            fs::write(&cache_file, data.clone()).unwrap_or_else(|_| {
+                log::warn!(
+                    "Failed to write file to cache: {} -> {:?}",
+                    self.path,
+                    cache_file
+                )
+            });
+        }
     }
 
     fn read_from_cache(&self) -> Option<Vec<u8>> {
