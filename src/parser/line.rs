@@ -237,7 +237,8 @@ impl ParseLine for Parser {
             }
         };
 
-        self.document
+        self.options
+            .document
             .bibliography
             .entry_dictionary()
             .lock()
@@ -246,6 +247,7 @@ impl ParseLine for Parser {
 
         Ok(BibEntry {
             entry: self
+                .options
                 .document
                 .bibliography
                 .entry_dictionary()

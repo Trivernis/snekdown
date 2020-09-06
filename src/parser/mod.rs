@@ -8,16 +8,13 @@ use crate::elements::{Document, ImportAnchor};
 use crate::references::configuration::keys::{
     IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_IGNORE, IMP_STYLESHEETS,
 };
-use crate::references::configuration::{Configuration, Value};
-use crate::utils::downloads::DownloadManager;
-use bibliographix::bib_manager::BibManager;
+use crate::references::configuration::Value;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use crossbeam_utils::sync::WaitGroup;
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs::{read_to_string, File};
-use std::io;
-use std::io::{BufRead, BufReader, Cursor};
+use std::io::BufReader;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
@@ -33,133 +30,87 @@ const DEFAULT_IMPORTS: &'static [(&str, &str)] = &[
     ("style.css", "stylesheet"),
 ];
 
+#[derive(Clone, Debug)]
+pub struct ParserOptions {
+    pub path: Option<PathBuf>,
+    pub paths: Arc<Mutex<Vec<PathBuf>>>,
+    pub document: Document,
+    pub is_child: bool,
+}
+
+impl Default for ParserOptions {
+    fn default() -> Self {
+        Self {
+            path: None,
+            paths: Arc::new(Mutex::new(Vec::new())),
+            document: Document::new(),
+            is_child: false,
+        }
+    }
+}
+
+impl ParserOptions {
+    /// Adds a path to the parser options
+    pub fn add_path(mut self, path: PathBuf) -> Self {
+        self.path = Some(path.clone());
+        self.paths.lock().unwrap().push(path);
+
+        self
+    }
+
+    pub fn use_cache(self, value: bool) -> Self {
+        self.document.downloads.lock().unwrap().use_cache = value;
+
+        self
+    }
+}
+
 pub struct Parser {
+    pub(crate) options: ParserOptions,
     pub(crate) ctm: CharTapeMachine,
     section_nesting: u8,
     sections: Vec<u8>,
     section_return: Option<u8>,
-    path: Option<PathBuf>,
-    paths: Arc<Mutex<Vec<PathBuf>>>,
     wg: WaitGroup,
-    is_child: bool,
     pub(crate) block_break_at: Vec<char>,
     pub(crate) inline_break_at: Vec<char>,
-    pub(crate) document: Document,
     pub(crate) parse_variables: bool,
 }
 
 impl Parser {
-    /// Creates a new parser from a path
-    pub fn new_from_file(path: PathBuf) -> Result<Self, io::Error> {
-        let f = File::open(&path)?;
-        Ok(Self::create(
-            Some(PathBuf::from(path)),
-            Arc::new(Mutex::new(Vec::new())),
-            false,
-            Box::new(BufReader::new(f)),
-            BibManager::new(),
-            Arc::new(Mutex::new(DownloadManager::new())),
-        ))
-    }
+    /// Creates a new parser with the default values given
+    pub fn with_defaults(options: ParserOptions) -> Self {
+        let text = if let Some(path) = &options.path {
+            let mut text = read_to_string(&path).unwrap();
+            if text.chars().last() != Some('\n') {
+                text.push('\n');
+            }
 
-    /// Creates a new parser with text being the markdown text
-    pub fn new(text: String, path: Option<PathBuf>) -> Self {
-        let text_bytes = text.as_bytes();
-        let path = if let Some(inner_path) = path {
-            Some(PathBuf::from(inner_path))
+            text
         } else {
-            None
+            "".to_string()
         };
-        Parser::create(
-            path,
-            Arc::new(Mutex::new(Vec::new())),
-            false,
-            Box::new(Cursor::new(text_bytes.to_vec())),
-            BibManager::new(),
-            Arc::new(Mutex::new(DownloadManager::new())),
-        )
-    }
-
-    /// Creates a child parser from string text
-    pub fn child(
-        text: String,
-        path: PathBuf,
-        paths: Arc<Mutex<Vec<PathBuf>>>,
-        bib_manager: BibManager,
-        download_manager: Arc<Mutex<DownloadManager>>,
-    ) -> Self {
-        let text_bytes = text.as_bytes();
-        Self::create(
-            Some(PathBuf::from(path)),
-            paths,
-            true,
-            Box::new(Cursor::new(text_bytes.to_vec())),
-            bib_manager,
-            download_manager,
-        )
-    }
-
-    /// Creates a child parser from a file
-    pub fn child_from_file(
-        path: PathBuf,
-        paths: Arc<Mutex<Vec<PathBuf>>>,
-        bib_manager: BibManager,
-        download_manager: Arc<Mutex<DownloadManager>>,
-    ) -> Result<Self, io::Error> {
-        let f = File::open(&path)?;
-        Ok(Self::create(
-            Some(PathBuf::from(path)),
-            paths,
-            true,
-            Box::new(BufReader::new(f)),
-            bib_manager,
-            download_manager,
-        ))
-    }
-
-    fn create(
-        path: Option<PathBuf>,
-        paths: Arc<Mutex<Vec<PathBuf>>>,
-        is_child: bool,
-        mut reader: Box<dyn BufRead>,
-        bib_manager: BibManager,
-        download_manager: Arc<Mutex<DownloadManager>>,
-    ) -> Self {
-        if let Some(path) = path.clone() {
-            paths.lock().unwrap().push(path.clone())
-        }
-        let mut text = String::new();
-        reader
-            .read_to_string(&mut text)
-            .expect("Failed to read file");
-        if text.chars().last() != Some('\n') {
-            text.push('\n');
-        }
-
-        let document = Document::new_with_manager(!is_child, bib_manager, download_manager);
         Self {
+            options,
             sections: Vec::new(),
             section_nesting: 0,
             section_return: None,
-            path,
-            paths,
             wg: WaitGroup::new(),
-            is_child,
             ctm: CharTapeMachine::new(text.chars().collect()),
             inline_break_at: Vec::new(),
             block_break_at: Vec::new(),
-            document,
             parse_variables: false,
         }
     }
 
-    pub fn set_config(&mut self, config: Configuration) {
-        self.document.config = config;
-    }
+    /// Creates a new child parser
+    fn create_child(&self, path: PathBuf) -> Self {
+        let mut options = self.options.clone().add_path(path.clone());
+        options.document = self.options.document.create_child();
+        options.document.path = Some(path.to_str().unwrap().to_string());
+        options.is_child = true;
 
-    /// Returns the import paths of the parser
-    pub fn get_paths(&self) -> Vec<PathBuf> {
-        self.paths.lock().unwrap().clone()
+        Self::with_defaults(options)
     }
 
     /// Returns a string of the current position in the file
@@ -174,7 +125,7 @@ impl Parser {
         while text_unil[inline_pos] != LB {
             inline_pos += 1;
         }
-        if let Some(path) = &self.path {
+        if let Some(path) = &self.options.path {
             format!("{}:{}:{}", path.to_str().unwrap(), line_number, inline_pos)
         } else {
             format!("{}:{}", line_number, inline_pos)
@@ -186,7 +137,7 @@ impl Parser {
         let mut path = PathBuf::from(path);
 
         if !path.is_absolute() {
-            if let Some(selfpath) = &self.path {
+            if let Some(selfpath) = &self.options.path {
                 if let Some(dir) = selfpath.parent() {
                     path = PathBuf::new().join(dir).join(path);
                 }
@@ -207,7 +158,7 @@ impl Parser {
             return Err(self.ctm.assert_error(None));
         }
         {
-            let mut paths = self.paths.lock().unwrap();
+            let mut paths = self.options.paths.lock().unwrap();
             if paths.iter().find(|item| **item == path) != None {
                 log::warn!(
                     "Import of \"{}\" failed: Already imported.\n\t--> {}\n",
@@ -221,16 +172,10 @@ impl Parser {
         let anchor = Arc::new(RwLock::new(ImportAnchor::new()));
         let anchor_clone = Arc::clone(&anchor);
         let wg = self.wg.clone();
-        let paths = Arc::clone(&self.paths);
-        let config = self.document.config.clone();
-        let bibliography = self.document.bibliography.create_child();
-        let download_manager = Arc::clone(&self.document.downloads);
+        let mut chid_parser = self.create_child(path.clone());
 
         let _ = thread::spawn(move || {
-            let mut parser =
-                Parser::child_from_file(path, paths, bibliography, download_manager).unwrap();
-            parser.set_config(config);
-            let document = parser.parse();
+            let document = chid_parser.parse();
             anchor_clone.write().unwrap().set_document(document);
 
             drop(wg);
@@ -242,7 +187,8 @@ impl Parser {
     /// Imports a bibliography toml file
     fn import_bib(&mut self, path: PathBuf) -> ParseResult<()> {
         let f = File::open(path).map_err(|_| self.ctm.err())?;
-        self.document
+        self.options
+            .document
             .bibliography
             .read_bib_file(&mut BufReader::new(f))
             .map_err(|_| self.ctm.err())?;
@@ -256,8 +202,9 @@ impl Parser {
     }
 
     fn import_stylesheet(&mut self, path: PathBuf) -> ParseResult<()> {
-        self.document.stylesheets.push(
-            self.document
+        self.options.document.stylesheets.push(
+            self.options
+                .document
                 .downloads
                 .lock()
                 .unwrap()
@@ -272,7 +219,7 @@ impl Parser {
         let value = contents
             .parse::<toml::Value>()
             .map_err(|_| self.ctm.err())?;
-        self.document.config.set_from_toml(&value);
+        self.options.document.config.set_from_toml(&value);
 
         Ok(())
     }
@@ -298,6 +245,7 @@ impl Parser {
             .and_then(|f| Some(f.to_str().unwrap().to_string()))
         {
             if let Some(Value::Array(ignore)) = self
+                .options
                 .document
                 .config
                 .get_entry(IMP_IGNORE)
@@ -345,7 +293,7 @@ impl Parser {
 
     /// parses the given text into a document
     pub fn parse(&mut self) -> Document {
-        self.document.path = if let Some(path) = &self.path {
+        self.options.document.path = if let Some(path) = &self.options.path {
             Some(path.canonicalize().unwrap().to_str().unwrap().to_string())
         } else {
             None
@@ -353,7 +301,7 @@ impl Parser {
 
         while !self.ctm.check_eof() {
             match self.parse_block() {
-                Ok(block) => self.document.add_element(block),
+                Ok(block) => self.options.document.add_element(block),
                 Err(err) => {
                     if self.ctm.check_eof() {
                         break;
@@ -366,7 +314,7 @@ impl Parser {
 
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
-        if !self.is_child {
+        if !self.options.is_child {
             for (path, file_type) in DEFAULT_IMPORTS {
                 if self.transform_path(path.to_string()).exists() {
                     self.import(
@@ -377,19 +325,23 @@ impl Parser {
             }
         }
         wg.wait();
-        if !self.is_child {
+        if !self.options.is_child {
             self.import_from_config();
         }
-        self.document.post_process();
-        let document = self.document.clone();
-        self.document = Document::new(!self.is_child);
+        self.options.document.post_process();
+        let document = std::mem::replace(&mut self.options.document, Document::new());
 
         document
+    }
+
+    pub fn get_paths(&self) -> Vec<PathBuf> {
+        self.options.paths.lock().unwrap().clone()
     }
 
     /// Imports files from the configs import values
     fn import_from_config(&mut self) {
         if let Some(Value::Array(mut imp)) = self
+            .options
             .document
             .config
             .get_entry(IMP_STYLESHEETS)
@@ -402,6 +354,7 @@ impl Parser {
             }
         }
         if let Some(Value::Array(mut imp)) = self
+            .options
             .document
             .config
             .get_entry(IMP_CONFIGS)
@@ -413,6 +366,7 @@ impl Parser {
             }
         }
         if let Some(Value::Array(mut imp)) = self
+            .options
             .document
             .config
             .get_entry(IMP_BIBLIOGRAPHY)

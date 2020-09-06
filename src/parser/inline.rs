@@ -136,7 +136,13 @@ impl ParseInline for Parser {
             Ok(Image {
                 url,
                 metadata,
-                download: self.document.downloads.lock().unwrap().add_download(path),
+                download: self
+                    .options
+                    .document
+                    .downloads
+                    .lock()
+                    .unwrap()
+                    .add_download(path),
             })
         } else {
             Err(self.ctm.rewind_with_error(start_index))
@@ -328,10 +334,11 @@ impl ParseInline for Parser {
         let bib_ref = BibRef::new(key.clone());
         let ref_entry = Arc::new(RwLock::new(BibReference::new(
             key,
-            self.document.config.get_ref_entry(BIB_REF_DISPLAY),
+            self.options.document.config.get_ref_entry(BIB_REF_DISPLAY),
             bib_ref.anchor(),
         )));
-        self.document
+        self.options
+            .document
             .bibliography
             .root_ref_anchor()
             .lock()
@@ -501,7 +508,9 @@ impl ParseInline for Parser {
         };
 
         let placeholder = Arc::new(RwLock::new(Placeholder::new(name, metadata)));
-        self.document.add_placeholder(Arc::clone(&placeholder));
+        self.options
+            .document
+            .add_placeholder(Arc::clone(&placeholder));
 
         Ok(placeholder)
     }

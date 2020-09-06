@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.26.6"
+version = "0.27.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -43,3 +43,4 @@ maplit = "1.0.2"
 log = "0.4.11"
 env_logger = "0.7.1"
 indicatif = "0.15.0"
+platform-dirs = "0.2.0"

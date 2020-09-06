@@ -14,11 +14,6 @@ macro_rules! count_block_elements {
 }
 
 #[test]
-fn it_inits() {
-    let _ = Parser::new("".to_string(), None);
-}
-
-#[test]
 fn it_parses_sections() {
     let document = parse!("# Section\n## Subsection\n# Section");
     assert_eq!(

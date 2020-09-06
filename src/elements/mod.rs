@@ -289,10 +289,11 @@ pub struct CharacterCode {
 // implementations
 
 impl Document {
-    pub fn new(is_root: bool) -> Self {
+    /// Creates a new parent document
+    pub fn new() -> Self {
         Self {
             elements: Vec::new(),
-            is_root,
+            is_root: true,
             path: None,
             placeholders: Vec::new(),
             config: Configuration::default(),
@@ -302,20 +303,17 @@ impl Document {
         }
     }
 
-    pub fn new_with_manager(
-        is_root: bool,
-        bibliography: BibManager,
-        downloads: Arc<Mutex<DownloadManager>>,
-    ) -> Self {
+    /// Creates a new child document
+    pub fn create_child(&self) -> Self {
         Self {
             elements: Vec::new(),
-            is_root,
+            is_root: false,
             path: None,
             placeholders: Vec::new(),
-            config: Configuration::default(),
-            bibliography,
+            config: self.config.clone(),
+            bibliography: self.bibliography.create_child(),
             stylesheets: Vec::new(),
-            downloads,
+            downloads: Arc::clone(&self.downloads),
         }
     }
 

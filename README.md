@@ -8,11 +8,12 @@ for my needs.
 
 ```
 USAGE:
-    snekdown [OPTIONS] <input> <output> [SUBCOMMAND]
+    snekdown [FLAGS] [OPTIONS] <input> <output> [SUBCOMMAND]
 
 FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
+    -h, --help        Prints help information
+        --no-cache    Don't use the cache
+    -V, --version     Prints version information
 
 OPTIONS:
     -f, --format <format>    the output format [default: html]

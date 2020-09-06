@@ -4,6 +4,7 @@ use log::{Level, LevelFilter};
 use notify::{watcher, RecursiveMode, Watcher};
 use snekdown::format::html::html_writer::HTMLWriter;
 use snekdown::format::html::to_html::ToHtml;
+use snekdown::parser::ParserOptions;
 use snekdown::Parser;
 use std::fs::OpenOptions;
 use std::io::BufWriter;
@@ -25,6 +26,10 @@ struct Opt {
     /// the output format
     #[structopt(short, long, default_value = "html")]
     format: String,
+
+    /// Don't use the cache
+    #[structopt(long)]
+    no_cache: bool,
 
     #[structopt(subcommand)]
     sub_command: Option<SubCommand>,
@@ -109,7 +114,11 @@ fn watch(opt: &Opt) {
 /// Renders the document to the output path
 fn render(opt: &Opt) -> Parser {
     let start = Instant::now();
-    let mut parser = Parser::new_from_file(opt.input.clone()).unwrap();
+    let mut parser = Parser::with_defaults(
+        ParserOptions::default()
+            .add_path(opt.input.clone())
+            .use_cache(!opt.no_cache),
+    );
     let document = parser.parse();
 
     log::info!("Parsing took:     {:?}", start.elapsed());
