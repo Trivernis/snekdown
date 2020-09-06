@@ -7,6 +7,8 @@ use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::encode_attribute;
 use minify::html::minify;
 use std::io;
+use std::sync::Arc;
+use std::thread;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
@@ -95,6 +97,10 @@ impl ToHtml for MetadataValue {
 
 impl ToHtml for Document {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        let downloads = Arc::clone(&self.downloads);
+        thread::spawn(move || {
+            downloads.lock().unwrap().download_all();
+        });
         let path = if let Some(path) = &self.path {
             format!("path=\"{}\"", encode_attribute(path.as_str()))
         } else {

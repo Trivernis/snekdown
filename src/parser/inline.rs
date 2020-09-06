@@ -132,7 +132,12 @@ impl ParseInline for Parser {
             } else {
                 None
             };
-            Ok(Image { url, metadata })
+            let path = url.url.clone();
+            Ok(Image {
+                url,
+                metadata,
+                download: self.document.downloads.lock().unwrap().add_download(path),
+            })
         } else {
             Err(self.ctm.rewind_with_error(start_index))
         }

@@ -9,6 +9,7 @@ use crate::references::configuration::keys::{
     IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_IGNORE, IMP_STYLESHEETS,
 };
 use crate::references::configuration::{Configuration, Value};
+use crate::utils::downloads::DownloadManager;
 use bibliographix::bib_manager::BibManager;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
 use crossbeam_utils::sync::WaitGroup;
@@ -57,6 +58,7 @@ impl Parser {
             false,
             Box::new(BufReader::new(f)),
             BibManager::new(),
+            Arc::new(Mutex::new(DownloadManager::new())),
         ))
     }
 
@@ -74,6 +76,7 @@ impl Parser {
             false,
             Box::new(Cursor::new(text_bytes.to_vec())),
             BibManager::new(),
+            Arc::new(Mutex::new(DownloadManager::new())),
         )
     }
 
@@ -83,6 +86,7 @@ impl Parser {
         path: PathBuf,
         paths: Arc<Mutex<Vec<PathBuf>>>,
         bib_manager: BibManager,
+        download_manager: Arc<Mutex<DownloadManager>>,
     ) -> Self {
         let text_bytes = text.as_bytes();
         Self::create(
@@ -91,6 +95,7 @@ impl Parser {
             true,
             Box::new(Cursor::new(text_bytes.to_vec())),
             bib_manager,
+            download_manager,
         )
     }
 
@@ -99,6 +104,7 @@ impl Parser {
         path: PathBuf,
         paths: Arc<Mutex<Vec<PathBuf>>>,
         bib_manager: BibManager,
+        download_manager: Arc<Mutex<DownloadManager>>,
     ) -> Result<Self, io::Error> {
         let f = File::open(&path)?;
         Ok(Self::create(
@@ -107,6 +113,7 @@ impl Parser {
             true,
             Box::new(BufReader::new(f)),
             bib_manager,
+            download_manager,
         ))
     }
 
@@ -116,6 +123,7 @@ impl Parser {
         is_child: bool,
         mut reader: Box<dyn BufRead>,
         bib_manager: BibManager,
+        download_manager: Arc<Mutex<DownloadManager>>,
     ) -> Self {
         if let Some(path) = path.clone() {
             paths.lock().unwrap().push(path.clone())
@@ -128,7 +136,7 @@ impl Parser {
             text.push('\n');
         }
 
-        let document = Document::new_with_manager(!is_child, bib_manager);
+        let document = Document::new_with_manager(!is_child, bib_manager, download_manager);
         Self {
             sections: Vec::new(),
             section_nesting: 0,
@@ -216,9 +224,11 @@ impl Parser {
         let paths = Arc::clone(&self.paths);
         let config = self.document.config.clone();
         let bibliography = self.document.bibliography.create_child();
+        let download_manager = Arc::clone(&self.document.downloads);
 
         let _ = thread::spawn(move || {
-            let mut parser = Parser::child_from_file(path, paths, bibliography).unwrap();
+            let mut parser =
+                Parser::child_from_file(path, paths, bibliography, download_manager).unwrap();
             parser.set_config(config);
             let document = parser.parse();
             anchor_clone.write().unwrap().set_document(document);

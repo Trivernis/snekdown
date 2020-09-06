@@ -4,14 +4,14 @@ use crate::format::PlaceholderTemplate;
 use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
+use crate::utils::downloads::{DownloadManager, PendingDownload};
 use asciimath_rs::elements::special::Expression;
 use bibliographix::bib_manager::BibManager;
 use bibliographix::bibliography::bibliography_entry::BibliographyEntryReference;
 use bibliographix::references::bib_reference::BibRefAnchor;
+use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
-use std::fs::read;
 use std::iter::FromIterator;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
@@ -72,6 +72,7 @@ pub struct Document {
     pub(crate) placeholders: Vec<Arc<RwLock<Placeholder>>>,
     pub config: Configuration,
     pub bibliography: BibManager,
+    pub downloads: Arc<Mutex<DownloadManager>>,
     pub stylesheets: Vec<String>,
 }
 
@@ -232,6 +233,7 @@ pub struct Url {
 pub struct Image {
     pub(crate) url: Url,
     pub(crate) metadata: Option<InlineMetadata>,
+    pub(crate) download: Arc<Mutex<PendingDownload>>,
 }
 
 #[derive(Clone, Debug)]
@@ -297,10 +299,15 @@ impl Document {
             config: Configuration::default(),
             bibliography: BibManager::new(),
             stylesheets: Vec::new(),
+            downloads: Arc::new(Mutex::new(DownloadManager::new())),
         }
     }
 
-    pub fn new_with_manager(is_root: bool, bibliography: BibManager) -> Self {
+    pub fn new_with_manager(
+        is_root: bool,
+        bibliography: BibManager,
+        downloads: Arc<Mutex<DownloadManager>>,
+    ) -> Self {
         Self {
             elements: Vec::new(),
             is_root,
@@ -309,6 +316,7 @@ impl Document {
             config: Configuration::default(),
             bibliography,
             stylesheets: Vec::new(),
+            downloads,
         }
     }
 
@@ -680,28 +688,16 @@ impl Into<HashMap<String, Value>> for InlineMetadata {
 
 impl Image {
     pub fn get_content(&self) -> Option<Vec<u8>> {
-        let path = PathBuf::from(&self.url.url);
-        if path.exists() {
-            if let Ok(content) = read(path) {
-                Some(content)
-            } else {
-                None
-            }
-        } else {
-            self.download_content()
+        let mut download = self.download.lock().unwrap();
+        if let Some(wg) = &download.wg {
+            let wg = WaitGroup::clone(wg);
+            log::debug!("Waiting for content of {}", self.url.url.clone());
+            wg.wait();
         }
-    }
+        let mut data = None;
+        std::mem::swap(&mut data, &mut download.data);
 
-    fn download_content(&self) -> Option<Vec<u8>> {
-        if let Ok(content) = reqwest::blocking::get(&self.url.url) {
-            if let Ok(bytes) = content.bytes() {
-                Some(bytes.to_vec())
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        data
     }
 }
 
