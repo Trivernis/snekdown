@@ -256,8 +256,13 @@ impl Parser {
     }
 
     fn import_stylesheet(&mut self, path: PathBuf) -> ParseResult<()> {
-        let content = self.import_text_file(path)?;
-        self.document.stylesheets.push(content);
+        self.document.stylesheets.push(
+            self.document
+                .downloads
+                .lock()
+                .unwrap()
+                .add_download(path.to_str().unwrap().to_string()),
+        );
 
         Ok(())
     }
@@ -363,7 +368,7 @@ impl Parser {
         self.wg = WaitGroup::new();
         if !self.is_child {
             for (path, file_type) in DEFAULT_IMPORTS {
-                if PathBuf::from(path).exists() {
+                if self.transform_path(path.to_string()).exists() {
                     self.import(
                         path.to_string(),
                         &maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},

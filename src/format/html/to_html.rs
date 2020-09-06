@@ -8,7 +8,6 @@ use htmlescape::encode_attribute;
 use minify::html::minify;
 use std::io;
 use std::sync::Arc;
-use std::thread;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
@@ -98,9 +97,7 @@ impl ToHtml for MetadataValue {
 impl ToHtml for Document {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
         let downloads = Arc::clone(&self.downloads);
-        thread::spawn(move || {
-            downloads.lock().unwrap().download_all();
-        });
+        downloads.lock().unwrap().download_all();
         let path = if let Some(path) = &self.path {
             format!("path=\"{}\"", encode_attribute(path.as_str()))
         } else {
@@ -125,9 +122,13 @@ impl ToHtml for Document {
             writer.write("</style>".to_string())?;
 
             for stylesheet in &self.stylesheets {
-                writer.write("<style>".to_string())?;
-                writer.write(minify(stylesheet.as_str()))?;
-                writer.write("</style>".to_string())?;
+                let mut stylesheet = stylesheet.lock().unwrap();
+                let data = std::mem::replace(&mut stylesheet.data, None);
+                if let Some(data) = data {
+                    writer.write("<style>".to_string())?;
+                    writer.write(minify(String::from_utf8(data).unwrap().as_str()))?;
+                    writer.write("</style>".to_string())?;
+                }
             }
             writer.write("</head><body><div class=\"content\">".to_string())?;
             for element in &self.elements {

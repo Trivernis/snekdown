@@ -9,7 +9,6 @@ use asciimath_rs::elements::special::Expression;
 use bibliographix::bib_manager::BibManager;
 use bibliographix::bibliography::bibliography_entry::BibliographyEntryReference;
 use bibliographix::references::bib_reference::BibRefAnchor;
-use crossbeam_utils::sync::WaitGroup;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -73,7 +72,7 @@ pub struct Document {
     pub config: Configuration,
     pub bibliography: BibManager,
     pub downloads: Arc<Mutex<DownloadManager>>,
-    pub stylesheets: Vec<String>,
+    pub stylesheets: Vec<Arc<Mutex<PendingDownload>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -688,14 +687,8 @@ impl Into<HashMap<String, Value>> for InlineMetadata {
 
 impl Image {
     pub fn get_content(&self) -> Option<Vec<u8>> {
-        let mut download = self.download.lock().unwrap();
-        if let Some(wg) = &download.wg {
-            let wg = WaitGroup::clone(wg);
-            log::debug!("Waiting for content of {}", self.url.url.clone());
-            wg.wait();
-        }
         let mut data = None;
-        std::mem::swap(&mut data, &mut download.data);
+        std::mem::swap(&mut data, &mut self.download.lock().unwrap().data);
 
         data
     }

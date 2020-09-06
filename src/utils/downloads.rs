@@ -1,4 +1,4 @@
-use crossbeam_utils::sync::WaitGroup;
+use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use std::fs::read;
 use std::path::PathBuf;
@@ -20,17 +20,30 @@ impl DownloadManager {
 
     /// Adds a new pending download
     pub fn add_download(&mut self, path: String) -> Arc<Mutex<PendingDownload>> {
-        let pending = Arc::new(Mutex::new(PendingDownload::new(path)));
+        let pending = Arc::new(Mutex::new(PendingDownload::new(path.clone())));
         self.downloads.push(Arc::clone(&pending));
+        log::debug!("Added download {}", path);
 
         pending
     }
 
     /// Downloads all download entries
     pub fn download_all(&self) {
-        self.downloads
-            .par_iter()
-            .for_each(|d| d.lock().unwrap().download())
+        let pb = Arc::new(Mutex::new(ProgressBar::new(self.downloads.len() as u64)));
+        pb.lock().unwrap().set_style(
+            ProgressStyle::default_bar()
+                .template("Reading Imports: [{bar:40.cyan/blue}]")
+                .progress_chars("=> "),
+        );
+        let pb_cloned = Arc::clone(&pb);
+
+        self.downloads.par_iter().for_each_with(pb_cloned, |pb, d| {
+            d.lock().unwrap().download();
+            pb.lock().unwrap().inc(1);
+        });
+        pb.lock()
+            .unwrap()
+            .finish_with_message("All downloads finished!");
     }
 }
 
@@ -38,29 +51,18 @@ impl DownloadManager {
 /// Download does not necessarily mean that it's not a local file
 #[derive(Clone, Debug)]
 pub struct PendingDownload {
-    path: String,
+    pub(crate) path: String,
     pub(crate) data: Option<Vec<u8>>,
-    pub(crate) wg: Option<WaitGroup>,
 }
 
 impl PendingDownload {
     pub fn new(path: String) -> Self {
-        Self {
-            path,
-            data: None,
-            wg: Some(WaitGroup::new()),
-        }
+        Self { path, data: None }
     }
 
     /// Downloads the file and writes the content to the content field
     pub fn download(&mut self) {
-        let wg = std::mem::replace(&mut self.wg, None);
-        if let Some(wg) = wg {
-            log::debug!("Reading {}...", self.path);
-            self.data = self.read_content();
-            log::debug!("{} read!", self.path);
-            drop(wg);
-        }
+        self.data = self.read_content();
     }
 
     /// Reads the fiels content or downloads it if it doesn't exist in the filesystem
