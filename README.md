@@ -192,7 +192,7 @@ Set options for placeholders
 ```md
 *Italic*
 **Bold**
-~Striked~
+~~Striked~~
 _Underlined_
 ^Superscript^
 `Monospace`
