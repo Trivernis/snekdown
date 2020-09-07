@@ -46,7 +46,8 @@ Extended syntax with metadata and no description
 !(url)[metadata]
 ```
 
-When generating the html file the images are base64 embedded.
+When generating the html file the images are base64 embedded. To turn off this behaviour
+set the config parameter `embed-external` to `false`.
 
 ### Quotes
 

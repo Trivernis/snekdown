@@ -58,6 +58,7 @@ impl ParserOptions {
         self
     }
 
+    /// If external sources should be cached when after downloaded
     pub fn use_cache(self, value: bool) -> Self {
         self.document.downloads.lock().unwrap().use_cache = value;
 

@@ -1,7 +1,8 @@
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::META_LANG;
+use crate::references::configuration::keys::{EMBED_EXTERNAL, META_LANG};
+use crate::references::configuration::Value;
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::encode_attribute;
@@ -103,12 +104,23 @@ impl ToHtml for Document {
             .lock()
             .unwrap()
             .add_download(MATHJAX_URL.to_string());
-        downloads.lock().unwrap().download_all();
+        if let Some(Value::Bool(embed)) = self
+            .config
+            .get_entry(EMBED_EXTERNAL)
+            .map(|e| e.get().clone())
+        {
+            if embed {
+                downloads.lock().unwrap().download_all();
+            }
+        } else {
+            downloads.lock().unwrap().download_all();
+        }
         let path = if let Some(path) = &self.path {
             format!("path=\"{}\"", encode_attribute(path.as_str()))
         } else {
             "".to_string()
         };
+
         if self.is_root {
             let language = self
                 .config
@@ -123,10 +135,16 @@ impl ToHtml for Document {
             writer.write(path)?;
             writer.write("/>".to_string())?;
             writer.write("<meta charset=\"UTF-8\">".to_string())?;
+
             if let Some(data) = std::mem::replace(&mut mathjax.lock().unwrap().data, None) {
                 writer.write("<script id=\"MathJax-script\">".to_string())?;
                 writer.write_escaped(minify(String::from_utf8(data).unwrap().as_str()))?;
                 writer.write("</script>".to_string())?;
+            } else {
+                writer.write(format!(
+                    "<script id=\"MathJax-script\" async src={}></script>",
+                    MATHJAX_URL
+                ))?;
             }
             writer.write("<style>".to_string())?;
             writer.write(style)?;
@@ -139,6 +157,10 @@ impl ToHtml for Document {
                     writer.write("<style>".to_string())?;
                     writer.write(minify(String::from_utf8(data).unwrap().as_str()))?;
                     writer.write("</style>".to_string())?;
+                } else {
+                    writer.write("<link rel=\"stylsheet\" href=\"".to_string())?;
+                    writer.write_attribute(stylesheet.path.clone())?;
+                    writer.write("\">".to_string())?;
                 }
             }
             writer.write("</head><body><div class=\"content\">".to_string())?;
