@@ -300,7 +300,7 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [x] Math
 - [ ] Text sizes
 - [ ] Title pages
-- [ ] Glossary
+- [x] Glossary
 - [ ] Cross References
 - [ ] Figures
 - [ ] EPUB Rendering (PDF is too hard)
