@@ -3,6 +3,7 @@ use crate::format::html::html_writer::HTMLWriter;
 use crate::format::PlaceholderTemplate;
 use crate::references::configuration::keys::{EMBED_EXTERNAL, META_LANG};
 use crate::references::configuration::Value;
+use crate::references::glossary::{GlossaryDisplay, GlossaryReference};
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::encode_attribute;
@@ -63,6 +64,7 @@ impl ToHtml for Inline {
             Inline::Math(m) => m.to_html(writer),
             Inline::LineBreak => writer.write("<br>".to_string()),
             Inline::CharacterCode(code) => code.to_html(writer),
+            Inline::GlossaryReference(gloss) => gloss.lock().unwrap().to_html(writer),
         }
     }
 }
@@ -663,5 +665,25 @@ impl ToHtml for Anchor {
         self.inner.to_html(writer)?;
 
         writer.write("</div>".to_string())
+    }
+}
+
+impl ToHtml for GlossaryReference {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        if let Some(entry) = &self.entry {
+            let entry = entry.lock().unwrap();
+            writer.write("<a class=\"glossaryReference\" href=\"#".to_string())?;
+            writer.write_attribute(self.short.clone())?;
+            writer.write("\">".to_string())?;
+            match self.display {
+                GlossaryDisplay::Short => writer.write_escaped(entry.short.clone())?,
+                GlossaryDisplay::Long => writer.write_escaped(entry.long.clone())?,
+            }
+            writer.write("</a>".to_string())?;
+        } else {
+            writer.write_escaped(format!("~{}", self.short.clone()))?;
+        }
+
+        Ok(())
     }
 }

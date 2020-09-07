@@ -4,11 +4,13 @@ use crate::elements::BibReference;
 use crate::elements::*;
 use crate::parser::block::ParseBlock;
 use crate::references::configuration::keys::BIB_REF_DISPLAY;
+use crate::references::glossary::GlossaryDisplay;
+use crate::references::glossary::GlossaryReference;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
 use crate::Parser;
 use bibliographix::references::bib_reference::BibRef;
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 pub(crate) trait ParseInline {
     fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Vec<Inline>>;
@@ -27,6 +29,7 @@ pub(crate) trait ParseInline {
     fn parse_colored(&mut self) -> ParseResult<Colored>;
     fn parse_bibref(&mut self) -> ParseResult<Arc<RwLock<BibReference>>>;
     fn parse_template_variable(&mut self) -> ParseResult<Arc<RwLock<TemplateVariable>>>;
+    fn parse_glossary_reference(&mut self) -> ParseResult<Arc<Mutex<GlossaryReference>>>;
     fn parse_plain(&mut self) -> ParseResult<PlainText>;
     fn parse_inline_metadata(&mut self) -> ParseResult<InlineMetadata>;
     fn parse_metadata_pair(&mut self) -> ParseResult<(String, MetadataValue)>;
@@ -70,13 +73,13 @@ impl ParseInline for Parser {
             log::trace!("EOF");
             Err(self.ctm.err())
         } else if let Ok(image) = self.parse_image() {
-            log::trace!("Inline::Image");
+            log::trace!("Inline::Image {:?}", image);
             Ok(Inline::Image(image))
         } else if let Ok(url) = self.parse_url(false) {
-            log::trace!("Inline::Url");
+            log::trace!("Inline::Url {:?}", url);
             Ok(Inline::Url(url))
         } else if let Ok(pholder) = self.parse_placeholder() {
-            log::trace!("Inline::Placeholder");
+            log::trace!("Inline::Placeholder {:?}", pholder);
             Ok(Inline::Placeholder(pholder))
         } else if let Ok(bold) = self.parse_bold() {
             log::trace!("Inline::Bold");
@@ -88,8 +91,11 @@ impl ParseInline for Parser {
             log::trace!("Inline::Underlined");
             Ok(Inline::Underlined(under))
         } else if let Ok(mono) = self.parse_monospace() {
-            log::trace!("Inline::Monospace");
+            log::trace!("Inline::Monospace {}", mono.value);
             Ok(Inline::Monospace(mono))
+        } else if let Ok(gloss) = self.parse_glossary_reference() {
+            log::trace!("Inline::GlossaryReference {}", gloss.lock().unwrap().short);
+            Ok(Inline::GlossaryReference(gloss))
         } else if let Ok(striked) = self.parse_striked() {
             log::trace!("Inline::Striked");
             Ok(Inline::Striked(striked))
@@ -97,26 +103,27 @@ impl ParseInline for Parser {
             log::trace!("Inline::Superscript");
             Ok(Inline::Superscript(superscript))
         } else if let Ok(checkbox) = self.parse_checkbox() {
-            log::trace!("Inline::Checkbox");
+            log::trace!("Inline::Checkbox {}", checkbox.value);
             Ok(Inline::Checkbox(checkbox))
         } else if let Ok(emoji) = self.parse_emoji() {
-            log::trace!("Inline::Emoji");
+            log::trace!("Inline::Emoji {} -> {}", emoji.name, emoji.value);
             Ok(Inline::Emoji(emoji))
         } else if let Ok(colored) = self.parse_colored() {
             log::trace!("Inline::Colored");
             Ok(Inline::Colored(colored))
         } else if let Ok(bibref) = self.parse_bibref() {
-            log::trace!("Inline::BibReference");
+            log::trace!("Inline::BibReference {:?}", bibref);
             Ok(Inline::BibReference(bibref))
         } else if let Ok(math) = self.parse_math() {
             log::trace!("Inline::Math");
             Ok(Inline::Math(math))
         } else if let Ok(char_code) = self.parse_character_code() {
-            log::trace!("Inline::Character Code");
+            log::trace!("Inline::CharacterCode {}", char_code.code);
             Ok(Inline::CharacterCode(char_code))
         } else {
-            log::trace!("Inline::Plain");
-            Ok(Inline::Plain(self.parse_plain()?))
+            let plain = self.parse_plain()?;
+            log::trace!("Inline::Plain {}", plain.value);
+            Ok(Inline::Plain(plain))
         }
     }
 
@@ -237,9 +244,19 @@ impl ParseInline for Parser {
     }
 
     fn parse_striked(&mut self) -> ParseResult<StrikedText> {
-        Ok(StrikedText {
-            value: self.parse_surrounded(&STRIKED)?,
-        })
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_sequence(&STRIKED, Some(start_index))?;
+        self.ctm.seek_one()?;
+        let mut inline = vec![self.parse_inline()?];
+        while !self.ctm.check_sequence(&STRIKED) {
+            if let Ok(result) = self.parse_inline() {
+                inline.push(result);
+            } else {
+                return Err(self.ctm.rewind_with_error(start_index));
+            }
+        }
+        self.ctm.seek_one()?;
+        Ok(StrikedText { value: inline })
     }
 
     fn parse_math(&mut self) -> ParseResult<Math> {
@@ -373,6 +390,39 @@ impl ParseInline for Parser {
         })))
     }
 
+    /// Parses a reference to a glossary entry
+    fn parse_glossary_reference(&mut self) -> ParseResult<Arc<Mutex<GlossaryReference>>> {
+        self.ctm.assert_char(&GLOSSARY_REF_START, None)?;
+        let start_index = self.ctm.get_index();
+        self.ctm.seek_one()?;
+
+        let display = if self.ctm.check_char(&GLOSSARY_REF_START) {
+            self.ctm.seek_one()?;
+            GlossaryDisplay::Long
+        } else {
+            GlossaryDisplay::Short
+        };
+        let mut key =
+            self.ctm
+                .get_string_until_any_or_rewind(&WHITESPACE, &[TILDE], start_index)?;
+        if key.len() == 0 {
+            return Err(self.ctm.rewind_with_error(start_index));
+        }
+        if !key.chars().last().unwrap().is_alphabetic() {
+            self.ctm.rewind(self.ctm.get_index() - 1);
+            key = key[..key.len() - 1].to_string();
+        }
+        let reference = GlossaryReference::with_display(key, display);
+
+        Ok(self
+            .options
+            .document
+            .glossary
+            .lock()
+            .unwrap()
+            .add_reference(reference))
+    }
+
     /// parses plain text as a string until it encounters an unescaped special inline char
     fn parse_plain(&mut self) -> ParseResult<PlainText> {
         if self.ctm.check_char(&LB) {
@@ -499,13 +549,11 @@ impl ParseInline for Parser {
         } else {
             return Err(self.ctm.rewind_with_error(start_index));
         };
-        self.ctm.seek_one()?;
+        if !self.ctm.check_eof() {
+            self.ctm.seek_one()?;
+        }
 
-        let metadata = if let Ok(meta) = self.parse_inline_metadata() {
-            Some(meta)
-        } else {
-            None
-        };
+        let metadata = self.parse_inline_metadata().ok();
 
         let placeholder = Arc::new(RwLock::new(Placeholder::new(name, metadata)));
         self.options

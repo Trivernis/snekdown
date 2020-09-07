@@ -31,6 +31,7 @@ const S_VALUE: &str = "value";
 
 const P_TOC: &str = "toc";
 const P_BIB: &str = "bib";
+const P_GLS: &str = "gls";
 const P_DATE: &str = "date";
 const P_TIME: &str = "time";
 const P_DATETIME: &str = "datetime";
@@ -52,6 +53,9 @@ impl ProcessPlaceholders for Document {
                 P_BIB => pholder.set_value(block!(Block::List(create_bib_list(
                     self.bibliography.get_entry_list_by_occurrence()
                 )))),
+                P_GLS => pholder.set_value(block!(Block::List(
+                    self.glossary.lock().unwrap().create_glossary_list()
+                ))),
                 P_DATE => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: get_date_string()
                 }))),

@@ -6,7 +6,7 @@ use self::block::ParseBlock;
 use crate::elements::tokens::LB;
 use crate::elements::{Document, ImportAnchor};
 use crate::references::configuration::keys::{
-    IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_IGNORE, IMP_STYLESHEETS,
+    IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_GLOSSARY, IMP_IGNORE, IMP_STYLESHEETS,
 };
 use crate::references::configuration::Value;
 use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
@@ -27,6 +27,7 @@ const DEFAULT_IMPORTS: &'static [(&str, &str)] = &[
     ("manifest.toml", "manifest"),
     ("bibliography.toml", "bibliography"),
     ("bibliography2.bib.toml", "bibliography"),
+    ("glossary.toml", "glossary"),
     ("style.css", "stylesheet"),
 ];
 
@@ -225,6 +226,23 @@ impl Parser {
         Ok(())
     }
 
+    /// Imports a glossary
+    fn import_glossary(&self, path: PathBuf) -> ParseResult<()> {
+        let contents = self.import_text_file(path)?;
+        let value = contents
+            .parse::<toml::Value>()
+            .map_err(|_| self.ctm.err())?;
+        self.options
+            .document
+            .glossary
+            .lock()
+            .unwrap()
+            .assign_from_toml(value)
+            .unwrap_or_else(|e| log::error!("{}", e));
+
+        Ok(())
+    }
+
     /// Imports a path
     fn import(&mut self, path: String, args: &HashMap<String, Value>) -> ImportType {
         log::debug!(
@@ -273,6 +291,9 @@ impl Parser {
             }
             Some(s) if s == "manifest".to_string() || s == "config" => {
                 ImportType::Manifest(self.import_manifest(path))
+            }
+            Some(s) if s == "glossary".to_string() => {
+                ImportType::Glossary(self.import_glossary(path))
             }
             _ => {
                 lazy_static::lazy_static! {
@@ -379,6 +400,20 @@ impl Parser {
                 self.import(s, &args);
             }
         }
+
+        if let Some(Value::Array(mut imp)) = self
+            .options
+            .document
+            .config
+            .get_entry(IMP_GLOSSARY)
+            .and_then(|e| Some(e.get().clone()))
+        {
+            let args =
+                maplit::hashmap! {"type".to_string() => Value::String("glossary".to_string())};
+            while let Some(Value::String(s)) = imp.pop() {
+                self.import(s, &args);
+            }
+        }
     }
 }
 
@@ -387,5 +422,6 @@ pub(crate) enum ImportType {
     Stylesheet(ParseResult<()>),
     Bibliography(ParseResult<()>),
     Manifest(ParseResult<()>),
+    Glossary(ParseResult<()>),
     None,
 }

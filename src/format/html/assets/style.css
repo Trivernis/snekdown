@@ -128,3 +128,9 @@ blockquote {
 .centered {
     text-align: center;
 }
+
+.glossaryReference {
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px dotted #000;
+}

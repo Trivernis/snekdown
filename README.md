@@ -157,7 +157,8 @@ test-key = ["test value", "test value 2"]
 ignored-imports = ["style.css"]         # those files won't get imported
 included-stylesheets = ["style2.css"]   # stylesheets that should be included
 included-configs = []                   # other metadata files that should be included
-included-bibliography = ["nextbib.toml"]# bibliography that should be included
+included-bibliography = ["mybib.toml"]  # bibliography that should be included
+included-glossary = ["myglossary.toml"] #glossary that sould be included
 ```
 
 The `[Section]` keys are not relevant as the structure gets flattened before the values are read.
@@ -238,6 +239,36 @@ The valid types for entries and required fields can be found on in the [bibliogr
 Bibliography entries are not rendered. To render a list of used bibliography insert the
 `bib` placeholder at the place you want it to be rendered.
 
+
+## Glossary
+
+Glossary entries are to be defined in a `glossary.toml` file or any other toml file
+that is imported as type `glossary`.
+The definition of glossary entries has to follow the following structure
+
+```toml
+[SHORT]
+long = "Long Form"
+description = "The description of the entry"
+
+# Example
+[HTML]
+long = "Hypertext Markup Language"
+description = "The markup language of the web"
+```
+
+Those glossary entries can be referenced in the snekdown file as follows:
+
+```md
+~HTML is widely used for websites.
+The format ~HTML is not considered a programming language by some definitions.
+
+~~HTML
+```
+
+The first occurence of the glossary entry (`~HTML`) always uses the long form.
+The second will always be the short form. The long form can be enforced by using two
+(`~~HTML`) tildes.
 
 ## Math
 

@@ -2,6 +2,7 @@ pub mod tokens;
 
 use crate::format::PlaceholderTemplate;
 use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
+use crate::references::glossary::{GlossaryManager, GlossaryReference};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
 use crate::utils::downloads::{DownloadManager, PendingDownload};
@@ -73,6 +74,7 @@ pub struct Document {
     pub bibliography: BibManager,
     pub downloads: Arc<Mutex<DownloadManager>>,
     pub stylesheets: Vec<Arc<Mutex<PendingDownload>>>,
+    pub glossary: Arc<Mutex<GlossaryManager>>,
 }
 
 #[derive(Clone, Debug)]
@@ -177,6 +179,7 @@ pub enum Inline {
     Colored(Colored),
     Math(Math),
     BibReference(Arc<RwLock<BibReference>>),
+    GlossaryReference(Arc<Mutex<GlossaryReference>>),
     TemplateVar(Arc<RwLock<TemplateVariable>>),
     CharacterCode(CharacterCode),
     LineBreak,
@@ -300,6 +303,7 @@ impl Document {
             bibliography: BibManager::new(),
             stylesheets: Vec::new(),
             downloads: Arc::new(Mutex::new(DownloadManager::new())),
+            glossary: Arc::new(Mutex::new(GlossaryManager::new())),
         }
     }
 
@@ -314,6 +318,7 @@ impl Document {
             bibliography: self.bibliography.create_child(),
             stylesheets: Vec::new(),
             downloads: Arc::clone(&self.downloads),
+            glossary: Arc::clone(&self.glossary),
         }
     }
 
@@ -411,6 +416,7 @@ impl Document {
         if self.is_root {
             self.process_definitions();
             self.bibliography.assign_entries_to_references();
+            self.glossary.lock().unwrap().assign_entries_to_references();
             self.process_placeholders();
         }
     }

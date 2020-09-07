@@ -69,15 +69,17 @@ pub(crate) const TEMPLATE: char = PERCENT;
 
 pub(crate) const ITALIC: char = ASTERISK;
 pub(crate) const MONOSPACE: char = BACKTICK;
-pub(crate) const STRIKED: char = TILDE;
+pub(crate) const STRIKED: &'static [char] = &[TILDE, TILDE];
 pub(crate) const UNDERLINED: char = UNDERSCR;
 pub(crate) const SUPER: char = UP;
 pub(crate) const EMOJI: char = COLON;
 pub(crate) const MATH_INLINE: &'static [char] = &[MATH, MATH];
-pub(crate) const BOLD: [char; 2] = [ASTERISK, ASTERISK];
+pub(crate) const BOLD: &'static [char] = &[ASTERISK, ASTERISK];
 
 pub(crate) const CHARACTER_START: char = AMPERSAND;
 pub(crate) const CHARACTER_STOP: char = SEMICOLON;
+
+pub(crate) const GLOSSARY_REF_START: char = TILDE;
 
 // groups
 
