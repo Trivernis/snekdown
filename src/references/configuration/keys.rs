@@ -8,3 +8,4 @@ pub const IMP_BIBLIOGRAPHY: &str = "included-bibliography";
 pub const IMP_GLOSSARY: &str = "included-glossary";
 pub const EMBED_EXTERNAL: &str = "embed-external";
 pub const SMART_ARROWS: &str = "smart-arrows";
+pub const INCLUDE_MATHJAX: &str = "include-math-jax";

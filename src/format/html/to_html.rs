@@ -1,7 +1,7 @@
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::{EMBED_EXTERNAL, META_LANG};
+use crate::references::configuration::keys::{EMBED_EXTERNAL, INCLUDE_MATHJAX, META_LANG};
 use crate::references::configuration::Value;
 use crate::references::glossary::{GlossaryDisplay, GlossaryReference};
 use crate::references::templates::{Template, TemplateVariable};
@@ -103,10 +103,6 @@ impl ToHtml for MetadataValue {
 impl ToHtml for Document {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
         let downloads = Arc::clone(&self.downloads);
-        let mathjax = downloads
-            .lock()
-            .unwrap()
-            .add_download(MATHJAX_URL.to_string());
         if let Some(Value::Bool(embed)) = self
             .config
             .get_entry(EMBED_EXTERNAL)
@@ -138,17 +134,6 @@ impl ToHtml for Document {
             writer.write(path)?;
             writer.write("/>".to_string())?;
             writer.write("<meta charset=\"UTF-8\">".to_string())?;
-
-            if let Some(data) = std::mem::replace(&mut mathjax.lock().unwrap().data, None) {
-                writer.write("<script id=\"MathJax-script\">".to_string())?;
-                writer.write_escaped(minify(String::from_utf8(data).unwrap().as_str()))?;
-                writer.write("</script>".to_string())?;
-            } else {
-                writer.write(format!(
-                    "<script id=\"MathJax-script\" async src={}></script>",
-                    MATHJAX_URL
-                ))?;
-            }
             writer.write("<style>".to_string())?;
             writer.write(style)?;
             writer.write("</style>".to_string())?;
@@ -157,6 +142,17 @@ impl ToHtml for Document {
                 let mut stylesheet = stylesheet.lock().unwrap();
                 let data = std::mem::replace(&mut stylesheet.data, None);
                 if let Some(data) = data {
+                    if self
+                        .config
+                        .get_entry(INCLUDE_MATHJAX)
+                        .and_then(|e| e.get().as_bool())
+                        .unwrap_or(true)
+                    {
+                        writer.write(format!(
+                            "<script id=\"MathJax-script\" type=\"text/javascript\" async src={}></script>",
+                            MATHJAX_URL
+                        ))?;
+                    }
                     writer.write("<style>".to_string())?;
                     writer.write(minify(String::from_utf8(data).unwrap().as_str()))?;
                     writer.write("</style>".to_string())?;

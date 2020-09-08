@@ -168,11 +168,15 @@ included-bibliography = ["mybib.toml"]
 included-glossary = ["myglossary.toml"]     
 
 # if external sources (images, stylesheets, MathJax)
-# should be embedded into the document (default true)
+# should be embedded into the document (default: true)
 embed-external = true
 
-# If SmartArrows should be used (default true)
+# If SmartArrows should be used (default: true)
 smart-arrows = true
+
+# Includes a MathJax script tag in the document to render MathML in chromium.
+# (default: true)
+include-math-jax = true
 ```
 
 The `[Section]` keys are not relevant as the structure gets flattened before the values are read.
