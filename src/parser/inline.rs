@@ -3,7 +3,7 @@ use crate::elements::tokens::*;
 use crate::elements::BibReference;
 use crate::elements::*;
 use crate::parser::block::ParseBlock;
-use crate::references::configuration::keys::BIB_REF_DISPLAY;
+use crate::references::configuration::keys::{BIB_REF_DISPLAY, SMART_ARROWS};
 use crate::references::glossary::GlossaryDisplay;
 use crate::references::glossary::GlossaryReference;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
@@ -36,6 +36,7 @@ pub(crate) trait ParseInline {
     fn parse_placeholder(&mut self) -> ParseResult<Arc<RwLock<Placeholder>>>;
     fn parse_template(&mut self) -> ParseResult<Template>;
     fn parse_character_code(&mut self) -> ParseResult<CharacterCode>;
+    fn parse_arrow(&mut self) -> ParseResult<Arrow>;
 }
 
 impl ParseInline for Parser {
@@ -120,6 +121,9 @@ impl ParseInline for Parser {
         } else if let Ok(char_code) = self.parse_character_code() {
             log::trace!("Inline::CharacterCode {}", char_code.code);
             Ok(Inline::CharacterCode(char_code))
+        } else if let Ok(arrow) = self.parse_arrow() {
+            log::trace!("Inline::Arrow {:?}", arrow);
+            Ok(Inline::Arrow(arrow))
         } else {
             let plain = self.parse_plain()?;
             log::trace!("Inline::Plain {}", plain.value);
@@ -434,10 +438,13 @@ impl ParseInline for Parser {
         }
 
         while let Some(ch) = self.ctm.next_char() {
+            let index = self.ctm.get_index();
             if self.ctm.check_any(&INLINE_SPECIAL_CHARS)
                 || self.ctm.check_any(&self.inline_break_at)
+                || self.ctm.check_any_sequence(&INLINE_SPECIAL_SEQUENCES)
                 || (self.parse_variables && self.ctm.check_char(&TEMP_VAR_OPEN))
             {
+                self.ctm.rewind(index);
                 break;
             }
             if !self.ctm.check_char(&SPECIAL_ESCAPE) {
@@ -622,5 +629,39 @@ impl ParseInline for Parser {
         self.ctm.seek_one()?;
 
         Ok(CharacterCode { code })
+    }
+
+    /// Parses an arrow
+    fn parse_arrow(&mut self) -> ParseResult<Arrow> {
+        if !self
+            .options
+            .document
+            .config
+            .get_entry(SMART_ARROWS)
+            .and_then(|e| e.get().as_bool())
+            .unwrap_or(true)
+        {
+            Err(self.ctm.err())
+        } else if self.ctm.check_sequence(A_LEFT_RIGHT_ARROW) {
+            self.ctm.seek_one()?;
+            Ok(Arrow::LeftRightArrow)
+        } else if self.ctm.check_sequence(A_RIGHT_ARROW) {
+            self.ctm.seek_one()?;
+            Ok(Arrow::RightArrow)
+        } else if self.ctm.check_sequence(A_LEFT_ARROW) {
+            self.ctm.seek_one()?;
+            Ok(Arrow::LeftArrow)
+        } else if self.ctm.check_sequence(A_BIG_LEFT_RIGHT_ARROW) {
+            self.ctm.seek_one()?;
+            Ok(Arrow::BigLeftRightArrow)
+        } else if self.ctm.check_sequence(A_BIG_RIGHT_ARROW) {
+            self.ctm.seek_one()?;
+            Ok(Arrow::BigRightArrow)
+        } else if self.ctm.check_sequence(A_BIG_LEFT_ARROW) {
+            self.ctm.seek_one()?;
+            Ok(Arrow::BigLeftArrow)
+        } else {
+            Err(self.ctm.err())
+        }
     }
 }

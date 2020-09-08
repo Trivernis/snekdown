@@ -81,6 +81,15 @@ pub(crate) const CHARACTER_STOP: char = SEMICOLON;
 
 pub(crate) const GLOSSARY_REF_START: char = TILDE;
 
+// Arrows
+
+pub(crate) const A_RIGHT_ARROW: &'static [char] = &['-', '-', '>'];
+pub(crate) const A_LEFT_ARROW: &'static [char] = &['<', '-', '-'];
+pub(crate) const A_LEFT_RIGHT_ARROW: &'static [char] = &['<', '-', '-', '>'];
+pub(crate) const A_BIG_RIGHT_ARROW: &'static [char] = &['=', '=', '>'];
+pub(crate) const A_BIG_LEFT_ARROW: &'static [char] = &['<', '=', '='];
+pub(crate) const A_BIG_LEFT_RIGHT_ARROW: &'static [char] = &['<', '=', '=', '>'];
+
 // groups
 
 pub(crate) const QUOTES: [char; 2] = [SINGLE_QUOTE, DOUBLE_QUOTE];
@@ -111,6 +120,15 @@ pub(crate) const INLINE_SPECIAL_CHARS: &'static [char] = &[
     EMOJI,
     COLOR_START,
     MATH,
+];
+
+pub(crate) const INLINE_SPECIAL_SEQUENCES: &'static [&'static [char]] = &[
+    A_BIG_LEFT_RIGHT_ARROW,
+    A_BIG_LEFT_ARROW,
+    A_BIG_RIGHT_ARROW,
+    A_RIGHT_ARROW,
+    A_LEFT_ARROW,
+    A_LEFT_RIGHT_ARROW,
 ];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [

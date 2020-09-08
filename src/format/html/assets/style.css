@@ -49,7 +49,7 @@ code {
 }
 
 code pre {
-    font-family: "Fira Code", monospace;
+    font-family: "Fira Code", "Mono", monospace;
     padding: 0.8em 0.2em;
     background-color: #EEE !important;
     border-radius: 0.25em;
@@ -133,4 +133,8 @@ blockquote {
     text-decoration: none;
     color: inherit;
     border-bottom: 1px dotted #000;
+}
+
+.arrow {
+    font-family: "Fira Code", "Mono", monospace;
 }

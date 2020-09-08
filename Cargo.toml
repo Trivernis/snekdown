@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.28.0"
+version = "0.29.0"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"

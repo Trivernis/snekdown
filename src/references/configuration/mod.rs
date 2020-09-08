@@ -42,6 +42,14 @@ impl Value {
             _ => "".to_string(),
         }
     }
+
+    /// Returns the bool value if the value is a boolean
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
 }
 
 impl ConfigEntry {

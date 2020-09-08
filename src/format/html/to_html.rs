@@ -65,6 +65,7 @@ impl ToHtml for Inline {
             Inline::LineBreak => writer.write("<br>".to_string()),
             Inline::CharacterCode(code) => code.to_html(writer),
             Inline::GlossaryReference(gloss) => gloss.lock().unwrap().to_html(writer),
+            Inline::Arrow(a) => a.to_html(writer),
         }
     }
 }
@@ -685,5 +686,21 @@ impl ToHtml for GlossaryReference {
         }
 
         Ok(())
+    }
+}
+
+impl ToHtml for Arrow {
+    fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
+        writer.write("<span class=\"arrow\">".to_string())?;
+        match self {
+            Arrow::RightArrow => writer.write("&xrarr;".to_string()),
+            Arrow::LeftArrow => writer.write("&xlarr;".to_string()),
+            Arrow::LeftRightArrow => writer.write("&xharr;".to_string()),
+            Arrow::BigRightArrow => writer.write("&xrArr;".to_string()),
+            Arrow::BigLeftArrow => writer.write("&xlArr;".to_string()),
+            Arrow::BigLeftRightArrow => writer.write("&xhArr;".to_string()),
+        }?;
+
+        writer.write("</span>".to_string())
     }
 }

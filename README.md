@@ -148,17 +148,31 @@ Example:
 
 ```toml
 # bibliography.bib.toml
-[Meta]
 author = "Snek"
 published = "2020"
 test-key = ["test value", "test value 2"]
 
-[imports]
-ignored-imports = ["style.css"]         # those files won't get imported
-included-stylesheets = ["style2.css"]   # stylesheets that should be included
-included-configs = []                   # other metadata files that should be included
-included-bibliography = ["mybib.toml"]  # bibliography that should be included
-included-glossary = ["myglossary.toml"] #glossary that sould be included
+# those files won't get imported
+ignored-imports = ["style.css"]        
+
+# stylesheets that should be included
+included-stylesheets = ["style2.css"] 
+
+# other metadata files that should be included
+included-configs = []
+
+# bibliography that should be included
+included-bibliography = ["mybib.toml"]
+
+# glossary that sould be included      
+included-glossary = ["myglossary.toml"]     
+
+# if external sources (images, stylesheets, MathJax)
+# should be embedded into the document (default true)
+embed-external = true
+
+# If SmartArrows should be used (default true)
+smart-arrows = true
 ```
 
 The `[Section]` keys are not relevant as the structure gets flattened before the values are read.
@@ -286,6 +300,14 @@ $$$
 
 The expression get's converted into MathML which is then converted by MathJax when loaded in
 the browser.
+
+## Smart Arrows
+
+Snekdown automatically renders the sequences `-->`, `==>`, `<--`, `<==`, `<-->`, `<==>` as
+their respective unicode arrows (similar to [markdown-it-smartarrows](https://github.com/adam-p/markdown-it-smartarrows)).
+This behavior can be turned off by setting the config parameter `smart-arrows` to `false`
+(the config needs to be imported before the arrows are used for that to work).
+
 
 ## Roadmap
 

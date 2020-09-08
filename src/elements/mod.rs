@@ -183,6 +183,7 @@ pub enum Inline {
     TemplateVar(Arc<RwLock<TemplateVariable>>),
     CharacterCode(CharacterCode),
     LineBreak,
+    Arrow(Arrow),
 }
 
 #[derive(Clone, Debug)]
@@ -287,6 +288,16 @@ pub struct MathBlock {
 #[derive(Clone, Debug)]
 pub struct CharacterCode {
     pub(crate) code: String,
+}
+
+#[derive(Clone, Debug)]
+pub enum Arrow {
+    RightArrow,
+    LeftArrow,
+    LeftRightArrow,
+    BigRightArrow,
+    BigLeftArrow,
+    BigLeftRightArrow,
 }
 
 // implementations
