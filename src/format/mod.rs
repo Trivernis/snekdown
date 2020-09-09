@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 
+pub mod epub;
 pub mod html;
 
 pub struct PlaceholderTemplate {
