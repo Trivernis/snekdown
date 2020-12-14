@@ -16,6 +16,10 @@ crate-type = ["lib"]
 name = "snekdown"
 path = "src/main.rs"
 
+[features]
+
+pdf = ["headless_chrome", "failure"]
+
 [dependencies]
 charred = "0.3.3"
 asciimath-rs = "0.5.7"
@@ -44,5 +48,5 @@ log = "0.4.11"
 env_logger = "0.7.1"
 indicatif = "0.15.0"
 platform-dirs = "0.2.0"
-headless_chrome = "0.9.0"
-failure = "0.1.8"
+headless_chrome = {version = "0.9.0", optional = true}
+failure = {version = "0.1.8", optional = true}

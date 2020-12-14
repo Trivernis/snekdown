@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 
+#[cfg(feature = "pdf")]
 pub mod chromium_pdf;
 pub mod html;
 

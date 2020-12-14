@@ -2,12 +2,12 @@ use colored::Colorize;
 use env_logger::Env;
 use log::{Level, LevelFilter};
 use notify::{watcher, RecursiveMode, Watcher};
-use snekdown::format::chromium_pdf::render_to_pdf;
+use snekdown::elements::Document;
 use snekdown::format::html::html_writer::HTMLWriter;
 use snekdown::format::html::to_html::ToHtml;
 use snekdown::parser::ParserOptions;
 use snekdown::Parser;
-use std::fs::OpenOptions;
+use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
@@ -135,21 +135,41 @@ fn render(opt: &Opt) -> Parser {
         .unwrap();
     let mut writer = BufWriter::new(file);
 
-    match opt.format.as_str() {
-        "html" => {
-            let mut writer = HTMLWriter::new(Box::new(writer));
-            document.to_html(&mut writer).unwrap();
-            writer.flush().unwrap();
-        }
-        "pdf" => {
-            let result = render_to_pdf(document).expect("Failed to render pdf!");
-            writer.write_all(&result).unwrap();
-            writer.flush().unwrap();
-        }
-        _ => log::error!("Unknown format {}", opt.format),
-    }
+    render_format(opt, document, writer);
     log::info!("Rendering took:   {:?}", start_render.elapsed());
     log::info!("Total:            {:?}", start.elapsed());
 
     parser
+}
+
+#[cfg(not(feature = "pdf"))]
+fn render_format(opt: &Opt, document: Document, mut writer: BufWriter<File>) {
+    match opt.format.as_str() {
+        "html" => render_html(document, writer),
+        _ => log::error!("Unknown format {}", opt.format),
+    }
+}
+
+#[cfg(feature = "pdf")]
+fn render_format(opt: &Opt, document: Document, mut writer: BufWriter<File>) {
+    match opt.format.as_str() {
+        "html" => render_html(document, writer),
+        "pdf" => render_pdf(document, writer),
+        _ => log::error!("Unknown format {}", opt.format),
+    }
+}
+
+fn render_html(document: Document, mut writer: BufWriter<File>) {
+    let mut writer = HTMLWriter::new(Box::new(writer));
+    document.to_html(&mut writer).unwrap();
+    writer.flush().unwrap();
+}
+
+#[cfg(feature = "pdf")]
+fn render_pdf(document: Document, mut writer: BufWriter<File>) {
+    use snekdown::format::chromium_pdf::render_to_pdf;
+
+    let result = render_to_pdf(document).expect("Failed to render pdf!");
+    writer.write_all(&result).unwrap();
+    writer.flush().unwrap();
 }

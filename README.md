@@ -324,12 +324,13 @@ The end goal is to have a markup language with features similar to LaTeX.
 - [x] Metadata files
 - [x] Bibliography
 - [x] Math
-- [ ] Text sizes
-- [ ] Title pages
 - [x] Glossary
-- [ ] Cross References
-- [ ] Figures
-- [ ] EPUB Rendering (PDF is too hard)
-- [ ] Custom Elements via templates (50%)
+- [x] Chromium based pdf rendering
 - [x] Custom Stylesheets
 - [x] Smart arrows
+- [ ] Custom Elements via templates (50%)
+- [ ] Cross References
+- [ ] Figures
+- [ ] EPUB Rendering
+- [ ] Text sizes
+- [ ] Title pages
