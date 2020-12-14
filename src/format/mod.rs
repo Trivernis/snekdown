@@ -1,6 +1,7 @@
 use regex::Regex;
 use std::collections::HashMap;
 
+pub mod chromium_pdf;
 pub mod html;
 
 pub struct PlaceholderTemplate {

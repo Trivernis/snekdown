@@ -2,12 +2,13 @@ use colored::Colorize;
 use env_logger::Env;
 use log::{Level, LevelFilter};
 use notify::{watcher, RecursiveMode, Watcher};
+use snekdown::format::chromium_pdf::render_to_pdf;
 use snekdown::format::html::html_writer::HTMLWriter;
 use snekdown::format::html::to_html::ToHtml;
 use snekdown::parser::ParserOptions;
 use snekdown::Parser;
 use std::fs::OpenOptions;
-use std::io::BufWriter;
+use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
@@ -114,6 +115,7 @@ fn watch(opt: &Opt) {
 /// Renders the document to the output path
 fn render(opt: &Opt) -> Parser {
     let start = Instant::now();
+
     let mut parser = Parser::with_defaults(
         ParserOptions::default()
             .add_path(opt.input.clone())
@@ -123,6 +125,7 @@ fn render(opt: &Opt) -> Parser {
 
     log::info!("Parsing took:     {:?}", start.elapsed());
     let start_render = Instant::now();
+
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -130,11 +133,17 @@ fn render(opt: &Opt) -> Parser {
         .create(true)
         .open(&opt.output)
         .unwrap();
-    let writer = BufWriter::new(file);
+    let mut writer = BufWriter::new(file);
+
     match opt.format.as_str() {
         "html" => {
             let mut writer = HTMLWriter::new(Box::new(writer));
             document.to_html(&mut writer).unwrap();
+            writer.flush().unwrap();
+        }
+        "pdf" => {
+            let result = render_to_pdf(document).expect("Failed to render pdf!");
+            writer.write_all(&result).unwrap();
             writer.flush().unwrap();
         }
         _ => log::error!("Unknown format {}", opt.format),

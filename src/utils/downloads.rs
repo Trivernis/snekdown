@@ -129,7 +129,7 @@ impl PendingDownload {
     }
 }
 
-fn get_cached_path(path: PathBuf) -> PathBuf {
+pub fn get_cached_path(path: PathBuf) -> PathBuf {
     lazy_static::lazy_static! {
         static ref APP_DIRS: AppDirs = AppDirs::new(Some("snekdown"), AppUI::CommandLine).unwrap();
     }

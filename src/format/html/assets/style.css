@@ -138,3 +138,12 @@ blockquote {
 .arrow {
     font-family: "Fira Code", "Mono", monospace;
 }
+
+@media print {
+    .content > section > section, .content > section > section {
+        page-break-inside: avoid;
+    }
+    body {
+        background-color: white !important;
+    }
+}
