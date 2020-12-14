@@ -34,6 +34,7 @@ pub(crate) const PERCENT: char = '%';
 pub(crate) const COMMA: char = ',';
 pub(crate) const MATH: char = '$';
 pub(crate) const AMPERSAND: char = '&';
+pub(crate) const QUESTION_MARK: char = '?';
 
 // aliases
 
@@ -135,7 +136,7 @@ pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [
     MINUS, PLUS, ASTERISK, O, '1', '2', '3', '4', '5', '6', '7', '8', '9', '0',
 ];
 
-pub(crate) const WHITESPACE: [char; 4] = [' ', '\t', '\r', '\n'];
+pub(crate) const WHITESPACE: &[char] = &[' ', '\t', '\r', '\n'];
 pub(crate) const INLINE_WHITESPACE: [char; 3] = [' ', '\t', '\r'];
 
 // sequences

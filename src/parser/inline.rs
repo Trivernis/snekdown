@@ -94,12 +94,12 @@ impl ParseInline for Parser {
         } else if let Ok(mono) = self.parse_monospace() {
             log::trace!("Inline::Monospace {}", mono.value);
             Ok(Inline::Monospace(mono))
-        } else if let Ok(gloss) = self.parse_glossary_reference() {
-            log::trace!("Inline::GlossaryReference {}", gloss.lock().unwrap().short);
-            Ok(Inline::GlossaryReference(gloss))
         } else if let Ok(striked) = self.parse_striked() {
             log::trace!("Inline::Striked");
             Ok(Inline::Striked(striked))
+        } else if let Ok(gloss) = self.parse_glossary_reference() {
+            log::trace!("Inline::GlossaryReference {}", gloss.lock().unwrap().short);
+            Ok(Inline::GlossaryReference(gloss))
         } else if let Ok(superscript) = self.parse_superscript() {
             log::trace!("Inline::Superscript");
             Ok(Inline::Superscript(superscript))
@@ -252,6 +252,7 @@ impl ParseInline for Parser {
         self.ctm.assert_sequence(&STRIKED, Some(start_index))?;
         self.ctm.seek_one()?;
         let mut inline = vec![self.parse_inline()?];
+
         while !self.ctm.check_sequence(&STRIKED) {
             if let Ok(result) = self.parse_inline() {
                 inline.push(result);
@@ -259,7 +260,14 @@ impl ParseInline for Parser {
                 return Err(self.ctm.rewind_with_error(start_index));
             }
         }
-        self.ctm.seek_one()?;
+        self.ctm.rewind(self.ctm.get_index() - STRIKED.len());
+        if self.ctm.check_any(WHITESPACE) {
+            return Err(self.ctm.rewind_with_error(start_index));
+        }
+        for _ in 0..(STRIKED.len() + 1) {
+            self.ctm.seek_one()?;
+        }
+
         Ok(StrikedText { value: inline })
     }
 
@@ -396,8 +404,9 @@ impl ParseInline for Parser {
 
     /// Parses a reference to a glossary entry
     fn parse_glossary_reference(&mut self) -> ParseResult<Arc<Mutex<GlossaryReference>>> {
-        self.ctm.assert_char(&GLOSSARY_REF_START, None)?;
         let start_index = self.ctm.get_index();
+        self.ctm
+            .assert_char(&GLOSSARY_REF_START, Some(start_index))?;
         self.ctm.seek_one()?;
 
         let display = if self.ctm.check_char(&GLOSSARY_REF_START) {
@@ -409,10 +418,10 @@ impl ParseInline for Parser {
         let mut key =
             self.ctm
                 .get_string_until_any_or_rewind(&WHITESPACE, &[TILDE], start_index)?;
-        if key.len() == 0 {
+        if key.is_empty() {
             return Err(self.ctm.rewind_with_error(start_index));
         }
-        if !key.chars().last().unwrap().is_alphabetic() {
+        while !key.is_empty() && !key.chars().last().unwrap().is_alphabetic() {
             self.ctm.rewind(self.ctm.get_index() - 1);
             key = key[..key.len() - 1].to_string();
         }
