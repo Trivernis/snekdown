@@ -1,4 +1,5 @@
 use epub_builder::{EpubBuilder, EpubContent, ReferenceType, Result, ZipLibrary};
+use htmlescape::{encode_attribute, encode_minimal};
 use std::cmp::max;
 use std::collections::HashMap;
 use std::io;
@@ -18,13 +19,13 @@ impl Default for Buffer {
 
 impl Read for Buffer {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let length = buf.len();
-        let available = self.inner.len();
-        let writable = max(length, available);
-        buf.copy_from_slice(&self.inner[0..writable]);
-        self.inner = self.inner[writable..self.inner.len()].to_vec();
+        let written = buf.write(&self.inner[self.position..])?;
 
-        Ok(writable)
+        self.inner.reverse();
+        self.inner.truncate(self.inner.len() - written);
+        self.inner.reverse();
+
+        Ok(written)
     }
 }
 
@@ -101,6 +102,14 @@ impl EpubWriter {
         self.content_buffer
             .inner
             .append(&mut content.as_bytes().to_vec());
+    }
+
+    pub fn escaped_content(&mut self, content: String) {
+        self.content(encode_minimal(content.as_str()));
+    }
+
+    pub fn escaped_attribute_content(&mut self, content: String) {
+        self.content(encode_attribute(content.as_str()));
     }
 
     /// Finishes writing the epub

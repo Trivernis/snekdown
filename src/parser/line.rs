@@ -50,12 +50,15 @@ impl ParseLine for Parser {
         let start_index = self.ctm.get_index();
         let line = self.parse_line()?;
         let mut anchor = String::new();
+
         self.ctm.get_text()[start_index..self.ctm.get_index()]
             .iter()
             .for_each(|e| anchor.push(*e));
+        let plain = anchor.clone();
         anchor.retain(|c| !c.is_whitespace());
+
         log::trace!("Line::Header");
-        Ok(Header::new(line, anchor))
+        Ok(Header::new(line, anchor, plain))
     }
 
     /// parses a single list item defined with -

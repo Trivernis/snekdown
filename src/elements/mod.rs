@@ -89,6 +89,7 @@ pub struct Header {
     pub(crate) size: u8,
     pub(crate) line: Line,
     pub(crate) anchor: String,
+    pub(crate) plain: String,
 }
 
 #[derive(Clone, Debug)]
@@ -508,11 +509,12 @@ impl Section {
 }
 
 impl Header {
-    pub fn new(content: Line, anchor: String) -> Self {
+    pub fn new(content: Line, anchor: String, plain: String) -> Self {
         Self {
             size: 0,
             anchor,
             line: content,
+            plain,
         }
     }
 
