@@ -6,12 +6,9 @@ use crate::references::configuration::keys::INCLUDE_MATHJAX;
 use crate::utils::downloads::get_cached_path;
 use headless_chrome::protocol::page::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
-use std::error::Error;
-use std::fs::{File, OpenOptions};
-use std::io;
+use std::fs::OpenOptions;
 use std::io::BufWriter;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -40,7 +37,7 @@ pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
                     .open(file_path)?,
             );
             let mut html_writer = HTMLWriter::new(Box::new(writer));
-            document.to_html(&mut html_writer);
+            document.to_html(&mut html_writer)?;
             log::debug!("Successfully rendered temporary html file!");
             html_writer.flush()
         }

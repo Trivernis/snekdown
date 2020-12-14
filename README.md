@@ -4,6 +4,20 @@
 This projects goal is to implement a fast markdown parser with an extended syntax fitted
 for my needs.
 
+## Installation
+
+You need a working rust installation, for example by using [rustup](http://rustup.rs).
+
+```sh
+cargo install snekdown
+```
+
+With pdf rendering
+
+```sh
+cargo install snekdown --features pdf
+```
+
 ## Usage
 
 ```

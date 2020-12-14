@@ -54,7 +54,6 @@ fn main() {
         .filter_module("mio", LevelFilter::Warn)
         .filter_module("want", LevelFilter::Warn)
         .format(|buf, record| {
-            use std::io::Write;
             let color = get_level_style(record.level());
             writeln!(
                 buf,
@@ -133,7 +132,7 @@ fn render(opt: &Opt) -> Parser {
         .create(true)
         .open(&opt.output)
         .unwrap();
-    let mut writer = BufWriter::new(file);
+    let writer = BufWriter::new(file);
 
     render_format(opt, document, writer);
     log::info!("Rendering took:   {:?}", start_render.elapsed());
@@ -143,7 +142,7 @@ fn render(opt: &Opt) -> Parser {
 }
 
 #[cfg(not(feature = "pdf"))]
-fn render_format(opt: &Opt, document: Document, mut writer: BufWriter<File>) {
+fn render_format(opt: &Opt, document: Document, writer: BufWriter<File>) {
     match opt.format.as_str() {
         "html" => render_html(document, writer),
         _ => log::error!("Unknown format {}", opt.format),
@@ -151,7 +150,7 @@ fn render_format(opt: &Opt, document: Document, mut writer: BufWriter<File>) {
 }
 
 #[cfg(feature = "pdf")]
-fn render_format(opt: &Opt, document: Document, mut writer: BufWriter<File>) {
+fn render_format(opt: &Opt, document: Document, writer: BufWriter<File>) {
     match opt.format.as_str() {
         "html" => render_html(document, writer),
         "pdf" => render_pdf(document, writer),
@@ -159,7 +158,7 @@ fn render_format(opt: &Opt, document: Document, mut writer: BufWriter<File>) {
     }
 }
 
-fn render_html(document: Document, mut writer: BufWriter<File>) {
+fn render_html(document: Document, writer: BufWriter<File>) {
     let mut writer = HTMLWriter::new(Box::new(writer));
     document.to_html(&mut writer).unwrap();
     writer.flush().unwrap();
