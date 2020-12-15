@@ -2,10 +2,16 @@ use crate::elements::Document;
 use crate::format::chromium_pdf::result::{PdfRenderingError, PdfRenderingResult};
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::html::to_html::ToHtml;
-use crate::references::configuration::keys::INCLUDE_MATHJAX;
+use crate::references::configuration::keys::{
+    INCLUDE_MATHJAX, PDF_DISPLAY_HEADER_FOOTER, PDF_FOOTER_TEMPLATE, PDF_HEADER_TEMPLATE,
+    PDF_MARGIN_BOTTOM, PDF_MARGIN_LEFT, PDF_MARGIN_RIGHT, PDF_MARGIN_TOP, PDF_PAGE_HEIGHT,
+    PDF_PAGE_SCALE, PDF_PAGE_WIDTH,
+};
+use crate::references::configuration::Configuration;
 use crate::utils::downloads::get_cached_path;
 use headless_chrome::protocol::page::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::BufWriter;
 use std::path::PathBuf;
@@ -16,7 +22,7 @@ pub mod result;
 
 /// Renders the document to pdf and returns the resulting bytes
 pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
-    let mut file_path = PathBuf::from("tmp-document.html");
+    let mut file_path = PathBuf::from(format!("tmp-document.html"));
     file_path = get_cached_path(file_path).with_extension("html");
     let mut mathjax = false;
 
@@ -25,24 +31,26 @@ pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
             mathjax = true;
         }
     }
+    let config = document.config.clone();
 
     let handle = thread::spawn({
         let file_path = file_path.clone();
         move || {
-            log::debug!("Rendering html...");
+            log::info!("Rendering html...");
             let writer = BufWriter::new(
                 OpenOptions::new()
                     .create(true)
                     .write(true)
+                    .truncate(true)
                     .open(file_path)?,
             );
             let mut html_writer = HTMLWriter::new(Box::new(writer));
             document.to_html(&mut html_writer)?;
-            log::debug!("Successfully rendered temporary html file!");
+            log::info!("Successfully rendered temporary html file!");
             html_writer.flush()
         }
     });
-    log::debug!("Starting browser...");
+
     let browser = Browser::new(LaunchOptionsBuilder::default().build().unwrap())?;
     let tab = browser.wait_for_initial_tab()?;
     handle.join().unwrap()?;
@@ -52,7 +60,10 @@ pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
     if mathjax {
         wait_for_mathjax(&tab, Duration::from_secs(60))?;
     }
-    let result = tab.print_to_pdf(Some(get_pdf_options()))?;
+    log::info!("Rendering pdf...");
+    let result = tab.print_to_pdf(Some(get_pdf_options(config)))?;
+    log::info!("Removing temporary html...");
+    fs::remove_file(file_path)?;
 
     Ok(result)
 }
@@ -95,22 +106,49 @@ fn wait_for_mathjax(tab: &Tab, timeout: Duration) -> PdfRenderingResult<()> {
     Ok(())
 }
 
-fn get_pdf_options() -> PrintToPdfOptions {
+fn get_pdf_options(config: Configuration) -> PrintToPdfOptions {
     PrintToPdfOptions {
         landscape: None,
-        display_header_footer: Some(false),
+        display_header_footer: config
+            .get_entry(PDF_DISPLAY_HEADER_FOOTER)
+            .and_then(|value| value.get().as_bool()),
         print_background: Some(true),
-        scale: None,
-        paper_width: None,
-        paper_height: None,
-        margin_top: None,
-        margin_bottom: None,
-        margin_left: None,
-        margin_right: None,
+        scale: config
+            .get_entry(PDF_PAGE_SCALE)
+            .and_then(|value| value.get().as_float())
+            .map(|value| value as f32),
+        paper_width: config
+            .get_entry(PDF_PAGE_WIDTH)
+            .and_then(|value| value.get().as_float())
+            .map(|value| value as f32),
+        paper_height: config
+            .get_entry(PDF_PAGE_HEIGHT)
+            .and_then(|value| value.get().as_float())
+            .map(|value| value as f32),
+        margin_top: config
+            .get_entry(PDF_MARGIN_TOP)
+            .and_then(|value| value.get().as_float())
+            .map(|f| f as f32),
+        margin_bottom: config
+            .get_entry(PDF_MARGIN_BOTTOM)
+            .and_then(|value| value.get().as_float())
+            .map(|f| f as f32),
+        margin_left: config
+            .get_entry(PDF_MARGIN_LEFT)
+            .and_then(|value| value.get().as_float())
+            .map(|f| f as f32),
+        margin_right: config
+            .get_entry(PDF_MARGIN_RIGHT)
+            .and_then(|value| value.get().as_float())
+            .map(|f| f as f32),
         page_ranges: None,
         ignore_invalid_page_ranges: None,
-        header_template: None,
-        footer_template: None,
+        header_template: config
+            .get_entry(PDF_HEADER_TEMPLATE)
+            .map(|value| value.get().as_string()),
+        footer_template: config
+            .get_entry(PDF_FOOTER_TEMPLATE)
+            .map(|value| value.get().as_string()),
         prefer_css_page_size: None,
     }
 }

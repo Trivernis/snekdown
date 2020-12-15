@@ -191,6 +191,38 @@ smart-arrows = true
 # Includes a MathJax script tag in the document to render MathML in chromium.
 # (default: true)
 include-math-jax = true
+
+
+### PDF Options - needs the pdf feature enabled ###
+# If the header and footer of the pdf should be displayed (default: true)
+pdf-display-header-footer = true
+
+# PDF header template of each page (default: empty)
+pdf-header-template = "<div><span class='title'></span></div>"
+
+# PDF footer template of each page (default: see chromium_pdf assets)
+pdf-footer-template = "<div><span class='pageNumber'></span></div>"
+
+# Top margin of the pdf. Should be between 0 and 1. (default: 1.0)
+pdf-margin-top = 1
+
+# Bottom margin of the pdf. Should be between 0 and 1. (default: 1.0)
+pdf-margin-bottom = 1
+
+# Left margin of the pdf. Should be between 0 and 1.
+pdf-margin-left = 0
+
+# Right margin of the pdf. Should be between 0 and 1.
+pdf-margin-right = 0
+
+# Page height of the pdf
+pdf-page-height = 100
+
+# Page width of the pdf
+pdf-page-width = 80
+
+# The scale at which the website is rendered into pdf.
+pdf-page-scale = 1.0
 ```
 
 The `[Section]` keys are not relevant as the structure gets flattened before the values are read.

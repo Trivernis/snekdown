@@ -1,5 +1,8 @@
 use crate::elements::MetadataValue;
-use crate::references::configuration::keys::{BIB_REF_DISPLAY, META_LANG};
+use crate::references::configuration::keys::{
+    BIB_REF_DISPLAY, META_LANG, PDF_FOOTER_TEMPLATE, PDF_HEADER_TEMPLATE, PDF_MARGIN_BOTTOM,
+    PDF_MARGIN_TOP,
+};
 use crate::references::templates::Template;
 use serde::export::TryFrom;
 use std::collections::HashMap;
@@ -50,6 +53,13 @@ impl Value {
             _ => None,
         }
     }
+
+    pub fn as_float(&self) -> Option<f64> {
+        match self {
+            Value::Float(v) => Some(*v),
+            _ => None,
+        }
+    }
 }
 
 impl ConfigEntry {
@@ -71,6 +81,16 @@ impl Default for Configuration {
         let mut self_config = Self::new();
         self_config.set(BIB_REF_DISPLAY, Value::String("{{number}}".to_string()));
         self_config.set(META_LANG, Value::String("en".to_string()));
+        self_config.set(PDF_MARGIN_BOTTOM, Value::Float(0.5));
+        self_config.set(PDF_MARGIN_TOP, Value::Float(0.5));
+        self_config.set(PDF_HEADER_TEMPLATE, Value::String("<div/>".to_string()));
+        self_config.set(
+            PDF_FOOTER_TEMPLATE,
+            Value::String(
+                include_str!("../../format/chromium_pdf/assets/default-footer-template.html")
+                    .to_string(),
+            ),
+        );
 
         self_config
     }
