@@ -16,6 +16,10 @@ jobs:
         with:
           toolchain: nightly
           override: true
+      - name: Set up MinGW
+        uses: egor-tensin/setup-mingw@v1
+        with:
+          platform: x64
       - name: Cache cargo builds
         uses: actions/cache@v2
         with:
