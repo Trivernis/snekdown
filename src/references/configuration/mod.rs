@@ -1,7 +1,7 @@
 use crate::elements::MetadataValue;
 use crate::references::configuration::keys::{
-    BIB_REF_DISPLAY, META_LANG, PDF_FOOTER_TEMPLATE, PDF_HEADER_TEMPLATE, PDF_MARGIN_BOTTOM,
-    PDF_MARGIN_TOP,
+    BIB_REF_DISPLAY, META_LANG, PDF_DISPLAY_HEADER_FOOTER, PDF_FOOTER_TEMPLATE,
+    PDF_HEADER_TEMPLATE, PDF_MARGIN_BOTTOM, PDF_MARGIN_TOP,
 };
 use crate::references::templates::Template;
 use serde::export::TryFrom;
@@ -83,7 +83,11 @@ impl Default for Configuration {
         self_config.set(META_LANG, Value::String("en".to_string()));
         self_config.set(PDF_MARGIN_BOTTOM, Value::Float(0.5));
         self_config.set(PDF_MARGIN_TOP, Value::Float(0.5));
-        self_config.set(PDF_HEADER_TEMPLATE, Value::String("<div/>".to_string()));
+        self_config.set(PDF_DISPLAY_HEADER_FOOTER, Value::Bool(true));
+        self_config.set(
+            PDF_HEADER_TEMPLATE,
+            Value::String("<div></div>".to_string()),
+        );
         self_config.set(
             PDF_FOOTER_TEMPLATE,
             Value::String(
