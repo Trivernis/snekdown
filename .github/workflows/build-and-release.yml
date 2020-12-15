@@ -1,0 +1,47 @@
+name: "Build and Release"
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    steps:
+      - name: Checkout
+          uses: actions/checkout@v2
+      - name: Set up toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Cache cargo builds
+        uses: actions/cache@v2
+        with:
+          path: |
+            target
+            ~/.cargo/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Build Release
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: false
+          command: build
+          args: --release --all-features -Zmultitarget --target x86_64-unknown-linux-gnu --target x86_64-pc-windows-gnu
+      - name: Move binaries
+        run: mv target/x86_64-unknown-linux-gnu/release/snekdown target/snekdown-linux-x86_64 && mv target/x86_64-pc-windows-gnu/release/snekdown.exe target/snekdown-windows-x86_64.exe
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: snekdown
+          path: target/snekdown*
+      - name: publish release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            LICENSE.txt
+            target/snekdown*
