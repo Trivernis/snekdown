@@ -9,7 +9,7 @@ jobs:
   build-release:
     steps:
       - name: Checkout
-          uses: actions/checkout@v2
+        uses: actions/checkout@v2
       - name: Set up toolchain
         uses: actions-rs/toolchain@v1
         with:
