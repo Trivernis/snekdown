@@ -1,10 +1,7 @@
+use crate::utils::caching::CacheStorage;
 use indicatif::{ProgressBar, ProgressStyle};
-use platform_dirs::{AppDirs, AppUI};
 use rayon::prelude::*;
-use std::collections::hash_map::DefaultHasher;
-use std::fs;
 use std::fs::read;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -60,6 +57,7 @@ pub struct PendingDownload {
     pub(crate) path: String,
     pub(crate) data: Option<Vec<u8>>,
     pub(crate) use_cache: bool,
+    cache: CacheStorage,
 }
 
 impl PendingDownload {
@@ -68,6 +66,7 @@ impl PendingDownload {
             path,
             data: None,
             use_cache: true,
+            cache: CacheStorage::new(),
         }
     }
 
@@ -98,22 +97,18 @@ impl PendingDownload {
     /// Stores the data to a cache file to retrieve it later
     fn store_to_cache(&self, data: &Vec<u8>) {
         if self.use_cache {
-            let cache_file = get_cached_path(PathBuf::from(&self.path));
-            log::debug!("Writing to cache {} -> {:?}", self.path, cache_file);
-            fs::write(&cache_file, data.clone()).unwrap_or_else(|_| {
-                log::warn!(
-                    "Failed to write file to cache: {} -> {:?}",
-                    self.path,
-                    cache_file
-                )
-            });
+            let path = PathBuf::from(&self.path);
+            self.cache
+                .write(&path, data.clone())
+                .unwrap_or_else(|_| log::warn!("Failed to write file to cache: {}", self.path));
         }
     }
 
     fn read_from_cache(&self) -> Option<Vec<u8>> {
-        let cache_path = get_cached_path(PathBuf::from(&self.path));
-        if cache_path.exists() && self.use_cache {
-            read(cache_path).ok()
+        let path = PathBuf::from(&self.path);
+
+        if self.cache.has_file(&path) && self.use_cache {
+            self.cache.read(&path).ok()
         } else {
             None
         }
@@ -127,20 +122,4 @@ impl PendingDownload {
             .and_then(|b| b.ok())
             .map(|b| b.to_vec())
     }
-}
-
-pub fn get_cached_path(path: PathBuf) -> PathBuf {
-    lazy_static::lazy_static! {
-        static ref APP_DIRS: AppDirs = AppDirs::new(Some("snekdown"), AppUI::CommandLine).unwrap();
-    }
-    let mut hasher = DefaultHasher::new();
-    path.hash(&mut hasher);
-    let file_name = PathBuf::from(format!("{:x}", hasher.finish()));
-
-    if !APP_DIRS.cache_dir.is_dir() {
-        fs::create_dir(&APP_DIRS.cache_dir)
-            .unwrap_or_else(|_| log::warn!("Failed to create cache dir {:?}", APP_DIRS.cache_dir))
-    }
-
-    APP_DIRS.cache_dir.join(file_name)
 }

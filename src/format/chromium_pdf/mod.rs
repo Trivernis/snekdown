@@ -8,7 +8,7 @@ use crate::references::configuration::keys::{
     PDF_PAGE_SCALE, PDF_PAGE_WIDTH,
 };
 use crate::references::configuration::Configuration;
-use crate::utils::downloads::get_cached_path;
+use crate::utils::caching::CacheStorage;
 use headless_chrome::protocol::page::PrintToPdfOptions;
 use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
 use std::fs;
@@ -22,8 +22,9 @@ pub mod result;
 
 /// Renders the document to pdf and returns the resulting bytes
 pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
+    let cache = CacheStorage::new();
     let mut file_path = PathBuf::from(format!("tmp-document.html"));
-    file_path = get_cached_path(file_path).with_extension("html");
+    file_path = cache.get_file_path(&file_path);
     let mut mathjax = false;
 
     if let Some(entry) = document.config.get_entry(INCLUDE_MATHJAX) {

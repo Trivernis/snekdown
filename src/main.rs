@@ -6,16 +6,38 @@ use snekdown::elements::Document;
 use snekdown::format::html::html_writer::HTMLWriter;
 use snekdown::format::html::to_html::ToHtml;
 use snekdown::parser::ParserOptions;
+use snekdown::utils::caching::CacheStorage;
 use snekdown::Parser;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
+use std::process::exit;
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 struct Opt {
+    #[structopt(subcommand)]
+    sub_command: SubCommand,
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt()]
+enum SubCommand {
+    /// Watch the document and its imports and render on change.
+    Watch(RenderOptions),
+
+    /// Parse and render the document.
+    Render(RenderOptions),
+
+    /// Clears the cache directory
+    ClearCache,
+}
+
+#[derive(StructOpt, Debug)]
+#[structopt()]
+struct RenderOptions {
     /// Path to the input file
     #[structopt(parse(from_os_str))]
     input: PathBuf,
@@ -31,19 +53,6 @@ struct Opt {
     /// Don't use the cache
     #[structopt(long)]
     no_cache: bool,
-
-    #[structopt(subcommand)]
-    sub_command: Option<SubCommand>,
-}
-
-#[derive(StructOpt, Debug)]
-#[structopt()]
-enum SubCommand {
-    /// Watch the document and its imports and render on change.
-    Watch,
-
-    /// Default. Parse and render the document.
-    Render,
 }
 
 fn main() {
@@ -68,19 +77,16 @@ fn main() {
             )
         })
         .init();
-    if !opt.input.exists() {
-        log::error!(
-            "The input file {} could not be found",
-            opt.input.to_str().unwrap()
-        );
-        return;
-    }
 
     match &opt.sub_command {
-        Some(SubCommand::Render) | None => {
+        SubCommand::Render(opt) => {
             let _ = render(&opt);
         }
-        Some(SubCommand::Watch) => watch(&opt),
+        SubCommand::Watch(opt) => watch(&opt),
+        SubCommand::ClearCache => {
+            let cache = CacheStorage::new();
+            cache.clear().expect("Failed to clear cache");
+        }
     };
 }
 
@@ -95,7 +101,7 @@ fn get_level_style(level: Level) -> colored::Color {
 }
 
 /// Watches a file with all of its imports and renders on change
-fn watch(opt: &Opt) {
+fn watch(opt: &RenderOptions) {
     let parser = render(opt);
     let (tx, rx) = channel();
     let mut watcher = watcher(tx, Duration::from_millis(250)).unwrap();
@@ -112,7 +118,15 @@ fn watch(opt: &Opt) {
 }
 
 /// Renders the document to the output path
-fn render(opt: &Opt) -> Parser {
+fn render(opt: &RenderOptions) -> Parser {
+    if !opt.input.exists() {
+        log::error!(
+            "The input file {} could not be found",
+            opt.input.to_str().unwrap()
+        );
+
+        exit(1)
+    }
     let start = Instant::now();
 
     let mut parser = Parser::with_defaults(
@@ -142,7 +156,7 @@ fn render(opt: &Opt) -> Parser {
 }
 
 #[cfg(not(feature = "pdf"))]
-fn render_format(opt: &Opt, document: Document, writer: BufWriter<File>) {
+fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File>) {
     match opt.format.as_str() {
         "html" => render_html(document, writer),
         _ => log::error!("Unknown format {}", opt.format),
@@ -150,7 +164,7 @@ fn render_format(opt: &Opt, document: Document, writer: BufWriter<File>) {
 }
 
 #[cfg(feature = "pdf")]
-fn render_format(opt: &Opt, document: Document, writer: BufWriter<File>) {
+fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File>) {
     match opt.format.as_str() {
         "html" => render_html(document, writer),
         "pdf" => render_pdf(document, writer),
