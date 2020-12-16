@@ -72,6 +72,7 @@ pub struct PendingImage {
     pub mime: Mime,
     brightness: Option<i32>,
     contrast: Option<f32>,
+    huerotate: Option<i32>,
     grayscale: bool,
     invert: bool,
 }
@@ -89,6 +90,7 @@ impl PendingImage {
             contrast: None,
             grayscale: false,
             invert: false,
+            huerotate: None,
         }
     }
 
@@ -98,6 +100,9 @@ impl PendingImage {
         }
         if let Some(contrast) = meta.get_float("contrast") {
             self.contrast = Some(contrast as f32);
+        }
+        if let Some(huerotate) = meta.get_float("huerotate") {
+            self.huerotate = Some(huerotate as i32);
         }
         self.grayscale = meta.get_bool("grayscale");
         self.invert = meta.get_bool("invert");
@@ -156,9 +161,15 @@ impl PendingImage {
         if let Some(contrast) = self.contrast {
             image = image.adjust_contrast(contrast);
         }
+
+        if let Some(rotate) = self.huerotate {
+            image = image.huerotate(rotate);
+        }
+
         if self.grayscale {
             image = image.grayscale();
         }
+
         if self.invert {
             image.invert();
         }
@@ -198,13 +209,16 @@ impl PendingImage {
         let type_name = format!("{:?}", target_format);
 
         if let Some(target_size) = target_size {
-            file_name += &*format!("-{}-{}", target_size.0, target_size.1);
+            file_name += &*format!("-w{}-h{}", target_size.0, target_size.1);
         }
         if let Some(b) = self.brightness {
-            file_name += &*format!("-{}", b);
+            file_name += &*format!("-b{}", b);
         }
         if let Some(c) = self.contrast {
-            file_name += &*format!("-{}", c);
+            file_name += &*format!("-c{}", c);
+        }
+        if let Some(h) = self.huerotate {
+            file_name += &*format!("-h{}", h);
         }
         file_name += &*format!("{}-{}", self.invert, self.grayscale);
 
