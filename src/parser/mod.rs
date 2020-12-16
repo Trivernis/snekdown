@@ -58,13 +58,6 @@ impl ParserOptions {
 
         self
     }
-
-    /// If external sources should be cached when after downloaded
-    pub fn use_cache(self, value: bool) -> Self {
-        self.document.downloads.lock().use_cache = value;
-
-        self
-    }
 }
 
 pub struct Parser {
@@ -158,18 +151,6 @@ impl Parser {
                 self.get_position_string(),
             );
             return Err(self.ctm.assert_error(None));
-        }
-        {
-            let mut paths = self.options.paths.lock().unwrap();
-            if paths.iter().find(|item| **item == path) != None {
-                log::warn!(
-                    "Import of \"{}\" failed: Already imported.\n\t--> {}\n",
-                    path.to_str().unwrap(),
-                    self.get_position_string(),
-                );
-                return Err(self.ctm.assert_error(None));
-            }
-            paths.push(path.clone());
         }
         let anchor = Arc::new(RwLock::new(ImportAnchor::new()));
         let anchor_clone = Arc::clone(&anchor);
@@ -276,6 +257,18 @@ impl Parser {
                     return ImportType::None;
                 }
             }
+        }
+        {
+            let mut paths = self.options.paths.lock().unwrap();
+            if paths.iter().find(|item| **item == path).is_some() {
+                log::warn!(
+                    "Import of \"{}\" failed: Already imported.\n\t--> {}\n",
+                    path.to_str().unwrap(),
+                    self.get_position_string(),
+                );
+                return ImportType::None;
+            }
+            paths.push(path.clone());
         }
         match args.get("type").map(|e| e.as_string().to_lowercase()) {
             Some(s) if s == "stylesheet".to_string() => {

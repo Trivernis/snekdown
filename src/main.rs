@@ -16,17 +16,17 @@ use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 use structopt::StructOpt;
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 struct Opt {
     #[structopt(subcommand)]
     sub_command: SubCommand,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 #[structopt()]
 enum SubCommand {
     /// Watch the document and its imports and render on change.
-    Watch(RenderOptions),
+    Watch(WatchOptions),
 
     /// Parse and render the document.
     Render(RenderOptions),
@@ -35,7 +35,7 @@ enum SubCommand {
     ClearCache,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Clone)]
 #[structopt()]
 struct RenderOptions {
     /// Path to the input file
@@ -49,10 +49,17 @@ struct RenderOptions {
     /// the output format
     #[structopt(short, long, default_value = "html")]
     format: String,
+}
 
-    /// Don't use the cache
-    #[structopt(long)]
-    no_cache: bool,
+#[derive(StructOpt, Debug, Clone)]
+#[structopt()]
+struct WatchOptions {
+    /// The amount of time in milliseconds to wait after changes before rendering
+    #[structopt(long, default_value = "500")]
+    debounce: u64,
+
+    #[structopt(flatten)]
+    render_options: RenderOptions,
 }
 
 fn main() {
@@ -101,16 +108,17 @@ fn get_level_style(level: Level) -> colored::Color {
 }
 
 /// Watches a file with all of its imports and renders on change
-fn watch(opt: &RenderOptions) {
-    let parser = render(opt);
+fn watch(opt: &WatchOptions) {
+    let parser = render(&opt.render_options);
     let (tx, rx) = channel();
-    let mut watcher = watcher(tx, Duration::from_millis(250)).unwrap();
+    let mut watcher = watcher(tx, Duration::from_millis(opt.debounce)).unwrap();
+
     for path in parser.get_paths() {
         watcher.watch(path, RecursiveMode::NonRecursive).unwrap();
     }
     while let Ok(_) = rx.recv() {
         println!("---");
-        let parser = render(opt);
+        let parser = render(&opt.render_options);
         for path in parser.get_paths() {
             watcher.watch(path, RecursiveMode::NonRecursive).unwrap();
         }
@@ -129,11 +137,7 @@ fn render(opt: &RenderOptions) -> Parser {
     }
     let start = Instant::now();
 
-    let mut parser = Parser::with_defaults(
-        ParserOptions::default()
-            .add_path(opt.input.clone())
-            .use_cache(!opt.no_cache),
-    );
+    let mut parser = Parser::with_defaults(ParserOptions::default().add_path(opt.input.clone()));
     let document = parser.parse();
 
     log::info!("Parsing + Processing took: {:?}", start.elapsed());

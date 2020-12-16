@@ -37,18 +37,17 @@ SUBCOMMANDS:
     watch          Watch the document and its imports and render on change
 ```
 
-### Rendering / Watching
+### Rendering
 
 ```
 Parse and render the document
 
 USAGE:
-    snekdown render [FLAGS] [OPTIONS] <input> <output>
+    snekdown render [OPTIONS] <input> <output>
 
 FLAGS:
-    -h, --help        Prints help information
-        --no-cache    Don't use the cache
-    -V, --version     Prints version information
+    -h, --help       Prints help information
+    -V, --version    Prints version information
 
 OPTIONS:
     -f, --format <format>    the output format [default: html]
@@ -56,7 +55,31 @@ OPTIONS:
 ARGS:
     <input>     Path to the input file
     <output>    Path for the output file
+
 ```
+
+### Watching
+
+```
+Watch the document and its imports and render on change
+
+USAGE:
+    snekdown watch [OPTIONS] <input> <output>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+        --debounce <debounce>    The amount of time in milliseconds to wait after changes before rendering [default:
+                                 500]
+    -f, --format <format>        the output format [default: html]
+
+ARGS:
+    <input>     Path to the input file
+    <output>    Path for the output file
+```
+
 
 ## Syntax
 

@@ -10,7 +10,6 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct DownloadManager {
     downloads: Vec<Arc<Mutex<PendingDownload>>>,
-    pub use_cache: bool,
 }
 
 impl DownloadManager {
@@ -18,14 +17,12 @@ impl DownloadManager {
     pub fn new() -> Self {
         Self {
             downloads: Vec::new(),
-            use_cache: true,
         }
     }
 
     /// Adds a new pending download
     pub fn add_download(&mut self, path: String) -> Arc<Mutex<PendingDownload>> {
-        let mut download = PendingDownload::new(path.clone());
-        download.use_cache = self.use_cache;
+        let download = PendingDownload::new(path.clone());
         let pending = Arc::new(Mutex::new(download));
         self.downloads.push(Arc::clone(&pending));
         log::debug!("Added download {}", path);
