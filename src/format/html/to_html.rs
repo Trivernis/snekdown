@@ -420,7 +420,7 @@ impl ToHtml for Image {
         }
         if let Some(description) = self.url.description.clone() {
             writer.write("<div class=\"figure\"><a href=\"".to_string())?;
-            writer.write_attribute(self.url.url.clone())?;
+            writer.write_attribute(url.clone())?;
             writer.write("\"><img src=\"".to_string())?;
             writer.write(url)?;
             writer.write("\" style=\"".to_string())?;
