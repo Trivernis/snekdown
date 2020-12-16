@@ -270,7 +270,7 @@ Hide a section (including subsections) in the TOC
 #[toc-hidden] Section
 
 Set the size of an image
-!(url)[width = 42% height=auto]
+!(url)[width = 42%, height=auto, grayscale, brightness=10, contrast=1.2]
 
 Set the source of a quote
 [author=Me date=[[date]] display="{{author}} - {{date}}"]> It's me

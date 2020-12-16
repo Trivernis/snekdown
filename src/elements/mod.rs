@@ -710,6 +710,8 @@ impl Placeholder {
 pub trait Metadata {
     fn get_bool(&self, key: &str) -> bool;
     fn get_string(&self, key: &str) -> Option<String>;
+    fn get_float(&self, key: &str) -> Option<f64>;
+    fn get_integer(&self, key: &str) -> Option<i64>;
     fn get_string_map(&self) -> HashMap<String, String>;
 }
 
@@ -725,6 +727,24 @@ impl Metadata for InlineMetadata {
     fn get_string(&self, key: &str) -> Option<String> {
         if let Some(MetadataValue::String(value)) = self.data.get(key) {
             Some(value.clone())
+        } else {
+            None
+        }
+    }
+
+    fn get_float(&self, key: &str) -> Option<f64> {
+        if let Some(MetadataValue::Float(f)) = self.data.get(key) {
+            Some(*f)
+        } else if let Some(MetadataValue::Integer(i)) = self.data.get(key) {
+            Some(*i as f64)
+        } else {
+            None
+        }
+    }
+
+    fn get_integer(&self, key: &str) -> Option<i64> {
+        if let Some(MetadataValue::Integer(i)) = self.data.get(key) {
+            Some(*i)
         } else {
             None
         }

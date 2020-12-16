@@ -1,3 +1,4 @@
+use crate::elements::Metadata;
 use crate::utils::caching::CacheStorage;
 use crate::utils::downloads::download_path;
 use image::imageops::FilterType;
@@ -60,6 +61,9 @@ pub struct PendingImage {
     pub data: Option<Vec<u8>>,
     cache: CacheStorage,
     pub mime: Mime,
+    brightness: Option<i32>,
+    contrast: Option<f32>,
+    grayscale: bool,
 }
 
 impl PendingImage {
@@ -71,7 +75,20 @@ impl PendingImage {
             data: None,
             cache: CacheStorage::new(),
             mime,
+            brightness: None,
+            contrast: None,
+            grayscale: false,
         }
+    }
+
+    pub fn assign_from_meta<M: Metadata>(&mut self, meta: &M) {
+        if let Some(brightness) = meta.get_integer("brightness") {
+            self.brightness = Some(brightness as i32);
+        }
+        if let Some(contrast) = meta.get_float("contrast") {
+            self.contrast = Some(contrast as f32);
+        }
+        self.grayscale = meta.get_bool("grayscale");
     }
 
     /// Converts the image to the specified target format (specified by target_extension)
@@ -87,6 +104,7 @@ impl PendingImage {
                     .and_then(|extension| ImageFormat::from_extension(extension))
             })
             .unwrap_or(ImageFormat::Png);
+
         let output_path = self.get_output_path(format, target_size);
         self.mime = get_mime(&output_path);
 
@@ -118,6 +136,18 @@ impl PendingImage {
                 image = image.resize(width, height, FilterType::Lanczos3);
             }
         }
+
+        if let Some(brightness) = self.brightness {
+            image = image.brighten(brightness);
+        }
+
+        if let Some(contrast) = self.contrast {
+            image = image.adjust_contrast(contrast);
+        }
+        if self.grayscale {
+            image = image.grayscale();
+        }
+
         let data = Vec::new();
         let mut writer = Cursor::new(data);
 
@@ -155,7 +185,14 @@ impl PendingImage {
         if let Some(target_size) = target_size {
             file_name += &*format!("-{}-{}", target_size.0, target_size.1);
         }
-        file_name += format!("-{}-converted", type_name).as_str();
+        if let Some(b) = self.brightness {
+            file_name += &*format!("-{}", b);
+        }
+        if let Some(c) = self.contrast {
+            file_name += &*format!("-{}", c);
+        }
+
+        file_name += format!("-{}", type_name).as_str();
         path.set_file_name(file_name);
         path.set_extension(extension);
 

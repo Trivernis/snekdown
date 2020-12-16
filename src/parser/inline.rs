@@ -140,21 +140,24 @@ impl ParseInline for Parser {
         self.ctm.seek_one()?;
 
         if let Ok(url) = self.parse_url(true) {
-            let metadata = if let Ok(meta) = self.parse_inline_metadata() {
-                Some(meta)
-            } else {
-                None
-            };
+            let metadata = self.parse_inline_metadata().ok();
+
             let path = url.url.clone();
+            let pending_image = self
+                .options
+                .document
+                .images
+                .lock()
+                .add_image(PathBuf::from(path));
+
+            if let Some(meta) = &metadata {
+                pending_image.lock().assign_from_meta(meta)
+            }
+
             Ok(Image {
                 url,
                 metadata,
-                image_data: self
-                    .options
-                    .document
-                    .images
-                    .lock()
-                    .add_image(PathBuf::from(path)),
+                image_data: pending_image,
             })
         } else {
             Err(self.ctm.rewind_with_error(start_index))
@@ -502,6 +505,7 @@ impl ParseInline for Parser {
 
         self.ctm.seek_any(&INLINE_WHITESPACE)?;
         let mut value = MetadataValue::Bool(true);
+
         if self.ctm.check_char(&EQ) {
             self.ctm.seek_one()?;
             self.ctm.seek_any(&INLINE_WHITESPACE)?;
