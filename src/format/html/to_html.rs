@@ -1,15 +1,13 @@
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::{EMBED_EXTERNAL, INCLUDE_MATHJAX, META_LANG};
-use crate::references::configuration::Value;
+use crate::references::configuration::keys::{INCLUDE_MATHJAX, META_LANG};
 use crate::references::glossary::{GlossaryDisplay, GlossaryReference};
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::encode_attribute;
 use minify::html::minify;
 use std::io;
-use std::sync::Arc;
 use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
 use syntect::parsing::SyntaxSet;
@@ -64,7 +62,7 @@ impl ToHtml for Inline {
             Inline::Math(m) => m.to_html(writer),
             Inline::LineBreak => writer.write("<br>".to_string()),
             Inline::CharacterCode(code) => code.to_html(writer),
-            Inline::GlossaryReference(gloss) => gloss.lock().unwrap().to_html(writer),
+            Inline::GlossaryReference(gloss) => gloss.lock().to_html(writer),
             Inline::Arrow(a) => a.to_html(writer),
         }
     }
@@ -102,18 +100,6 @@ impl ToHtml for MetadataValue {
 
 impl ToHtml for Document {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
-        let downloads = Arc::clone(&self.downloads);
-        if let Some(Value::Bool(embed)) = self
-            .config
-            .get_entry(EMBED_EXTERNAL)
-            .map(|e| e.get().clone())
-        {
-            if embed {
-                downloads.lock().unwrap().download_all();
-            }
-        } else {
-            downloads.lock().unwrap().download_all();
-        }
         let path = if let Some(path) = &self.path {
             format!("path=\"{}\"", encode_attribute(path.as_str()))
         } else {
@@ -139,7 +125,7 @@ impl ToHtml for Document {
             writer.write("</style>".to_string())?;
 
             for stylesheet in &self.stylesheets {
-                let mut stylesheet = stylesheet.lock().unwrap();
+                let mut stylesheet = stylesheet.lock();
                 let data = std::mem::replace(&mut stylesheet.data, None);
                 if let Some(data) = data {
                     if self
@@ -401,7 +387,7 @@ impl ToHtml for Image {
         let mut style = String::new();
 
         let url = if let Some(content) = self.get_content() {
-            let mime_type = mime_guess::from_path(&self.url.url).first_or(mime::IMAGE_PNG);
+            let mime_type = self.get_mime_type();
             format!(
                 "data:{};base64,{}",
                 mime_type.to_string(),
@@ -668,7 +654,7 @@ impl ToHtml for Anchor {
 impl ToHtml for GlossaryReference {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
         if let Some(entry) = &self.entry {
-            let entry = entry.lock().unwrap();
+            let entry = entry.lock();
             writer.write("<a class=\"glossaryReference\" href=\"#".to_string())?;
             writer.write_attribute(self.short.clone())?;
             writer.write("\">".to_string())?;

@@ -21,8 +21,29 @@ cargo install snekdown --features pdf
 ## Usage
 
 ```
+snekdown 0.30.5
+
 USAGE:
-    snekdown [FLAGS] [OPTIONS] <input> <output> [SUBCOMMAND]
+    snekdown <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+SUBCOMMANDS:
+    clear-cache    Clears the cache directory
+    help           Prints this message or the help of the given subcommand(s)
+    render         Parse and render the document
+    watch          Watch the document and its imports and render on change
+```
+
+### Rendering / Watching
+
+```
+Parse and render the document
+
+USAGE:
+    snekdown render [FLAGS] [OPTIONS] <input> <output>
 
 FLAGS:
     -h, --help        Prints help information
@@ -35,11 +56,6 @@ OPTIONS:
 ARGS:
     <input>     Path to the input file
     <output>    Path for the output file
-
-SUBCOMMANDS:
-    help      Prints this message or the help of the given subcommand(s)
-    render    Default. Parse and render the document
-    watch     Watch the document and its imports and render on change
 ```
 
 ## Syntax
@@ -193,7 +209,26 @@ smart-arrows = true
 include-math-jax = true
 
 
+### Image processing options ###
+
+# Force convert images to the specified format.
+# Supported formats are png, jpeg, gif, bmp, (ico needs size <= 256), avif, pnm
+# (default: keep original)
+image-format = "jpg"
+
+# the max width for the images.
+# if an image is larger than that it get's resized.
+# (default: none)
+image-max-width = 700
+
+# the max width for the images.
+# if an image is larger than that it get's resized.
+# (default: none)
+image-max-height = 800
+
+
 ### PDF Options - needs the pdf feature enabled ###
+
 # If the header and footer of the pdf should be displayed (default: true)
 pdf-display-header-footer = true
 
@@ -235,7 +270,7 @@ Hide a section (including subsections) in the TOC
 #[toc-hidden] Section
 
 Set the size of an image
-!(url)[width = 42% height=auto]
+!(url)[width = 42%, height=auto, brightness=10, contrast=1.2, huerotate=180, invert, grayscale]
 
 Set the source of a quote
 [author=Me date=[[date]] display="{{author}} - {{date}}"]> It's me

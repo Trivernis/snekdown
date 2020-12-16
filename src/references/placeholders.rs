@@ -54,7 +54,7 @@ impl ProcessPlaceholders for Document {
                     self.bibliography.get_entry_list_by_occurrence()
                 )))),
                 P_GLS => pholder.set_value(block!(Block::List(
-                    self.glossary.lock().unwrap().create_glossary_list()
+                    self.glossary.lock().create_glossary_list()
                 ))),
                 P_DATE => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: get_date_string()

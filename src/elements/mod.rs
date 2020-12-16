@@ -1,19 +1,26 @@
 pub mod tokens;
 
 use crate::format::PlaceholderTemplate;
+use crate::references::configuration::keys::{
+    EMBED_EXTERNAL, IMAGE_FORMAT, IMAGE_MAX_HEIGHT, IMAGE_MAX_WIDTH,
+};
 use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::references::glossary::{GlossaryManager, GlossaryReference};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
 use crate::utils::downloads::{DownloadManager, PendingDownload};
+use crate::utils::image_converting::{ImageConverter, PendingImage};
 use asciimath_rs::elements::special::Expression;
 use bibliographix::bib_manager::BibManager;
 use bibliographix::bibliography::bibliography_entry::BibliographyEntryReference;
 use bibliographix::references::bib_reference::BibRefAnchor;
+use image::ImageFormat;
+use mime::Mime;
+use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::iter::FromIterator;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, RwLock};
 
 pub const SECTION: &str = "section";
 pub const PARAGRAPH: &str = "paragraph";
@@ -73,6 +80,7 @@ pub struct Document {
     pub config: Configuration,
     pub bibliography: BibManager,
     pub downloads: Arc<Mutex<DownloadManager>>,
+    pub images: Arc<Mutex<ImageConverter>>,
     pub stylesheets: Vec<Arc<Mutex<PendingDownload>>>,
     pub glossary: Arc<Mutex<GlossaryManager>>,
 }
@@ -236,7 +244,7 @@ pub struct Url {
 pub struct Image {
     pub(crate) url: Url,
     pub(crate) metadata: Option<InlineMetadata>,
-    pub(crate) download: Arc<Mutex<PendingDownload>>,
+    pub(crate) image_data: Arc<Mutex<PendingImage>>,
 }
 
 #[derive(Clone, Debug)]
@@ -314,6 +322,7 @@ impl Document {
             bibliography: BibManager::new(),
             stylesheets: Vec::new(),
             downloads: Arc::new(Mutex::new(DownloadManager::new())),
+            images: Arc::new(Mutex::new(ImageConverter::new())),
             glossary: Arc::new(Mutex::new(GlossaryManager::new())),
         }
     }
@@ -329,6 +338,7 @@ impl Document {
             bibliography: self.bibliography.create_child(),
             stylesheets: Vec::new(),
             downloads: Arc::clone(&self.downloads),
+            images: Arc::clone(&self.images),
             glossary: Arc::clone(&self.glossary),
         }
     }
@@ -427,9 +437,58 @@ impl Document {
         if self.is_root {
             self.process_definitions();
             self.bibliography.assign_entries_to_references();
-            self.glossary.lock().unwrap().assign_entries_to_references();
+            self.glossary.lock().assign_entries_to_references();
             self.process_placeholders();
+            self.process_media();
         }
+    }
+
+    fn process_media(&self) {
+        let downloads = Arc::clone(&self.downloads);
+        if let Some(Value::Bool(embed)) = self
+            .config
+            .get_entry(EMBED_EXTERNAL)
+            .map(|e| e.get().clone())
+        {
+            if embed {
+                downloads.lock().download_all();
+            }
+        } else {
+            downloads.lock().download_all();
+        }
+        if let Some(Value::String(s)) = self.config.get_entry(IMAGE_FORMAT).map(|e| e.get().clone())
+        {
+            if let Some(format) = ImageFormat::from_extension(s) {
+                self.images.lock().set_target_format(format);
+            }
+        }
+        let mut image_width = -1;
+        let mut image_height = -1;
+
+        if let Some(Value::Integer(i)) = self
+            .config
+            .get_entry(IMAGE_MAX_WIDTH)
+            .map(|v| v.get().clone())
+        {
+            image_width = i;
+            image_height = i;
+        }
+        if let Some(Value::Integer(i)) = self
+            .config
+            .get_entry(IMAGE_MAX_HEIGHT)
+            .map(|v| v.get().clone())
+        {
+            image_height = i;
+            if image_width < 0 {
+                image_width = i;
+            }
+        }
+        if image_width > 0 && image_height > 0 {
+            self.images
+                .lock()
+                .set_target_size((image_width as u32, image_height as u32));
+        }
+        self.images.lock().convert_all();
     }
 }
 
@@ -651,6 +710,8 @@ impl Placeholder {
 pub trait Metadata {
     fn get_bool(&self, key: &str) -> bool;
     fn get_string(&self, key: &str) -> Option<String>;
+    fn get_float(&self, key: &str) -> Option<f64>;
+    fn get_integer(&self, key: &str) -> Option<i64>;
     fn get_string_map(&self) -> HashMap<String, String>;
 }
 
@@ -666,6 +727,24 @@ impl Metadata for InlineMetadata {
     fn get_string(&self, key: &str) -> Option<String> {
         if let Some(MetadataValue::String(value)) = self.data.get(key) {
             Some(value.clone())
+        } else {
+            None
+        }
+    }
+
+    fn get_float(&self, key: &str) -> Option<f64> {
+        if let Some(MetadataValue::Float(f)) = self.data.get(key) {
+            Some(*f)
+        } else if let Some(MetadataValue::Integer(i)) = self.data.get(key) {
+            Some(*i as f64)
+        } else {
+            None
+        }
+    }
+
+    fn get_integer(&self, key: &str) -> Option<i64> {
+        if let Some(MetadataValue::Integer(i)) = self.data.get(key) {
+            Some(*i)
         } else {
             None
         }
@@ -703,9 +782,13 @@ impl Into<HashMap<String, Value>> for InlineMetadata {
 impl Image {
     pub fn get_content(&self) -> Option<Vec<u8>> {
         let mut data = None;
-        std::mem::swap(&mut data, &mut self.download.lock().unwrap().data);
+        std::mem::swap(&mut data, &mut self.image_data.lock().data);
 
         data
+    }
+
+    pub fn get_mime_type(&self) -> Mime {
+        self.image_data.lock().mime.clone()
     }
 }
 
@@ -736,8 +819,8 @@ impl BibReference {
     }
 
     pub(crate) fn get_formatted(&self) -> String {
-        if let Some(entry) = &self.entry_anchor.lock().unwrap().entry {
-            let entry = entry.lock().unwrap();
+        if let Some(entry) = &self.entry_anchor.lock().entry {
+            let entry = entry.lock();
 
             if let Some(display) = &self.display {
                 let display = display.read().unwrap();

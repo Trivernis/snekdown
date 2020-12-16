@@ -61,7 +61,7 @@ impl ParserOptions {
 
     /// If external sources should be cached when after downloaded
     pub fn use_cache(self, value: bool) -> Self {
-        self.document.downloads.lock().unwrap().use_cache = value;
+        self.document.downloads.lock().use_cache = value;
 
         self
     }
@@ -209,7 +209,6 @@ impl Parser {
                 .document
                 .downloads
                 .lock()
-                .unwrap()
                 .add_download(path.to_str().unwrap().to_string()),
         );
 
@@ -236,7 +235,6 @@ impl Parser {
             .document
             .glossary
             .lock()
-            .unwrap()
             .assign_from_toml(value)
             .unwrap_or_else(|e| log::error!("{}", e));
 

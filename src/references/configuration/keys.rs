@@ -24,3 +24,8 @@ pub const PDF_MARGIN_RIGHT: &str = "pdf-margin-right";
 pub const PDF_PAGE_HEIGHT: &str = "pdf-page-height";
 pub const PDF_PAGE_WIDTH: &str = "pdf-page-width";
 pub const PDF_PAGE_SCALE: &str = "pdf-page-scale";
+
+// Image Options
+pub const IMAGE_FORMAT: &str = "image-format";
+pub const IMAGE_MAX_WIDTH: &str = "image-max-width";
+pub const IMAGE_MAX_HEIGHT: &str = "image-max-height";

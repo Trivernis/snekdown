@@ -1,9 +1,10 @@
 use crate::elements::{
     Anchor, BoldText, Inline, ItalicText, Line, List, ListItem, PlainText, TextLine,
 };
+use parking_lot::Mutex;
 use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use crate::bold_text;
 use crate::italic_text;
@@ -110,11 +111,11 @@ impl GlossaryManager {
     /// Assignes entries to references
     pub fn assign_entries_to_references(&self) {
         for reference in &self.references {
-            let mut reference = reference.lock().unwrap();
+            let mut reference = reference.lock();
 
             if let Some(entry) = self.entries.get(&reference.short) {
                 reference.entry = Some(Arc::clone(entry));
-                let mut entry = entry.lock().unwrap();
+                let mut entry = entry.lock();
 
                 if !entry.is_assigned {
                     entry.is_assigned = true;
@@ -130,13 +131,13 @@ impl GlossaryManager {
         let mut entries = self
             .entries
             .values()
-            .filter(|e| e.lock().unwrap().is_assigned)
+            .filter(|e| e.lock().is_assigned)
             .cloned()
             .collect::<Vec<Arc<Mutex<GlossaryEntry>>>>();
 
         entries.sort_by(|a, b| {
-            let a = a.lock().unwrap();
-            let b = b.lock().unwrap();
+            let a = a.lock();
+            let b = b.lock();
             if a.short > b.short {
                 Ordering::Greater
             } else if a.short < b.short {
@@ -146,7 +147,7 @@ impl GlossaryManager {
             }
         });
         for entry in &entries {
-            let entry = entry.lock().unwrap();
+            let entry = entry.lock();
             let mut line = TextLine::new();
             line.subtext.push(bold_text!(entry.short.clone()));
             line.subtext.push(plain_text!(" - ".to_string()));

@@ -9,8 +9,10 @@ use crate::references::glossary::GlossaryReference;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
 use crate::Parser;
 use bibliographix::references::bib_reference::BibRef;
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 pub(crate) trait ParseInline {
     fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Vec<Inline>>;
@@ -98,7 +100,7 @@ impl ParseInline for Parser {
             log::trace!("Inline::Striked");
             Ok(Inline::Striked(striked))
         } else if let Ok(gloss) = self.parse_glossary_reference() {
-            log::trace!("Inline::GlossaryReference {}", gloss.lock().unwrap().short);
+            log::trace!("Inline::GlossaryReference {}", gloss.lock().short);
             Ok(Inline::GlossaryReference(gloss))
         } else if let Ok(superscript) = self.parse_superscript() {
             log::trace!("Inline::Superscript");
@@ -138,22 +140,24 @@ impl ParseInline for Parser {
         self.ctm.seek_one()?;
 
         if let Ok(url) = self.parse_url(true) {
-            let metadata = if let Ok(meta) = self.parse_inline_metadata() {
-                Some(meta)
-            } else {
-                None
-            };
+            let metadata = self.parse_inline_metadata().ok();
+
             let path = url.url.clone();
+            let pending_image = self
+                .options
+                .document
+                .images
+                .lock()
+                .add_image(PathBuf::from(path));
+
+            if let Some(meta) = &metadata {
+                pending_image.lock().assign_from_meta(meta)
+            }
+
             Ok(Image {
                 url,
                 metadata,
-                download: self
-                    .options
-                    .document
-                    .downloads
-                    .lock()
-                    .unwrap()
-                    .add_download(path),
+                image_data: pending_image,
             })
         } else {
             Err(self.ctm.rewind_with_error(start_index))
@@ -371,7 +375,6 @@ impl ParseInline for Parser {
             .bibliography
             .root_ref_anchor()
             .lock()
-            .unwrap()
             .insert(bib_ref);
 
         Ok(ref_entry)
@@ -432,7 +435,6 @@ impl ParseInline for Parser {
             .document
             .glossary
             .lock()
-            .unwrap()
             .add_reference(reference))
     }
 
@@ -503,6 +505,7 @@ impl ParseInline for Parser {
 
         self.ctm.seek_any(&INLINE_WHITESPACE)?;
         let mut value = MetadataValue::Bool(true);
+
         if self.ctm.check_char(&EQ) {
             self.ctm.seek_one()?;
             self.ctm.seek_any(&INLINE_WHITESPACE)?;

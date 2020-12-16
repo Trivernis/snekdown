@@ -33,7 +33,6 @@ pub fn create_bib_list(entries: Vec<BibliographyEntryReference>) -> List {
     for entry in entries {
         entry
             .lock()
-            .unwrap()
             .raw_fields
             .insert("ord".to_string(), count.to_string());
         list.add_item(get_item_for_entry(entry));
@@ -45,7 +44,7 @@ pub fn create_bib_list(entries: Vec<BibliographyEntryReference>) -> List {
 
 /// Returns the list item for a bib entry
 fn get_item_for_entry(entry: BibliographyEntryReference) -> ListItem {
-    let entry = entry.lock().unwrap();
+    let entry = entry.lock();
 
     match &entry.bib_type {
         BibliographyType::Article(a) => get_item_for_article(&*entry, a),

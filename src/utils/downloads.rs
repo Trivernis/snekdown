@@ -1,12 +1,10 @@
+use crate::utils::caching::CacheStorage;
 use indicatif::{ProgressBar, ProgressStyle};
-use platform_dirs::{AppDirs, AppUI};
+use parking_lot::Mutex;
 use rayon::prelude::*;
-use std::collections::hash_map::DefaultHasher;
-use std::fs;
 use std::fs::read;
-use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A manager for downloading urls in parallel
 #[derive(Clone, Debug)]
@@ -38,7 +36,7 @@ impl DownloadManager {
     /// Downloads all download entries
     pub fn download_all(&self) {
         let pb = Arc::new(Mutex::new(ProgressBar::new(self.downloads.len() as u64)));
-        pb.lock().unwrap().set_style(
+        pb.lock().set_style(
             ProgressStyle::default_bar()
                 .template("Fetching Embeds: [{bar:40.cyan/blue}]")
                 .progress_chars("=> "),
@@ -46,10 +44,10 @@ impl DownloadManager {
         let pb_cloned = Arc::clone(&pb);
 
         self.downloads.par_iter().for_each_with(pb_cloned, |pb, d| {
-            d.lock().unwrap().download();
-            pb.lock().unwrap().inc(1);
+            d.lock().download();
+            pb.lock().inc(1);
         });
-        pb.lock().unwrap().finish_and_clear();
+        pb.lock().finish_and_clear();
     }
 }
 
@@ -60,6 +58,7 @@ pub struct PendingDownload {
     pub(crate) path: String,
     pub(crate) data: Option<Vec<u8>>,
     pub(crate) use_cache: bool,
+    cache: CacheStorage,
 }
 
 impl PendingDownload {
@@ -68,6 +67,7 @@ impl PendingDownload {
             path,
             data: None,
             use_cache: true,
+            cache: CacheStorage::new(),
         }
     }
 
@@ -98,22 +98,18 @@ impl PendingDownload {
     /// Stores the data to a cache file to retrieve it later
     fn store_to_cache(&self, data: &Vec<u8>) {
         if self.use_cache {
-            let cache_file = get_cached_path(PathBuf::from(&self.path));
-            log::debug!("Writing to cache {} -> {:?}", self.path, cache_file);
-            fs::write(&cache_file, data.clone()).unwrap_or_else(|_| {
-                log::warn!(
-                    "Failed to write file to cache: {} -> {:?}",
-                    self.path,
-                    cache_file
-                )
-            });
+            let path = PathBuf::from(&self.path);
+            self.cache
+                .write(&path, data.clone())
+                .unwrap_or_else(|_| log::warn!("Failed to write file to cache: {}", self.path));
         }
     }
 
     fn read_from_cache(&self) -> Option<Vec<u8>> {
-        let cache_path = get_cached_path(PathBuf::from(&self.path));
-        if cache_path.exists() && self.use_cache {
-            read(cache_path).ok()
+        let path = PathBuf::from(&self.path);
+
+        if self.cache.has_file(&path) && self.use_cache {
+            self.cache.read(&path).ok()
         } else {
             None
         }
@@ -121,26 +117,14 @@ impl PendingDownload {
 
     /// Downloads the content from the given url
     fn download_content(&self) -> Option<Vec<u8>> {
-        reqwest::blocking::get(&self.path)
-            .ok()
-            .map(|c| c.bytes())
-            .and_then(|b| b.ok())
-            .map(|b| b.to_vec())
+        download_path(self.path.clone())
     }
 }
 
-pub fn get_cached_path(path: PathBuf) -> PathBuf {
-    lazy_static::lazy_static! {
-        static ref APP_DIRS: AppDirs = AppDirs::new(Some("snekdown"), AppUI::CommandLine).unwrap();
-    }
-    let mut hasher = DefaultHasher::new();
-    path.hash(&mut hasher);
-    let file_name = PathBuf::from(format!("{:x}", hasher.finish()));
-
-    if !APP_DIRS.cache_dir.is_dir() {
-        fs::create_dir(&APP_DIRS.cache_dir)
-            .unwrap_or_else(|_| log::warn!("Failed to create cache dir {:?}", APP_DIRS.cache_dir))
-    }
-
-    APP_DIRS.cache_dir.join(file_name)
+pub fn download_path(path: String) -> Option<Vec<u8>> {
+    reqwest::blocking::get(&path)
+        .ok()
+        .map(|c| c.bytes())
+        .and_then(|b| b.ok())
+        .map(|b| b.to_vec())
 }
