@@ -136,7 +136,7 @@ fn render(opt: &RenderOptions) -> Parser {
     );
     let document = parser.parse();
 
-    log::info!("Parsing took:     {:?}", start.elapsed());
+    log::info!("Parsing + Processing took: {:?}", start.elapsed());
     let start_render = Instant::now();
 
     let file = OpenOptions::new()
@@ -149,8 +149,8 @@ fn render(opt: &RenderOptions) -> Parser {
     let writer = BufWriter::new(file);
 
     render_format(opt, document, writer);
-    log::info!("Rendering took:   {:?}", start_render.elapsed());
-    log::info!("Total:            {:?}", start.elapsed());
+    log::info!("Rendering took: {:?}", start_render.elapsed());
+    log::info!("Total: {:?}", start.elapsed());
 
     parser
 }

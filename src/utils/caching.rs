@@ -1,7 +1,6 @@
 use platform_dirs::{AppDirs, AppUI};
-use std::collections::hash_map::DefaultHasher;
+use sha2::Digest;
 use std::fs;
-use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::PathBuf;
 
@@ -23,9 +22,9 @@ impl CacheStorage {
 
     /// Returns the cache path for a given file
     pub fn get_file_path(&self, path: &PathBuf) -> PathBuf {
-        let mut hasher = DefaultHasher::new();
-        path.hash(&mut hasher);
-        let mut file_name = PathBuf::from(format!("{:x}", hasher.finish()));
+        let mut hasher = sha2::Sha256::default();
+        hasher.update(path.to_string_lossy().as_bytes());
+        let mut file_name = PathBuf::from(format!("{:x}", hasher.finalize()));
 
         if let Some(extension) = path.extension() {
             file_name.set_extension(extension);

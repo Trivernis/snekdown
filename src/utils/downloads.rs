@@ -1,9 +1,10 @@
 use crate::utils::caching::CacheStorage;
 use indicatif::{ProgressBar, ProgressStyle};
+use parking_lot::Mutex;
 use rayon::prelude::*;
 use std::fs::read;
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// A manager for downloading urls in parallel
 #[derive(Clone, Debug)]
@@ -35,7 +36,7 @@ impl DownloadManager {
     /// Downloads all download entries
     pub fn download_all(&self) {
         let pb = Arc::new(Mutex::new(ProgressBar::new(self.downloads.len() as u64)));
-        pb.lock().unwrap().set_style(
+        pb.lock().set_style(
             ProgressStyle::default_bar()
                 .template("Fetching Embeds: [{bar:40.cyan/blue}]")
                 .progress_chars("=> "),
@@ -43,10 +44,10 @@ impl DownloadManager {
         let pb_cloned = Arc::clone(&pb);
 
         self.downloads.par_iter().for_each_with(pb_cloned, |pb, d| {
-            d.lock().unwrap().download();
-            pb.lock().unwrap().inc(1);
+            d.lock().download();
+            pb.lock().inc(1);
         });
-        pb.lock().unwrap().finish_and_clear();
+        pb.lock().finish_and_clear();
     }
 }
 
@@ -116,10 +117,14 @@ impl PendingDownload {
 
     /// Downloads the content from the given url
     fn download_content(&self) -> Option<Vec<u8>> {
-        reqwest::blocking::get(&self.path)
-            .ok()
-            .map(|c| c.bytes())
-            .and_then(|b| b.ok())
-            .map(|b| b.to_vec())
+        download_path(self.path.clone())
     }
+}
+
+pub fn download_path(path: String) -> Option<Vec<u8>> {
+    reqwest::blocking::get(&path)
+        .ok()
+        .map(|c| c.bytes())
+        .and_then(|b| b.ok())
+        .map(|b| b.to_vec())
 }

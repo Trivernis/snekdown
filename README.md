@@ -209,7 +209,26 @@ smart-arrows = true
 include-math-jax = true
 
 
+### Image processing options ###
+
+# Force convert images to the specified format.
+# Supported formats are png, jpeg, gif, bmp, (ico needs size <= 256), avif, pnm
+# (default: keep original)
+image-format = "jpg"
+
+# the max width for the images.
+# if an image is larger than that it get's resized.
+# (default: none)
+image-max-width = 700
+
+# the max width for the images.
+# if an image is larger than that it get's resized.
+# (default: none)
+image-max-height = 800
+
+
 ### PDF Options - needs the pdf feature enabled ###
+
 # If the header and footer of the pdf should be displayed (default: true)
 pdf-display-header-footer = true
 

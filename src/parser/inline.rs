@@ -9,8 +9,10 @@ use crate::references::glossary::GlossaryReference;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
 use crate::Parser;
 use bibliographix::references::bib_reference::BibRef;
+use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, RwLock};
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
 
 pub(crate) trait ParseInline {
     fn parse_surrounded(&mut self, surrounding: &char) -> ParseResult<Vec<Inline>>;
@@ -98,7 +100,7 @@ impl ParseInline for Parser {
             log::trace!("Inline::Striked");
             Ok(Inline::Striked(striked))
         } else if let Ok(gloss) = self.parse_glossary_reference() {
-            log::trace!("Inline::GlossaryReference {}", gloss.lock().unwrap().short);
+            log::trace!("Inline::GlossaryReference {}", gloss.lock().short);
             Ok(Inline::GlossaryReference(gloss))
         } else if let Ok(superscript) = self.parse_superscript() {
             log::trace!("Inline::Superscript");
@@ -147,13 +149,12 @@ impl ParseInline for Parser {
             Ok(Image {
                 url,
                 metadata,
-                download: self
+                image_data: self
                     .options
                     .document
-                    .downloads
+                    .images
                     .lock()
-                    .unwrap()
-                    .add_download(path),
+                    .add_image(PathBuf::from(path)),
             })
         } else {
             Err(self.ctm.rewind_with_error(start_index))
@@ -371,7 +372,6 @@ impl ParseInline for Parser {
             .bibliography
             .root_ref_anchor()
             .lock()
-            .unwrap()
             .insert(bib_ref);
 
         Ok(ref_entry)
@@ -432,7 +432,6 @@ impl ParseInline for Parser {
             .document
             .glossary
             .lock()
-            .unwrap()
             .add_reference(reference))
     }
 

@@ -242,7 +242,6 @@ impl ParseLine for Parser {
             .bibliography
             .entry_dictionary()
             .lock()
-            .unwrap()
             .insert(entry);
 
         Ok(BibEntry {
@@ -252,7 +251,6 @@ impl ParseLine for Parser {
                 .bibliography
                 .entry_dictionary()
                 .lock()
-                .unwrap()
                 .get(&key)
                 .unwrap(),
             key,

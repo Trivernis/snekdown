@@ -23,7 +23,7 @@ pdf = ["headless_chrome", "failure"]
 [dependencies]
 charred = "0.3.3"
 asciimath-rs = "0.5.7"
-bibliographix = "0.5.0"
+bibliographix = "0.6.0"
 crossbeam-utils = "0.7.2"
 structopt = "0.3.14"
 minify = "1.1.1"
@@ -48,6 +48,9 @@ log = "0.4.11"
 env_logger = "0.7.1"
 indicatif = "0.15.0"
 platform-dirs = "0.2.0"
+image = "0.23.12"
+parking_lot = "0.11.1"
+sha2 = "0.9.2"
 
 headless_chrome = {version = "0.9.0", optional = true}
 failure = {version = "0.1.8", optional = true}
