@@ -4,6 +4,7 @@ use crate::utils::downloads::download_path;
 use image::imageops::FilterType;
 use image::io::Reader as ImageReader;
 use image::{GenericImageView, ImageFormat, ImageResult};
+use indicatif::{ProgressBar, ProgressStyle};
 use mime::Mime;
 use parking_lot::Mutex;
 use rayon::prelude::*;
@@ -46,12 +47,20 @@ impl ImageConverter {
 
     /// Converts all images
     pub fn convert_all(&mut self) {
+        let pb = Arc::new(Mutex::new(ProgressBar::new(self.images.len() as u64)));
+        pb.lock().set_style(
+            ProgressStyle::default_bar()
+                .template("Processing images: [{bar:40.cyan/blue}]")
+                .progress_chars("=> "),
+        );
         self.images.par_iter().for_each(|image| {
             let mut image = image.lock();
             if let Err(e) = image.convert(self.target_format.clone(), self.target_size.clone()) {
                 log::error!("Failed to embed image {:?}: {}", image.path, e)
             }
+            pb.lock().tick();
         });
+        pb.lock().finish();
     }
 }
 
@@ -64,6 +73,7 @@ pub struct PendingImage {
     brightness: Option<i32>,
     contrast: Option<f32>,
     grayscale: bool,
+    invert: bool,
 }
 
 impl PendingImage {
@@ -78,6 +88,7 @@ impl PendingImage {
             brightness: None,
             contrast: None,
             grayscale: false,
+            invert: false,
         }
     }
 
@@ -89,6 +100,7 @@ impl PendingImage {
             self.contrast = Some(contrast as f32);
         }
         self.grayscale = meta.get_bool("grayscale");
+        self.invert = meta.get_bool("invert");
     }
 
     /// Converts the image to the specified target format (specified by target_extension)
@@ -147,6 +159,9 @@ impl PendingImage {
         if self.grayscale {
             image = image.grayscale();
         }
+        if self.invert {
+            image.invert();
+        }
 
         let data = Vec::new();
         let mut writer = Cursor::new(data);
@@ -191,6 +206,7 @@ impl PendingImage {
         if let Some(c) = self.contrast {
             file_name += &*format!("-{}", c);
         }
+        file_name += &*format!("{}-{}", self.invert, self.grayscale);
 
         file_name += format!("-{}", type_name).as_str();
         path.set_file_name(file_name);
