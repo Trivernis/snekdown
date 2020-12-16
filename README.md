@@ -21,8 +21,29 @@ cargo install snekdown --features pdf
 ## Usage
 
 ```
+snekdown 0.30.5
+
 USAGE:
-    snekdown [FLAGS] [OPTIONS] <input> <output> [SUBCOMMAND]
+    snekdown <SUBCOMMAND>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+SUBCOMMANDS:
+    clear-cache    Clears the cache directory
+    help           Prints this message or the help of the given subcommand(s)
+    render         Parse and render the document
+    watch          Watch the document and its imports and render on change
+```
+
+### Rendering / Watching
+
+```
+Parse and render the document
+
+USAGE:
+    snekdown render [FLAGS] [OPTIONS] <input> <output>
 
 FLAGS:
     -h, --help        Prints help information
@@ -35,11 +56,6 @@ OPTIONS:
 ARGS:
     <input>     Path to the input file
     <output>    Path for the output file
-
-SUBCOMMANDS:
-    help      Prints this message or the help of the given subcommand(s)
-    render    Default. Parse and render the document
-    watch     Watch the document and its imports and render on change
 ```
 
 ## Syntax
