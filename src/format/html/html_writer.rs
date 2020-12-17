@@ -1,4 +1,4 @@
-use crate::settings::format_settings::Theme;
+use crate::settings::style_settings::Theme;
 use std::io;
 use std::io::Write;
 

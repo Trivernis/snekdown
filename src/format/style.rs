@@ -1,4 +1,4 @@
-use crate::settings::format_settings::Theme;
+use crate::settings::style_settings::Theme;
 use std::time::Instant;
 use syntect::highlighting::ThemeSet;
 use syntect::parsing::SyntaxSet;
@@ -12,6 +12,7 @@ pub fn get_css_for_theme(theme: Theme) -> String {
         Theme::SolarizedLight => include_str!("assets/light-solarized.scss"),
         Theme::OceanDark => include_str!("assets/dark-ocean.scss"),
         Theme::OceanLight => include_str!("assets/light-ocean.scss"),
+        Theme::MagicDark => include_str!("assets/dark-magic.scss"),
     };
     let style = format!("{}\n{}", vars, include_str!("assets/base.scss"));
 
@@ -33,6 +34,7 @@ pub fn get_code_theme_for_theme(theme: Theme) -> (syntect::highlighting::Theme, 
         Theme::SolarizedLight => "Solarized (light)",
         Theme::OceanDark => "base16-ocean.dark",
         Theme::OceanLight => "base16-ocean.light",
+        Theme::MagicDark => "base16-ocean.dark",
     };
 
     return (TS.themes[theme].clone(), PS.clone());

@@ -1,10 +1,10 @@
 use crate::elements::{Metadata, MetadataValue};
 use crate::settings::feature_settings::FeatureSettings;
-use crate::settings::format_settings::FormatSettings;
 use crate::settings::image_settings::ImageSettings;
 use crate::settings::import_settings::ImportSettings;
 use crate::settings::metadata_settings::MetadataSettings;
 use crate::settings::pdf_settings::PDFSettings;
+use crate::settings::style_settings::StyleSettings;
 use config::{ConfigError, Source};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -15,11 +15,11 @@ use std::mem;
 use std::path::PathBuf;
 
 pub mod feature_settings;
-pub mod format_settings;
 pub mod image_settings;
 pub mod import_settings;
 pub mod metadata_settings;
 pub mod pdf_settings;
+pub mod style_settings;
 
 pub type SettingsResult<T> = Result<T, SettingsError>;
 
@@ -67,7 +67,7 @@ pub struct Settings {
     pub imports: ImportSettings,
     pub pdf: PDFSettings,
     pub images: ImageSettings,
-    pub formatting: FormatSettings,
+    pub style: StyleSettings,
     pub custom_attributes: HashMap<String, String>,
 }
 

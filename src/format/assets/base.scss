@@ -1,5 +1,5 @@
 body {
-  background-color: $background-color-variant-2;
+  background-color: $body-background;
   overflow-x: hidden;
   color: $primary-color;
   word-break: break-word;
@@ -50,7 +50,7 @@ code {
   pre {
     font-family: "Fira Code", "Mono", monospace;
     padding: 0.8em 0.2em;
-    background-color: $background-color-variant-1 !important;
+    background-color: $code-background !important;
     border-radius: 0.25em;
     overflow: auto;
   }
@@ -58,7 +58,7 @@ code {
   &.inlineCode {
     font-family: "Fira Code", monospace;
     border-radius: 0.1em;
-    background-color: $background-color-variant-1;
+    background-color: $code-background;
     padding: 0 0.1em;
   }
 }
@@ -77,11 +77,11 @@ table {
 
   tr {
     &:nth-child(odd) {
-      background-color: $background-color-variant-2;
+      background-color: $table-background-alt;
     }
 
     &:nth-child(1) {
-      background-color: $background-color-variant-2;
+      background-color: $table-background-alt;
       font-weight: bold;
       border-bottom: 1px solid invert($background-color)
     }
@@ -107,11 +107,11 @@ a {
 }
 
 .quote {
-  border-left: 0.3em solid $background-color-variant-3;
+  border-left: 0.3em solid $quote-background-alt;
   border-radius: 0.2em;
   padding-left: 1em;
   margin-left: 0;
-  background-color: $background-color-variant-1;
+  background-color: $quote-background;
 
   .metadata {
     font-style: italic;

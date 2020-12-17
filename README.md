@@ -290,12 +290,12 @@ max_height = 500
 
 
 # Visual adjustments
-[formatting]
+[style]
 # how bibliography references should be displayed
 bib_ref_display = '{{number}}'
 
 # the chosen theme for the document
-# one of: GithubLight, SolarizedLight, OceanLight, SolarizedDark, OceanDark
+# one of: GithubLight, SolarizedLight, OceanLight, SolarizedDark, OceanDark, MagicDark
 theme = 'GithubLight'
 
 # custom metadata

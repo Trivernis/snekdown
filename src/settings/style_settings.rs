@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct FormatSettings {
+pub struct StyleSettings {
     pub bib_ref_display: String,
     pub theme: Theme,
 }
 
-impl Default for FormatSettings {
+impl Default for StyleSettings {
     fn default() -> Self {
         Self {
             bib_ref_display: "{{number}}".to_string(),
@@ -22,4 +22,5 @@ pub enum Theme {
     SolarizedLight,
     OceanDark,
     OceanLight,
+    MagicDark,
 }
