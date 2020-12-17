@@ -2264,7 +2264,7 @@ checksum = "ae524f056d7d770e174287294f562e95044c68e88dec909a00d2094805db9d75"
 
 [[package]]
 name = "snekdown"
-version = "0.31.1"
+version = "0.32.0"
 dependencies = [
  "asciimath-rs",
  "base64 0.12.3",
