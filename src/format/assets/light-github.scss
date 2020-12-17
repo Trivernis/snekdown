@@ -1,0 +1,13 @@
+$background-color: #FFF;
+$background-color-variant-1: darken($background-color, 7%);
+$background-color-variant-2: darken($background-color, 14%);
+$background-color-variant-3: darken($background-color, 21%);
+$primary-color: #000;
+$primary-variant-1: lighten($primary-color, 14%);
+$secondary-color: #00286a;
+
+$body-background: $background-color-variant-1;
+$code-background: $background-color-variant-1;
+$table-background-alt: $background-color-variant-2;
+$quote-background: $background-color-variant-2;
+$quote-background-alt: $background-color-variant-3;

@@ -1,16 +1,14 @@
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
+use crate::format::style::{get_code_theme_for_theme, get_css_for_theme};
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::{INCLUDE_MATHJAX, META_LANG};
 use crate::references::glossary::{GlossaryDisplay, GlossaryReference};
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
 use htmlescape::encode_attribute;
 use minify::html::minify;
 use std::io;
-use syntect::highlighting::ThemeSet;
 use syntect::html::highlighted_html_for_string;
-use syntect::parsing::SyntaxSet;
 
 const MATHJAX_URL: &str = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
 
@@ -107,12 +105,9 @@ impl ToHtml for Document {
         };
 
         if self.is_root {
-            let language = self
-                .config
-                .get_entry(META_LANG)
-                .map(|e| e.get().as_string())
-                .unwrap_or("en".to_string());
-            let style = minify(std::include_str!("assets/style.css"));
+            let language = self.config.lock().metadata.language.clone();
+
+            let style = minify(get_css_for_theme(writer.get_theme()).as_str());
             writer.write("<!DOCTYPE html>".to_string())?;
             writer.write("<html lang=\"".to_string())?;
             writer.write_attribute(language)?;
@@ -128,12 +123,7 @@ impl ToHtml for Document {
                 let mut stylesheet = stylesheet.lock();
                 let data = std::mem::replace(&mut stylesheet.data, None);
                 if let Some(data) = data {
-                    if self
-                        .config
-                        .get_entry(INCLUDE_MATHJAX)
-                        .and_then(|e| e.get().as_bool())
-                        .unwrap_or(true)
-                    {
+                    if self.config.lock().features.include_mathjax {
                         writer.write(format!(
                             "<script id=\"MathJax-script\" type=\"text/javascript\" async src={}></script>",
                             MATHJAX_URL
@@ -321,19 +311,19 @@ impl ToHtml for Cell {
 impl ToHtml for CodeBlock {
     fn to_html(&self, writer: &mut HTMLWriter) -> io::Result<()> {
         writer.write("<div><code".to_string())?;
+
         if self.language.len() > 0 {
             writer.write(" lang=\"".to_string())?;
             writer.write_attribute(self.language.clone())?;
             writer.write("\">".to_string())?;
-            lazy_static::lazy_static! { static ref PS: SyntaxSet = SyntaxSet::load_defaults_nonewlines(); }
-            lazy_static::lazy_static! { static ref TS: ThemeSet = ThemeSet::load_defaults(); }
+            let (theme, syntax_set) = get_code_theme_for_theme(writer.get_theme());
 
-            if let Some(syntax) = PS.find_syntax_by_token(self.language.as_str()) {
+            if let Some(syntax) = syntax_set.find_syntax_by_token(self.language.as_str()) {
                 writer.write(highlighted_html_for_string(
                     self.code.as_str(),
-                    &PS,
+                    &syntax_set,
                     syntax,
-                    &TS.themes["InspiredGitHub"],
+                    &theme,
                 ))?;
             } else {
                 writer.write("<pre>".to_string())?;

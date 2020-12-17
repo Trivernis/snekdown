@@ -4,6 +4,7 @@ use std::collections::HashMap;
 #[cfg(feature = "pdf")]
 pub mod chromium_pdf;
 pub mod html;
+pub mod style;
 
 pub struct PlaceholderTemplate {
     value: String,

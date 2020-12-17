@@ -1,13 +1,10 @@
 pub mod tokens;
 
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::{
-    EMBED_EXTERNAL, IMAGE_FORMAT, IMAGE_MAX_HEIGHT, IMAGE_MAX_WIDTH,
-};
-use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::references::glossary::{GlossaryManager, GlossaryReference};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
+use crate::settings::Settings;
 use crate::utils::downloads::{DownloadManager, PendingDownload};
 use crate::utils::image_converting::{ImageConverter, PendingImage};
 use asciimath_rs::elements::special::Expression;
@@ -18,7 +15,6 @@ use image::ImageFormat;
 use mime::Mime;
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -77,7 +73,7 @@ pub struct Document {
     pub(crate) is_root: bool,
     pub(crate) path: Option<String>,
     pub(crate) placeholders: Vec<Arc<RwLock<Placeholder>>>,
-    pub config: Configuration,
+    pub config: Arc<Mutex<Settings>>,
     pub bibliography: BibManager,
     pub downloads: Arc<Mutex<DownloadManager>>,
     pub images: Arc<Mutex<ImageConverter>>,
@@ -256,7 +252,7 @@ pub struct Placeholder {
 
 #[derive(Clone, Debug)]
 pub struct RefLink {
-    pub(crate) description: Box<Line>,
+    pub(crate) description: TextLine,
     pub(crate) reference: String,
 }
 
@@ -318,7 +314,7 @@ impl Document {
             is_root: true,
             path: None,
             placeholders: Vec::new(),
-            config: Configuration::default(),
+            config: Arc::new(Mutex::new(Settings::default())),
             bibliography: BibManager::new(),
             stylesheets: Vec::new(),
             downloads: Arc::new(Mutex::new(DownloadManager::new())),
@@ -356,7 +352,7 @@ impl Document {
         list.ordered = ordered;
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
-                if !sec.get_hide_in_toc() {
+                if !sec.is_hidden_in_toc() {
                     let mut item =
                         ListItem::new(Line::RefLink(sec.header.get_anchor()), 1, ordered);
                     item.children.append(&mut sec.get_toc_list(ordered).items);
@@ -445,41 +441,24 @@ impl Document {
 
     fn process_media(&self) {
         let downloads = Arc::clone(&self.downloads);
-        if let Some(Value::Bool(embed)) = self
-            .config
-            .get_entry(EMBED_EXTERNAL)
-            .map(|e| e.get().clone())
-        {
-            if embed {
-                downloads.lock().download_all();
-            }
-        } else {
+        if self.config.lock().features.embed_external {
             downloads.lock().download_all();
         }
-        if let Some(Value::String(s)) = self.config.get_entry(IMAGE_FORMAT).map(|e| e.get().clone())
-        {
+        if let Some(s) = &self.config.lock().images.format {
             if let Some(format) = ImageFormat::from_extension(s) {
                 self.images.lock().set_target_format(format);
             }
         }
-        let mut image_width = -1;
-        let mut image_height = -1;
+        let mut image_width = 0;
+        let mut image_height = 0;
 
-        if let Some(Value::Integer(i)) = self
-            .config
-            .get_entry(IMAGE_MAX_WIDTH)
-            .map(|v| v.get().clone())
-        {
+        if let Some(i) = self.config.lock().images.max_width {
             image_width = i;
             image_height = i;
         }
-        if let Some(Value::Integer(i)) = self
-            .config
-            .get_entry(IMAGE_MAX_HEIGHT)
-            .map(|v| v.get().clone())
-        {
+        if let Some(i) = self.config.lock().images.max_height {
             image_height = i;
-            if image_width < 0 {
+            if image_width <= 0 {
                 image_width = i;
             }
         }
@@ -507,9 +486,10 @@ impl Section {
 
     pub fn get_toc_list(&self, ordered: bool) -> List {
         let mut list = List::new();
+
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
-                if !sec.get_hide_in_toc() {
+                if !sec.is_hidden_in_toc() {
                     let mut item =
                         ListItem::new(Line::RefLink(sec.header.get_anchor()), 1, ordered);
                     item.children.append(&mut sec.get_toc_list(ordered).items);
@@ -521,7 +501,7 @@ impl Section {
         list
     }
 
-    pub(crate) fn get_hide_in_toc(&self) -> bool {
+    pub(crate) fn is_hidden_in_toc(&self) -> bool {
         if let Some(meta) = &self.metadata {
             meta.get_bool("toc-hidden")
         } else {
@@ -577,7 +557,7 @@ impl Header {
 
     pub fn get_anchor(&self) -> RefLink {
         RefLink {
-            description: Box::new(self.line.clone()),
+            description: self.line.as_raw_text().as_plain_line(),
             reference: self.anchor.clone(),
         }
     }
@@ -632,6 +612,16 @@ impl TextLine {
 
     pub fn add_subtext(&mut self, subtext: Inline) {
         self.subtext.push(subtext)
+    }
+
+    pub fn as_plain_line(&self) -> TextLine {
+        TextLine {
+            subtext: self
+                .subtext
+                .iter()
+                .map(|s| Inline::Plain(s.as_plain_text()))
+                .collect(),
+        }
     }
 }
 
@@ -766,19 +756,6 @@ impl Metadata for InlineMetadata {
     }
 }
 
-impl Into<HashMap<String, Value>> for InlineMetadata {
-    fn into(self) -> HashMap<String, Value> {
-        HashMap::from_iter(self.data.iter().filter_map(|(k, v)| match v {
-            MetadataValue::String(s) => Some((k.clone(), Value::String(s.clone()))),
-            MetadataValue::Bool(b) => Some((k.clone(), Value::Bool(*b))),
-            MetadataValue::Integer(i) => Some((k.clone(), Value::Integer(*i))),
-            MetadataValue::Float(f) => Some((k.clone(), Value::Float(*f))),
-            MetadataValue::Template(t) => Some((k.clone(), Value::Template(t.clone()))),
-            _ => None,
-        }))
-    }
-}
-
 impl Image {
     pub fn get_content(&self) -> Option<Vec<u8>> {
         let mut data = None;
@@ -802,15 +779,11 @@ pub struct BibEntry {
 pub struct BibReference {
     pub(crate) key: String,
     pub(crate) entry_anchor: Arc<Mutex<BibRefAnchor>>,
-    pub(crate) display: Option<ConfigRefEntry>,
+    pub(crate) display: Option<String>,
 }
 
 impl BibReference {
-    pub fn new(
-        key: String,
-        display: Option<ConfigRefEntry>,
-        anchor: Arc<Mutex<BibRefAnchor>>,
-    ) -> Self {
+    pub fn new(key: String, display: Option<String>, anchor: Arc<Mutex<BibRefAnchor>>) -> Self {
         Self {
             key: key.to_string(),
             display,
@@ -823,8 +796,7 @@ impl BibReference {
             let entry = entry.lock();
 
             if let Some(display) = &self.display {
-                let display = display.read().unwrap();
-                let mut template = PlaceholderTemplate::new(display.get().as_string());
+                let mut template = PlaceholderTemplate::new(display.clone());
                 let mut value_map = HashMap::new();
                 value_map.insert("key".to_string(), entry.key());
 
@@ -850,6 +822,74 @@ impl MetadataValue {
             MetadataValue::Float(f) => f.to_string(),
             MetadataValue::Bool(b) => b.to_string(),
             MetadataValue::Template(_) => "".to_string(),
+        }
+    }
+}
+
+impl Line {
+    pub fn as_raw_text(&self) -> TextLine {
+        match self {
+            Line::Text(t) => t.clone(),
+            Line::Ruler(_) => TextLine::new(),
+            Line::RefLink(r) => r.description.clone(),
+            Line::Anchor(a) => a.inner.as_raw_text().as_plain_line(),
+            Line::Centered(c) => c.line.clone(),
+            Line::BibEntry(_) => TextLine::new(),
+        }
+    }
+}
+
+impl Inline {
+    pub fn as_plain_text(&self) -> PlainText {
+        match self {
+            Inline::Plain(p) => p.clone(),
+            Inline::Bold(b) => b.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Italic(i) => i.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Underlined(u) => u.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Striked(s) => s.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Monospace(m) => PlainText {
+                value: m.value.clone(),
+            },
+            Inline::Superscript(s) => s.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Colored(c) => c.value.as_plain_text(),
+            _ => PlainText {
+                value: String::new(),
+            },
         }
     }
 }

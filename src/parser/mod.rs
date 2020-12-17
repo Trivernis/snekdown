@@ -5,31 +5,54 @@ pub(crate) mod line;
 use self::block::ParseBlock;
 use crate::elements::tokens::LB;
 use crate::elements::{Document, ImportAnchor};
-use crate::references::configuration::keys::{
-    IMP_BIBLIOGRAPHY, IMP_CONFIGS, IMP_GLOSSARY, IMP_IGNORE, IMP_STYLESHEETS,
-};
-use crate::references::configuration::Value;
-use charred::tapemachine::{CharTapeMachine, TapeError, TapeResult};
+use crate::settings::SettingsError;
+use charred::tapemachine::{CharTapeMachine, TapeError};
 use crossbeam_utils::sync::WaitGroup;
 use regex::Regex;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::{read_to_string, File};
-use std::io::BufReader;
+use std::io::{self, BufReader};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 
-pub type ParseResult<T> = TapeResult<T>;
-pub type ParseError = TapeError;
+pub type ParseResult<T> = Result<T, ParseError>;
 
-const DEFAULT_IMPORTS: &'static [(&str, &str)] = &[
-    ("snekdown.toml", "manifest"),
-    ("manifest.toml", "manifest"),
-    ("bibliography.toml", "bibliography"),
-    ("bibliography2.bib.toml", "bibliography"),
-    ("glossary.toml", "glossary"),
-    ("style.css", "stylesheet"),
-];
+#[derive(Debug)]
+pub enum ParseError {
+    TapeError(TapeError),
+    SettingsError(SettingsError),
+    IoError(io::Error),
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ParseError::TapeError(e) => write!(f, "{}", e),
+            ParseError::SettingsError(e) => write!(f, "{}", e),
+            ParseError::IoError(e) => write!(f, "IO Error: {}", e),
+        }
+    }
+}
+
+impl From<TapeError> for ParseError {
+    fn from(e: TapeError) -> Self {
+        Self::TapeError(e)
+    }
+}
+
+impl From<SettingsError> for ParseError {
+    fn from(e: SettingsError) -> Self {
+        Self::SettingsError(e)
+    }
+}
+
+impl From<io::Error> for ParseError {
+    fn from(e: io::Error) -> Self {
+        Self::IoError(e)
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct ParserOptions {
@@ -65,6 +88,7 @@ pub struct Parser {
     pub(crate) ctm: CharTapeMachine,
     section_nesting: u8,
     sections: Vec<u8>,
+    section_anchors: Vec<String>,
     section_return: Option<u8>,
     wg: WaitGroup,
     pub(crate) block_break_at: Vec<char>,
@@ -88,6 +112,7 @@ impl Parser {
         Self {
             options,
             sections: Vec::new(),
+            section_anchors: Vec::new(),
             section_nesting: 0,
             section_return: None,
             wg: WaitGroup::new(),
@@ -117,7 +142,7 @@ impl Parser {
         text_unil.reverse();
         let mut inline_pos = 0;
 
-        while text_unil[inline_pos] != LB {
+        while inline_pos < text_unil.len() && text_unil[inline_pos] != LB {
             inline_pos += 1;
         }
         if let Some(path) = &self.options.path {
@@ -150,7 +175,7 @@ impl Parser {
                 path.to_str().unwrap(),
                 self.get_position_string(),
             );
-            return Err(self.ctm.assert_error(None));
+            return Err(self.ctm.assert_error(None).into());
         }
         let anchor = Arc::new(RwLock::new(ImportAnchor::new()));
         let anchor_clone = Arc::clone(&anchor);
@@ -181,7 +206,7 @@ impl Parser {
 
     /// Returns the text of an imported text file
     fn import_text_file(&self, path: PathBuf) -> ParseResult<String> {
-        read_to_string(path).map_err(|_| self.ctm.err())
+        read_to_string(path).map_err(ParseError::from)
     }
 
     fn import_stylesheet(&mut self, path: PathBuf) -> ParseResult<()> {
@@ -197,13 +222,12 @@ impl Parser {
     }
 
     fn import_manifest(&mut self, path: PathBuf) -> ParseResult<()> {
-        let contents = self.import_text_file(path)?;
-        let value = contents
-            .parse::<toml::Value>()
-            .map_err(|_| self.ctm.err())?;
-        self.options.document.config.set_from_toml(&value);
-
-        Ok(())
+        self.options
+            .document
+            .config
+            .lock()
+            .merge(path)
+            .map_err(ParseError::from)
     }
 
     /// Imports a glossary
@@ -223,7 +247,7 @@ impl Parser {
     }
 
     /// Imports a path
-    fn import(&mut self, path: String, args: &HashMap<String, Value>) -> ImportType {
+    fn import(&mut self, path: String, args: &HashMap<String, String>) -> ImportType {
         log::debug!(
             "Importing file {}\n\t--> {}\n",
             path,
@@ -242,20 +266,9 @@ impl Parser {
             .file_name()
             .and_then(|f| Some(f.to_str().unwrap().to_string()))
         {
-            if let Some(Value::Array(ignore)) = self
-                .options
-                .document
-                .config
-                .get_entry(IMP_IGNORE)
-                .and_then(|e| Some(e.get().clone()))
-            {
-                let ignore = ignore
-                    .iter()
-                    .map(|v| v.as_string())
-                    .collect::<Vec<String>>();
-                if ignore.contains(&fname) {
-                    return ImportType::None;
-                }
+            let ignore = &self.options.document.config.lock().imports.ignored_imports;
+            if ignore.contains(&fname) {
+                return ImportType::None;
             }
         }
         {
@@ -270,7 +283,7 @@ impl Parser {
             }
             paths.push(path.clone());
         }
-        match args.get("type").map(|e| e.as_string().to_lowercase()) {
+        match args.get("type").cloned() {
             Some(s) if s == "stylesheet".to_string() => {
                 ImportType::Stylesheet(self.import_stylesheet(path))
             }
@@ -328,14 +341,10 @@ impl Parser {
         let wg = self.wg.clone();
         self.wg = WaitGroup::new();
         if !self.options.is_child {
-            for (path, file_type) in DEFAULT_IMPORTS {
-                if self.transform_path(path.to_string()).exists() {
-                    self.import(
-                        path.to_string(),
-                        &maplit::hashmap! {"type".to_string() => Value::String(file_type.to_string())},
-                    );
-                }
-            }
+            self.import(
+                "Manifest.toml".to_string(),
+                &maplit::hashmap! {"type".to_string() => "manifest".to_string()},
+            );
         }
         wg.wait();
         if !self.options.is_child {
@@ -353,57 +362,25 @@ impl Parser {
 
     /// Imports files from the configs import values
     fn import_from_config(&mut self) {
-        if let Some(Value::Array(mut imp)) = self
-            .options
-            .document
-            .config
-            .get_entry(IMP_STYLESHEETS)
-            .and_then(|e| Some(e.get().clone()))
-        {
-            let args =
-                maplit::hashmap! {"type".to_string() => Value::String("stylesheet".to_string())};
-            while let Some(Value::String(s)) = imp.pop() {
-                self.import(s, &args);
-            }
-        }
-        if let Some(Value::Array(mut imp)) = self
-            .options
-            .document
-            .config
-            .get_entry(IMP_CONFIGS)
-            .and_then(|e| Some(e.get().clone()))
-        {
-            let args = maplit::hashmap! {"type".to_string() => Value::String("config".to_string())};
-            while let Some(Value::String(s)) = imp.pop() {
-                self.import(s, &args);
-            }
-        }
-        if let Some(Value::Array(mut imp)) = self
-            .options
-            .document
-            .config
-            .get_entry(IMP_BIBLIOGRAPHY)
-            .and_then(|e| Some(e.get().clone()))
-        {
-            let args =
-                maplit::hashmap! {"type".to_string() => Value::String("bibliography".to_string())};
-            while let Some(Value::String(s)) = imp.pop() {
-                self.import(s, &args);
-            }
+        let config = Arc::clone(&self.options.document.config);
+
+        let mut stylesheets = config.lock().imports.included_stylesheets.clone();
+        let args = maplit::hashmap! {"type".to_string() => "stylesheet".to_string()};
+        while let Some(s) = stylesheets.pop() {
+            self.import(s, &args);
         }
 
-        if let Some(Value::Array(mut imp)) = self
-            .options
-            .document
-            .config
-            .get_entry(IMP_GLOSSARY)
-            .and_then(|e| Some(e.get().clone()))
-        {
-            let args =
-                maplit::hashmap! {"type".to_string() => Value::String("glossary".to_string())};
-            while let Some(Value::String(s)) = imp.pop() {
-                self.import(s, &args);
-            }
+        let mut bibliography = config.lock().imports.included_bibliography.clone();
+        let args = maplit::hashmap! {"type".to_string() => "bibliography".to_string()};
+        while let Some(s) = bibliography.pop() {
+            self.import(s, &args);
+        }
+
+        let mut glossaries = config.lock().imports.included_glossaries.clone();
+
+        let args = maplit::hashmap! {"type".to_string() =>"glossary".to_string()};
+        while let Some(s) = glossaries.pop() {
+            self.import(s, &args);
         }
     }
 }
