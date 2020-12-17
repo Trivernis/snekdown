@@ -25,7 +25,7 @@ impl ParseLine for Parser {
     fn parse_line(&mut self) -> ParseResult<Line> {
         if self.ctm.check_eof() {
             log::trace!("EOF");
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         } else {
             if let Ok(ruler) = self.parse_ruler() {
                 log::trace!("Line::Ruler");
@@ -40,7 +40,7 @@ impl ParseLine for Parser {
                 log::trace!("Line::Text");
                 Ok(Line::Text(text))
             } else {
-                Err(self.ctm.err())
+                Err(self.ctm.err().into())
             }
         }
     }
@@ -76,11 +76,11 @@ impl ParseLine for Parser {
         }
 
         if !self.ctm.check_any(&INLINE_WHITESPACE) {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         self.ctm.seek_any(&INLINE_WHITESPACE)?;
         if self.ctm.check_char(&MINUS) {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
 
         let item = ListItem::new(self.parse_line()?, level as u16, ordered);
@@ -96,7 +96,7 @@ impl ParseLine for Parser {
         self.ctm.assert_char(&PIPE, Some(start_index))?;
         self.ctm.seek_one()?;
         if self.ctm.check_char(&PIPE) {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         self.inline_break_at.push(PIPE);
 
@@ -134,7 +134,7 @@ impl ParseLine for Parser {
             log::trace!("Line::TableRow");
             Ok(row)
         } else {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
     }
 
@@ -181,7 +181,7 @@ impl ParseLine for Parser {
         if text.subtext.len() > 0 {
             Ok(text)
         } else {
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         }
     }
 
@@ -211,7 +211,7 @@ impl ParseLine for Parser {
                         msg,
                         self.get_position_string()
                     );
-                    return Err(self.ctm.rewind_with_error(start_index));
+                    return Err(self.ctm.rewind_with_error(start_index).into());
                 }
             }
         } else {
@@ -232,7 +232,7 @@ impl ParseLine for Parser {
                         msg,
                         self.get_position_string()
                     );
-                    return Err(self.ctm.rewind_with_error(start_index));
+                    return Err(self.ctm.rewind_with_error(start_index).into());
                 }
             }
         };

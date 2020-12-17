@@ -66,9 +66,13 @@ impl ProcessPlaceholders for Document {
                     value: format!("{} {}", get_date_string(), get_time_string())
                 }))),
                 _ => {
-                    if let Some(entry) = self.config.get_entry(pholder.name.to_lowercase().as_str())
+                    if let Some(value) = self
+                        .config
+                        .lock()
+                        .custom_attributes
+                        .get(pholder.name.to_lowercase().as_str())
+                        .cloned()
                     {
-                        let value = entry.get().as_string();
                         pholder.set_value(inline!(Inline::Plain(PlainText { value })))
                     }
                 }
@@ -94,7 +98,7 @@ impl ProcessPlaceholders for Document {
                     })));
                     if let Some(meta) = &pholder.metadata {
                         if let Some(value) = meta.data.get(S_VALUE) {
-                            self.config.set_from_meta(key, value.clone())
+                            self.config.lock().set_from_meta(key, value.clone())
                         }
                     }
                 }

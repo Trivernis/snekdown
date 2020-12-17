@@ -1,7 +1,6 @@
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::{INCLUDE_MATHJAX, META_LANG};
 use crate::references::glossary::{GlossaryDisplay, GlossaryReference};
 use crate::references::templates::{Template, TemplateVariable};
 use asciimath_rs::format::mathml::ToMathML;
@@ -107,11 +106,8 @@ impl ToHtml for Document {
         };
 
         if self.is_root {
-            let language = self
-                .config
-                .get_entry(META_LANG)
-                .map(|e| e.get().as_string())
-                .unwrap_or("en".to_string());
+            let language = self.config.lock().metadata.language.clone();
+
             let style = minify(std::include_str!("assets/style.css"));
             writer.write("<!DOCTYPE html>".to_string())?;
             writer.write("<html lang=\"".to_string())?;
@@ -128,12 +124,7 @@ impl ToHtml for Document {
                 let mut stylesheet = stylesheet.lock();
                 let data = std::mem::replace(&mut stylesheet.data, None);
                 if let Some(data) = data {
-                    if self
-                        .config
-                        .get_entry(INCLUDE_MATHJAX)
-                        .and_then(|e| e.get().as_bool())
-                        .unwrap_or(true)
-                    {
+                    if self.config.lock().features.include_mathjax {
                         writer.write(format!(
                             "<script id=\"MathJax-script\" type=\"text/javascript\" async src={}></script>",
                             MATHJAX_URL

@@ -6,6 +6,7 @@ use snekdown::elements::Document;
 use snekdown::format::html::html_writer::HTMLWriter;
 use snekdown::format::html::to_html::ToHtml;
 use snekdown::parser::ParserOptions;
+use snekdown::settings::Settings;
 use snekdown::utils::caching::CacheStorage;
 use snekdown::Parser;
 use std::fs::{File, OpenOptions};
@@ -30,6 +31,9 @@ enum SubCommand {
 
     /// Parse and render the document.
     Render(RenderOptions),
+
+    /// Initializes the project with default settings
+    Init,
 
     /// Clears the cache directory
     ClearCache,
@@ -94,6 +98,7 @@ fn main() {
             let cache = CacheStorage::new();
             cache.clear().expect("Failed to clear cache");
         }
+        SubCommand::Init => init(),
     };
 }
 
@@ -104,6 +109,31 @@ fn get_level_style(level: Level) -> colored::Color {
         Level::Info => colored::Color::Green,
         Level::Warn => colored::Color::Yellow,
         Level::Error => colored::Color::Red,
+    }
+}
+
+fn init() {
+    let settings = Settings::default();
+    let settings_string = toml::to_string_pretty(&settings).unwrap();
+    let manifest_path = PathBuf::from("Manifest.toml");
+    let bibliography_path = PathBuf::from("Bibliography.toml");
+    let glossary_path = PathBuf::from("Glossary.toml");
+
+    if !manifest_path.exists() {
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open("Manifest.toml")
+            .unwrap();
+        file.write_all(settings_string.as_bytes()).unwrap();
+        file.flush().unwrap();
+    }
+    if !bibliography_path.exists() {
+        File::create("Bibliography.toml".to_string()).unwrap();
+    }
+    if !glossary_path.exists() {
+        File::create("Glossary.toml".to_string()).unwrap();
     }
 }
 

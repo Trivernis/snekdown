@@ -1,13 +1,10 @@
 pub mod tokens;
 
 use crate::format::PlaceholderTemplate;
-use crate::references::configuration::keys::{
-    EMBED_EXTERNAL, IMAGE_FORMAT, IMAGE_MAX_HEIGHT, IMAGE_MAX_WIDTH,
-};
-use crate::references::configuration::{ConfigRefEntry, Configuration, Value};
 use crate::references::glossary::{GlossaryManager, GlossaryReference};
 use crate::references::placeholders::ProcessPlaceholders;
 use crate::references::templates::{Template, TemplateVariable};
+use crate::settings::Settings;
 use crate::utils::downloads::{DownloadManager, PendingDownload};
 use crate::utils::image_converting::{ImageConverter, PendingImage};
 use asciimath_rs::elements::special::Expression;
@@ -18,7 +15,6 @@ use image::ImageFormat;
 use mime::Mime;
 use parking_lot::Mutex;
 use std::collections::HashMap;
-use std::iter::FromIterator;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, RwLock};
 
@@ -77,7 +73,7 @@ pub struct Document {
     pub(crate) is_root: bool,
     pub(crate) path: Option<String>,
     pub(crate) placeholders: Vec<Arc<RwLock<Placeholder>>>,
-    pub config: Configuration,
+    pub config: Arc<Mutex<Settings>>,
     pub bibliography: BibManager,
     pub downloads: Arc<Mutex<DownloadManager>>,
     pub images: Arc<Mutex<ImageConverter>>,
@@ -318,7 +314,7 @@ impl Document {
             is_root: true,
             path: None,
             placeholders: Vec::new(),
-            config: Configuration::default(),
+            config: Arc::new(Mutex::new(Settings::default())),
             bibliography: BibManager::new(),
             stylesheets: Vec::new(),
             downloads: Arc::new(Mutex::new(DownloadManager::new())),
@@ -445,41 +441,24 @@ impl Document {
 
     fn process_media(&self) {
         let downloads = Arc::clone(&self.downloads);
-        if let Some(Value::Bool(embed)) = self
-            .config
-            .get_entry(EMBED_EXTERNAL)
-            .map(|e| e.get().clone())
-        {
-            if embed {
-                downloads.lock().download_all();
-            }
-        } else {
+        if self.config.lock().features.embed_external {
             downloads.lock().download_all();
         }
-        if let Some(Value::String(s)) = self.config.get_entry(IMAGE_FORMAT).map(|e| e.get().clone())
-        {
+        if let Some(s) = &self.config.lock().images.format {
             if let Some(format) = ImageFormat::from_extension(s) {
                 self.images.lock().set_target_format(format);
             }
         }
-        let mut image_width = -1;
-        let mut image_height = -1;
+        let mut image_width = 0;
+        let mut image_height = 0;
 
-        if let Some(Value::Integer(i)) = self
-            .config
-            .get_entry(IMAGE_MAX_WIDTH)
-            .map(|v| v.get().clone())
-        {
+        if let Some(i) = self.config.lock().images.max_width {
             image_width = i;
             image_height = i;
         }
-        if let Some(Value::Integer(i)) = self
-            .config
-            .get_entry(IMAGE_MAX_HEIGHT)
-            .map(|v| v.get().clone())
-        {
+        if let Some(i) = self.config.lock().images.max_height {
             image_height = i;
-            if image_width < 0 {
+            if image_width <= 0 {
                 image_width = i;
             }
         }
@@ -766,19 +745,6 @@ impl Metadata for InlineMetadata {
     }
 }
 
-impl Into<HashMap<String, Value>> for InlineMetadata {
-    fn into(self) -> HashMap<String, Value> {
-        HashMap::from_iter(self.data.iter().filter_map(|(k, v)| match v {
-            MetadataValue::String(s) => Some((k.clone(), Value::String(s.clone()))),
-            MetadataValue::Bool(b) => Some((k.clone(), Value::Bool(*b))),
-            MetadataValue::Integer(i) => Some((k.clone(), Value::Integer(*i))),
-            MetadataValue::Float(f) => Some((k.clone(), Value::Float(*f))),
-            MetadataValue::Template(t) => Some((k.clone(), Value::Template(t.clone()))),
-            _ => None,
-        }))
-    }
-}
-
 impl Image {
     pub fn get_content(&self) -> Option<Vec<u8>> {
         let mut data = None;
@@ -802,15 +768,11 @@ pub struct BibEntry {
 pub struct BibReference {
     pub(crate) key: String,
     pub(crate) entry_anchor: Arc<Mutex<BibRefAnchor>>,
-    pub(crate) display: Option<ConfigRefEntry>,
+    pub(crate) display: Option<String>,
 }
 
 impl BibReference {
-    pub fn new(
-        key: String,
-        display: Option<ConfigRefEntry>,
-        anchor: Arc<Mutex<BibRefAnchor>>,
-    ) -> Self {
+    pub fn new(key: String, display: Option<String>, anchor: Arc<Mutex<BibRefAnchor>>) -> Self {
         Self {
             key: key.to_string(),
             display,
@@ -823,8 +785,7 @@ impl BibReference {
             let entry = entry.lock();
 
             if let Some(display) = &self.display {
-                let display = display.read().unwrap();
-                let mut template = PlaceholderTemplate::new(display.get().as_string());
+                let mut template = PlaceholderTemplate::new(display.clone());
                 let mut value_map = HashMap::new();
                 value_map.insert("key".to_string(), entry.key());
 

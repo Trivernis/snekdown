@@ -1,7 +1,7 @@
 use super::ParseResult;
 use crate::elements::tokens::*;
 use crate::elements::{
-    Block, CodeBlock, Import, List, ListItem, MathBlock, Paragraph, Quote, Section, Table,
+    Block, CodeBlock, Import, List, ListItem, MathBlock, Metadata, Paragraph, Quote, Section, Table,
 };
 use crate::parser::inline::ParseInline;
 use crate::parser::line::ParseLine;
@@ -26,7 +26,7 @@ impl ParseBlock for Parser {
     fn parse_block(&mut self) -> ParseResult<Block> {
         if let Some(section) = self.section_return {
             if section <= self.section_nesting && (self.section_nesting > 0) {
-                return Err(self.ctm.assert_error(None));
+                return Err(self.ctm.assert_error(None).into());
             } else {
                 self.section_return = None;
             }
@@ -35,7 +35,7 @@ impl ParseBlock for Parser {
             log::trace!("Block::Section");
             Block::Section(section)
         } else if let Some(_) = self.section_return {
-            return Err(self.ctm.err());
+            return Err(self.ctm.err().into());
         } else if let Ok(list) = self.parse_list() {
             log::trace!("Block::List");
             Block::List(list)
@@ -60,7 +60,7 @@ impl ParseBlock for Parser {
                 Block::Null
             }
         } else if let Some(_) = self.section_return {
-            return Err(self.ctm.err());
+            return Err(self.ctm.err().into());
         } else if let Ok(pholder) = self.parse_placeholder() {
             log::trace!("Block::Placeholder");
             Block::Placeholder(pholder)
@@ -68,7 +68,7 @@ impl ParseBlock for Parser {
             log::trace!("Block::Paragraph");
             Block::Paragraph(paragraph)
         } else {
-            return Err(self.ctm.err());
+            return Err(self.ctm.err().into());
         };
 
         Ok(token)
@@ -94,7 +94,7 @@ impl ParseBlock for Parser {
                 if size <= self.section_nesting {
                     self.section_return = Some(size);
                 }
-                return Err(self.ctm.rewind_with_error(start_index));
+                return Err(self.ctm.rewind_with_error(start_index).into());
             }
             self.ctm.seek_any(&INLINE_WHITESPACE)?;
             let mut header = self.parse_header()?;
@@ -117,7 +117,7 @@ impl ParseBlock for Parser {
             }
             Ok(section)
         } else {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
     }
 
@@ -167,7 +167,7 @@ impl ParseBlock for Parser {
         };
         if self.ctm.check_char(&META_CLOSE) {
             if self.ctm.next_char() == None {
-                return Err(self.ctm.rewind_with_error(start_index));
+                return Err(self.ctm.rewind_with_error(start_index).into());
             }
         }
         let mut quote = Quote::new(metadata);
@@ -186,7 +186,7 @@ impl ParseBlock for Parser {
             }
         }
         if quote.text.len() == 0 {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
 
         Ok(quote)
@@ -213,7 +213,7 @@ impl ParseBlock for Parser {
         if paragraph.elements.len() > 0 {
             Ok(paragraph)
         } else {
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         }
     }
 
@@ -273,7 +273,7 @@ impl ParseBlock for Parser {
         if list.items.len() > 0 {
             Ok(list)
         } else {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
     }
 
@@ -319,7 +319,7 @@ impl ParseBlock for Parser {
             path.push(character);
         }
         if self.ctm.check_char(&LB) || path.is_empty() {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         if self.ctm.check_char(&IMPORT_CLOSE) {
             self.ctm.seek_one()?;
@@ -328,12 +328,12 @@ impl ParseBlock for Parser {
 
         if self.section_nesting > 0 {
             self.section_return = Some(0);
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         let metadata = self
             .parse_inline_metadata()
             .ok()
-            .map(|m| m.into())
+            .map(|m| m.get_string_map())
             .unwrap_or(HashMap::new());
 
         self.ctm.seek_whitespace();
@@ -343,7 +343,7 @@ impl ParseBlock for Parser {
             ImportType::Stylesheet(_) => Ok(None),
             ImportType::Bibliography(_) => Ok(None),
             ImportType::Manifest(_) => Ok(None),
-            _ => Err(self.ctm.err()),
+            _ => Err(self.ctm.err().into()),
         }
     }
 }

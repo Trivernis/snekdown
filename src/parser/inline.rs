@@ -3,7 +3,6 @@ use crate::elements::tokens::*;
 use crate::elements::BibReference;
 use crate::elements::*;
 use crate::parser::block::ParseBlock;
-use crate::references::configuration::keys::{BIB_REF_DISPLAY, SMART_ARROWS};
 use crate::references::glossary::GlossaryDisplay;
 use crate::references::glossary::GlossaryReference;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
@@ -48,11 +47,12 @@ impl ParseInline for Parser {
         self.ctm.assert_char(surrounding, Some(start_index))?;
         self.ctm.seek_one()?;
         let mut inline = vec![self.parse_inline()?];
+
         while !self.ctm.check_char(surrounding) {
             if let Ok(result) = self.parse_inline() {
                 inline.push(result)
             } else {
-                return Err(self.ctm.rewind_with_error(start_index));
+                return Err(self.ctm.rewind_with_error(start_index).into());
             }
         }
         if !self.ctm.check_eof() {
@@ -71,10 +71,10 @@ impl ParseInline for Parser {
             }
         }
         if self.ctm.check_char(&PIPE) || self.ctm.check_char(&LB) {
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         } else if self.ctm.check_eof() {
             log::trace!("EOF");
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         } else if let Ok(image) = self.parse_image() {
             log::trace!("Inline::Image {:?}", image);
             Ok(Inline::Image(image))
@@ -160,7 +160,7 @@ impl ParseInline for Parser {
                 image_data: pending_image,
             })
         } else {
-            Err(self.ctm.rewind_with_error(start_index))
+            Err(self.ctm.rewind_with_error(start_index).into())
         }
     }
 
@@ -185,7 +185,7 @@ impl ParseInline for Parser {
             self.inline_break_at.pop();
             self.ctm.seek_one()?;
         } else if !short_syntax {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         self.ctm.assert_char(&URL_OPEN, Some(start_index))?;
         self.ctm.seek_one()?;
@@ -218,7 +218,7 @@ impl ParseInline for Parser {
         } else if self.ctm.check_char(&SPACE) {
             false
         } else {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         };
         self.ctm.seek_one()?;
         self.ctm.assert_char(&CHECK_CLOSE, Some(start_index))?;
@@ -233,11 +233,12 @@ impl ParseInline for Parser {
         self.ctm.assert_sequence(&BOLD, Some(start_index))?;
         self.ctm.seek_one()?;
         let mut inline = vec![self.parse_inline()?];
+
         while !self.ctm.check_sequence(&BOLD) {
             if let Ok(result) = self.parse_inline() {
                 inline.push(result);
             } else {
-                return Err(self.ctm.rewind_with_error(start_index));
+                return Err(self.ctm.rewind_with_error(start_index).into());
             }
         }
         self.ctm.seek_one()?;
@@ -261,12 +262,12 @@ impl ParseInline for Parser {
             if let Ok(result) = self.parse_inline() {
                 inline.push(result);
             } else {
-                return Err(self.ctm.rewind_with_error(start_index));
+                return Err(self.ctm.rewind_with_error(start_index).into());
             }
         }
         self.ctm.rewind(self.ctm.get_index() - STRIKED.len());
         if self.ctm.check_any(WHITESPACE) {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         for _ in 0..(STRIKED.len() + 1) {
             self.ctm.seek_one()?;
@@ -330,7 +331,7 @@ impl ParseInline for Parser {
                 name,
             })
         } else {
-            Err(self.ctm.rewind_with_error(start_index))
+            Err(self.ctm.rewind_with_error(start_index).into())
         }
     }
 
@@ -347,7 +348,7 @@ impl ParseInline for Parser {
         )?;
         self.ctm.seek_one()?;
         if color.is_empty() {
-            return Err(self.ctm.err());
+            return Err(self.ctm.err().into());
         }
         Ok(Colored {
             value: Box::new(self.parse_inline()?),
@@ -367,7 +368,15 @@ impl ParseInline for Parser {
         let bib_ref = BibRef::new(key.clone());
         let ref_entry = Arc::new(RwLock::new(BibReference::new(
             key,
-            self.options.document.config.get_ref_entry(BIB_REF_DISPLAY),
+            Some(
+                self.options
+                    .document
+                    .config
+                    .lock()
+                    .formatting
+                    .bib_ref_display
+                    .clone(),
+            ),
             bib_ref.anchor(),
         )));
         self.options
@@ -422,7 +431,7 @@ impl ParseInline for Parser {
             self.ctm
                 .get_string_until_any_or_rewind(&WHITESPACE, &[TILDE], start_index)?;
         if key.is_empty() {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
         while !key.is_empty() && !key.chars().last().unwrap().is_alphabetic() {
             self.ctm.rewind(self.ctm.get_index() - 1);
@@ -441,7 +450,7 @@ impl ParseInline for Parser {
     /// parses plain text as a string until it encounters an unescaped special inline char
     fn parse_plain(&mut self) -> ParseResult<PlainText> {
         if self.ctm.check_char(&LB) {
-            return Err(self.ctm.err());
+            return Err(self.ctm.err().into());
         }
         let mut characters = String::new();
         if !self.ctm.check_char(&SPECIAL_ESCAPE) {
@@ -466,7 +475,7 @@ impl ParseInline for Parser {
         if characters.len() > 0 {
             Ok(PlainText { value: characters })
         } else {
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         }
     }
 
@@ -490,7 +499,7 @@ impl ParseInline for Parser {
         if values.len() == 0 {
             // if there was a linebreak (the metadata wasn't closed) or there is no inner data
             // return an error
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
 
         Ok(InlineMetadata { data: values })
@@ -566,7 +575,7 @@ impl ParseInline for Parser {
         {
             name_str
         } else {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         };
         if !self.ctm.check_eof() {
             self.ctm.seek_one()?;
@@ -590,7 +599,7 @@ impl ParseInline for Parser {
         self.ctm.seek_one()?;
 
         if self.ctm.check_char(&TEMPLATE) {
-            return Err(self.ctm.rewind_with_error(start_index));
+            return Err(self.ctm.rewind_with_error(start_index).into());
         }
 
         let mut elements = Vec::new();
@@ -645,15 +654,8 @@ impl ParseInline for Parser {
 
     /// Parses an arrow
     fn parse_arrow(&mut self) -> ParseResult<Arrow> {
-        if !self
-            .options
-            .document
-            .config
-            .get_entry(SMART_ARROWS)
-            .and_then(|e| e.get().as_bool())
-            .unwrap_or(true)
-        {
-            Err(self.ctm.err())
+        if !self.options.document.config.lock().features.smart_arrows {
+            Err(self.ctm.err().into())
         } else if self.ctm.check_sequence(A_LEFT_RIGHT_ARROW) {
             self.ctm.seek_one()?;
             Ok(Arrow::LeftRightArrow)
@@ -673,7 +675,7 @@ impl ParseInline for Parser {
             self.ctm.seek_one()?;
             Ok(Arrow::BigLeftArrow)
         } else {
-            Err(self.ctm.err())
+            Err(self.ctm.err().into())
         }
     }
 }
