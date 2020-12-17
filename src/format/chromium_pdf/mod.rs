@@ -36,7 +36,8 @@ pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
                     .truncate(true)
                     .open(file_path)?,
             );
-            let mut html_writer = HTMLWriter::new(Box::new(writer));
+            let mut html_writer =
+                HTMLWriter::new(Box::new(writer), document.config.lock().style.theme.clone());
             document.to_html(&mut html_writer)?;
             log::info!("Successfully rendered temporary html file!");
             html_writer.flush()
