@@ -88,6 +88,7 @@ pub struct Parser {
     pub(crate) ctm: CharTapeMachine,
     section_nesting: u8,
     sections: Vec<u8>,
+    section_anchors: Vec<String>,
     section_return: Option<u8>,
     wg: WaitGroup,
     pub(crate) block_break_at: Vec<char>,
@@ -111,6 +112,7 @@ impl Parser {
         Self {
             options,
             sections: Vec::new(),
+            section_anchors: Vec::new(),
             section_nesting: 0,
             section_return: None,
             wg: WaitGroup::new(),
@@ -140,7 +142,7 @@ impl Parser {
         text_unil.reverse();
         let mut inline_pos = 0;
 
-        while text_unil[inline_pos] != LB {
+        while inline_pos < text_unil.len() && text_unil[inline_pos] != LB {
             inline_pos += 1;
         }
         if let Some(path) = &self.options.path {

@@ -35,6 +35,8 @@ const P_GLS: &str = "gls";
 const P_DATE: &str = "date";
 const P_TIME: &str = "time";
 const P_DATETIME: &str = "datetime";
+const P_AUTHOR: &str = "author";
+const P_TITLE: &str = "title";
 
 impl ProcessPlaceholders for Document {
     /// parses all placeholders and assigns values to them
@@ -65,6 +67,16 @@ impl ProcessPlaceholders for Document {
                 P_DATETIME => pholder.set_value(inline!(Inline::Plain(PlainText {
                     value: format!("{} {}", get_date_string(), get_time_string())
                 }))),
+                P_AUTHOR => {
+                    if let Some(value) = self.config.lock().metadata.author.clone() {
+                        pholder.set_value(inline!(Inline::Plain(PlainText { value })))
+                    }
+                }
+                P_TITLE => {
+                    if let Some(value) = self.config.lock().metadata.title.clone() {
+                        pholder.set_value(inline!(Inline::Plain(PlainText { value })))
+                    }
+                }
                 _ => {
                     if let Some(value) = self
                         .config

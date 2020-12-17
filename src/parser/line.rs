@@ -53,6 +53,9 @@ impl ParseLine for Parser {
         self.ctm.get_text()[start_index..self.ctm.get_index()]
             .iter()
             .for_each(|e| anchor.push(*e));
+        if let Some(last) = self.section_anchors.last() {
+            anchor = format!("{}-{}", last, anchor);
+        }
         anchor.retain(|c| !c.is_whitespace());
         log::trace!("Line::Header");
         Ok(Header::new(line, anchor))

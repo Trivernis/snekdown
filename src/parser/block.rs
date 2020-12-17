@@ -102,6 +102,8 @@ impl ParseBlock for Parser {
             header.size = size;
             self.section_nesting = size;
             self.sections.push(size);
+            self.section_anchors.push(header.anchor.clone());
+
             let mut section = Section::new(header);
             section.metadata = metadata;
             self.ctm.seek_whitespace();
@@ -111,6 +113,7 @@ impl ParseBlock for Parser {
             }
 
             self.sections.pop();
+            self.section_anchors.pop();
             if let Some(sec) = self.sections.last() {
                 self.section_nesting = *sec
             } else {
@@ -336,8 +339,6 @@ impl ParseBlock for Parser {
             .ok()
             .map(|m| m.get_string_map())
             .unwrap_or(HashMap::new());
-
-        self.ctm.seek_whitespace();
 
         match self.import(path.clone(), &metadata) {
             ImportType::Document(Ok(anchor)) => Ok(Some(Import { path, anchor })),
