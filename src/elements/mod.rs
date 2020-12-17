@@ -252,7 +252,7 @@ pub struct Placeholder {
 
 #[derive(Clone, Debug)]
 pub struct RefLink {
-    pub(crate) description: Box<Line>,
+    pub(crate) description: TextLine,
     pub(crate) reference: String,
 }
 
@@ -352,7 +352,7 @@ impl Document {
         list.ordered = ordered;
         self.elements.iter().for_each(|e| match e {
             Block::Section(sec) => {
-                if !sec.get_hide_in_toc() {
+                if !sec.is_hidden_in_toc() {
                     let mut item =
                         ListItem::new(Line::RefLink(sec.header.get_anchor()), 1, ordered);
                     item.children.append(&mut sec.get_toc_list(ordered).items);
@@ -486,9 +486,10 @@ impl Section {
 
     pub fn get_toc_list(&self, ordered: bool) -> List {
         let mut list = List::new();
+
         self.elements.iter().for_each(|e| {
             if let Block::Section(sec) = e {
-                if !sec.get_hide_in_toc() {
+                if !sec.is_hidden_in_toc() {
                     let mut item =
                         ListItem::new(Line::RefLink(sec.header.get_anchor()), 1, ordered);
                     item.children.append(&mut sec.get_toc_list(ordered).items);
@@ -500,7 +501,7 @@ impl Section {
         list
     }
 
-    pub(crate) fn get_hide_in_toc(&self) -> bool {
+    pub(crate) fn is_hidden_in_toc(&self) -> bool {
         if let Some(meta) = &self.metadata {
             meta.get_bool("toc-hidden")
         } else {
@@ -556,7 +557,7 @@ impl Header {
 
     pub fn get_anchor(&self) -> RefLink {
         RefLink {
-            description: Box::new(self.line.clone()),
+            description: self.line.as_raw_text().as_plain_line(),
             reference: self.anchor.clone(),
         }
     }
@@ -611,6 +612,16 @@ impl TextLine {
 
     pub fn add_subtext(&mut self, subtext: Inline) {
         self.subtext.push(subtext)
+    }
+
+    pub fn as_plain_line(&self) -> TextLine {
+        TextLine {
+            subtext: self
+                .subtext
+                .iter()
+                .map(|s| Inline::Plain(s.as_plain_text()))
+                .collect(),
+        }
     }
 }
 
@@ -811,6 +822,74 @@ impl MetadataValue {
             MetadataValue::Float(f) => f.to_string(),
             MetadataValue::Bool(b) => b.to_string(),
             MetadataValue::Template(_) => "".to_string(),
+        }
+    }
+}
+
+impl Line {
+    pub fn as_raw_text(&self) -> TextLine {
+        match self {
+            Line::Text(t) => t.clone(),
+            Line::Ruler(_) => TextLine::new(),
+            Line::RefLink(r) => r.description.clone(),
+            Line::Anchor(a) => a.inner.as_raw_text().as_plain_line(),
+            Line::Centered(c) => c.line.clone(),
+            Line::BibEntry(_) => TextLine::new(),
+        }
+    }
+}
+
+impl Inline {
+    pub fn as_plain_text(&self) -> PlainText {
+        match self {
+            Inline::Plain(p) => p.clone(),
+            Inline::Bold(b) => b.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Italic(i) => i.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Underlined(u) => u.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Striked(s) => s.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Monospace(m) => PlainText {
+                value: m.value.clone(),
+            },
+            Inline::Superscript(s) => s.value.iter().fold(
+                PlainText {
+                    value: String::new(),
+                },
+                |a, b| PlainText {
+                    value: format!("{} {}", a.value, b.as_plain_text().value),
+                },
+            ),
+            Inline::Colored(c) => c.value.as_plain_text(),
+            _ => PlainText {
+                value: String::new(),
+            },
         }
     }
 }

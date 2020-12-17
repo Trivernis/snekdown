@@ -78,6 +78,7 @@ impl ParseBlock for Parser {
     fn parse_section(&mut self) -> ParseResult<Section> {
         let start_index = self.ctm.get_index();
         self.ctm.seek_whitespace();
+
         if self.ctm.check_char(&HASH) {
             let mut size = 1;
             while let Some(_) = self.ctm.next_char() {
