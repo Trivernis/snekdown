@@ -197,90 +197,107 @@ Placeholder
 ```
 
 Metadata can also be defined in a separate toml file with simple key-value pairs.
+The file `Manifest.toml` will always be included by default.
 Example:
 
 ```toml
-# bibliography.bib.toml
-author = "Snek"
-published = "2020"
-test-key = ["test value", "test value 2"]
+# document metadata
+[metadata]
+# language setting of the document
+language = 'en'
 
-# those files won't get imported
-ignored-imports = ["style.css"]        
+# author of the document
+author = 'author'
 
-# stylesheets that should be included
-included-stylesheets = ["style2.css"] 
 
-# other metadata files that should be included
-included-configs = []
-
-# bibliography that should be included
-included-bibliography = ["mybib.toml"]
-
-# glossary that sould be included      
-included-glossary = ["myglossary.toml"]     
+# features used in the document
+[features]
 
 # if external sources (images, stylesheets, MathJax)
 # should be embedded into the document (default: true)
-embed-external = true
+embed_external = true
 
 # If SmartArrows should be used (default: true)
-smart-arrows = true
-
-# Includes a MathJax script tag in the document to render MathML in chromium.
-# (default: true)
-include-math-jax = true
+smart_arrows = true
+include_mathjax = true
 
 
-### Image processing options ###
+[imports]
+# those files won't get imported
+ignored_imports = []
+
+# stylesheets that should be included
+included_stylesheets = ['style.css']
+
+# bibliography that should be included
+included_bibliography = ['Bibliography.toml']
+
+# glossary that sould be included
+included_glossaries = ['Glossary.toml']
+
+
+# settings related to pdf rendering
+[pdf]
+
+# If the header and footer of the pdf should be displayed (default: true)
+display_header_footer = true
+
+# PDF header template of each page (default: '<div></div>')
+header_template = '<div></div>'
+
+# PDF footer template of each page (default: see chromium_pdf assets)
+footer_template = '''
+<div style="font-size: 10px; text-align: center; width: 100%;">
+    <span class="pageNumber"></span>/<span class="totalPages"></span>
+</div>'''
+
+# The scale at which the website is rendered into pdf.
+page_scale = 1.0
+
+# margin of the pdf document
+[pdf.margin]
+
+# Top margin of the pdf. Should be between 0 and 1. (default: 0.5)
+top = 0.5
+
+# Bottom margin of the pdf. Should be between 0 and 1. (default: 0.5)
+bottom = 0.5
+
+# Left margin of the pdf. Should be between 0 and 1.
+left = 0
+
+# Right margin of the pdf. Should be between 0 and 1.
+right = 0
+
+
+# image settings
+[images]
 
 # Force convert images to the specified format.
 # Supported formats are png, jpeg, gif, bmp, (ico needs size <= 256), avif, pnm
 # (default: keep original)
-image-format = "jpg"
+format = "png"
 
 # the max width for the images.
 # if an image is larger than that it get's resized.
 # (default: none)
-image-max-width = 700
+max_width = 700
 
 # the max width for the images.
 # if an image is larger than that it get's resized.
 # (default: none)
-image-max-height = 800
+max_height = 500
 
 
-### PDF Options - needs the pdf feature enabled ###
+[formatting]
+# how bibliography references should be displayed
+bib_ref_display = '{{number}}'
 
-# If the header and footer of the pdf should be displayed (default: true)
-pdf-display-header-footer = true
 
-# PDF header template of each page (default: empty)
-pdf-header-template = "<div><span class='title'></span></div>"
-
-# PDF footer template of each page (default: see chromium_pdf assets)
-pdf-footer-template = "<div><span class='pageNumber'></span></div>"
-
-# Top margin of the pdf. Should be between 0 and 1. (default: 1.0)
-pdf-margin-top = 1
-
-# Bottom margin of the pdf. Should be between 0 and 1. (default: 1.0)
-pdf-margin-bottom = 1
-
-# Left margin of the pdf. Should be between 0 and 1.
-pdf-margin-left = 0
-
-# Right margin of the pdf. Should be between 0 and 1.
-pdf-margin-right = 0
-
-# Page height of the pdf
-pdf-page-height = 100
-
-# Page width of the pdf
-pdf-page-width = 80
-
-# The scale at which the website is rendered into pdf.
-pdf-page-scale = 1.0
+# custom metadata
+# String -> String Mappings
+[custom_attributes]
+custom_key1 = "Custom Value"
 ```
 
 The `[Section]` keys are not relevant as the structure gets flattened before the values are read.
