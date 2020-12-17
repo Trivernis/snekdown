@@ -1,0 +1,159 @@
+body {
+  background-color: $background-color-variant-2;
+  overflow-x: hidden;
+  color: $primary-color;
+  word-break: break-word;
+}
+
+.content {
+  font-family: "Fira Sans", "Noto Sans", SansSerif, sans-serif;
+  width: 100vh;
+  max-width: calc(100% - 4rem);
+  padding: 2rem;
+  margin: auto;
+  background-color: $background-color;
+}
+
+h1 {
+  font-size: 2.2rem;
+}
+
+h2 {
+  font-size: 1.8rem;
+}
+
+h3 {
+  font-size: 1.4rem;
+}
+
+h4 {
+  font-size: 1rem;
+}
+
+h5 {
+  font-size: 0.8rem;
+}
+
+h6 {
+  font-size: 0.4rem;
+}
+
+img {
+  max-width: 100%;
+  max-height: 100vh;
+  height: auto;
+}
+
+code {
+  color: $primary-color;
+
+  pre {
+    font-family: "Fira Code", "Mono", monospace;
+    padding: 0.8em 0.2em;
+    background-color: $background-color-variant-1 !important;
+    border-radius: 0.25em;
+    overflow: auto;
+  }
+
+  &.inlineCode {
+    font-family: "Fira Code", monospace;
+    border-radius: 0.1em;
+    background-color: $background-color-variant-1;
+    padding: 0 0.1em;
+  }
+}
+
+.tableWrapper {
+  overflow-x: auto;
+  width: 100%;
+
+  & > table {
+    margin: auto;
+  }
+}
+
+table {
+  border-collapse: collapse;
+
+  tr {
+    &:nth-child(odd) {
+      background-color: $background-color-variant-2;
+    }
+
+    &:nth-child(1) {
+      background-color: $background-color-variant-2;
+      font-weight: bold;
+      border-bottom: 1px solid invert($background-color)
+    }
+  }
+}
+
+table td, table th {
+  border-left: 1px solid invert($background-color);
+  padding: 0.2em 0.5em;
+}
+
+table tr td:first-child, table tr th:first-child {
+  border-left: none;
+}
+
+blockquote {
+  margin-left: 0;
+  background-color: rgba(0, 0, 0, 0);
+}
+
+a {
+  color: $secondary-color;
+}
+
+.quote {
+  border-left: 0.3em solid $background-color-variant-3;
+  border-radius: 0.2em;
+  padding-left: 1em;
+  margin-left: 0;
+  background-color: $background-color-variant-1;
+
+  .metadata {
+    font-style: italic;
+    padding-left: 0.5em;
+    color: $primary-variant-1;
+  }
+}
+
+
+.figure {
+  width: 100%;
+  display: block;
+  text-align: center;
+
+  .imageDescription {
+    display: block;
+    color: $primary-variant-1;
+    font-style: italic;
+  }
+}
+
+.centered {
+  text-align: center;
+}
+
+.glossaryReference {
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px dotted $primary-color;
+}
+
+.arrow {
+  font-family: "Fira Code", "Mono", monospace;
+}
+
+@media print {
+
+  .content > section > section, .content > section > section {
+    page-break-inside: avoid;
+  }
+
+  body {
+    background-color: $background-color !important;
+  }
+}

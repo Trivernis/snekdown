@@ -1,14 +1,16 @@
+use crate::settings::format_settings::Theme;
 use std::io;
 use std::io::Write;
 
 pub struct HTMLWriter {
     inner: Box<dyn Write>,
+    theme: Theme,
 }
 
 impl HTMLWriter {
     /// Creates a new writer
-    pub fn new(inner: Box<dyn Write>) -> Self {
-        Self { inner }
+    pub fn new(inner: Box<dyn Write>, theme: Theme) -> Self {
+        Self { inner, theme }
     }
 
     /// Writes a raw string
@@ -29,5 +31,10 @@ impl HTMLWriter {
     /// Flushes the writer
     pub fn flush(&mut self) -> io::Result<()> {
         self.inner.flush()
+    }
+
+    /// Return the theme of the html writer
+    pub fn get_theme(&mut self) -> Theme {
+        self.theme.clone()
     }
 }
