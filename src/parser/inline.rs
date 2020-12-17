@@ -373,7 +373,7 @@ impl ParseInline for Parser {
                     .document
                     .config
                     .lock()
-                    .formatting
+                    .style
                     .bib_ref_display
                     .clone(),
             ),

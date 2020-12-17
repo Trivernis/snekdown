@@ -207,7 +207,7 @@ fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File
 }
 
 fn render_html(document: Document, writer: BufWriter<File>) {
-    let mut writer = HTMLWriter::new(Box::new(writer));
+    let mut writer = HTMLWriter::new(Box::new(writer), document.config.lock().style.theme.clone());
     document.to_html(&mut writer).unwrap();
     writer.flush().unwrap();
 }

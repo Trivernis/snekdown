@@ -289,10 +289,14 @@ max_width = 700
 max_height = 500
 
 
-[formatting]
+# Visual adjustments
+[style]
 # how bibliography references should be displayed
 bib_ref_display = '{{number}}'
 
+# the chosen theme for the document
+# one of: GithubLight, SolarizedLight, OceanLight, SolarizedDark, OceanDark, MagicDark
+theme = 'GithubLight'
 
 # custom metadata
 # String -> String Mappings
