@@ -105,16 +105,51 @@ impl ToHtml for Document {
         };
 
         if self.is_root {
-            let language = self.config.lock().metadata.language.clone();
+            let metadata = self.config.lock().metadata.clone();
 
             let style = minify(get_css_for_theme(writer.get_theme()).as_str());
             writer.write("<!DOCTYPE html>".to_string())?;
             writer.write("<html lang=\"".to_string())?;
-            writer.write_attribute(language)?;
+            writer.write_attribute(metadata.language)?;
             writer.write("\"><head ".to_string())?;
             writer.write(path)?;
             writer.write("/>".to_string())?;
             writer.write("<meta charset=\"UTF-8\">".to_string())?;
+
+            if let Some(author) = metadata.author {
+                writer.write("<meta name=\"author\" content=\"".to_string())?;
+                writer.write_attribute(author)?;
+                writer.write("\">".to_string())?;
+            }
+
+            if let Some(title) = metadata.title {
+                writer.write("<title>".to_string())?;
+                writer.write_escaped(title.clone())?;
+                writer.write("</title>".to_string())?;
+                writer.write("<meta name=\"title\" content=\"".to_string())?;
+                writer.write_attribute(title)?;
+                writer.write("\">".to_string())?;
+            }
+
+            if let Some(description) = metadata.description {
+                writer.write("<meta name=\"description\" content=\"".to_string())?;
+                writer.write_attribute(description)?;
+                writer.write("\">".to_string())?;
+            }
+
+            if !metadata.keywords.is_empty() {
+                writer.write("<meta name=\"keywords\" content=\"".to_string())?;
+                writer.write_attribute(
+                    metadata
+                        .keywords
+                        .iter()
+                        .fold("".to_string(), |a, b| format!("{}, {}", a, b))
+                        .trim_start_matches(", ")
+                        .to_string(),
+                )?;
+                writer.write("\">".to_string())?;
+            }
+
             writer.write("<style>".to_string())?;
             writer.write(style)?;
             writer.write("</style>".to_string())?;

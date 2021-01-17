@@ -1,5 +1,5 @@
-use serde::export::fmt::{self, Display};
 use std::error::Error;
+use std::fmt::{self, Display};
 use std::io;
 
 pub type PdfRenderingResult<T> = Result<T, PdfRenderingError>;

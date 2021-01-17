@@ -162,6 +162,12 @@ Placeholders are always case insensitive.
 Insert the table of contents
 [[TOC]]
 
+Insert the bibliography list
+[[BIB]]
+
+Insert the glossary
+[[GLS]]
+
 Insert the current date
 [[date]]
 
@@ -208,6 +214,17 @@ language = 'en'
 
 # author of the document
 author = 'author'
+
+# Title of the document
+title = 'title'
+
+# A short description for the document preview
+description = '''
+Description
+'''
+
+# Keywords to find the document
+keywords = ['HTML', 'Snekdown']
 
 
 # features used in the document
@@ -412,6 +429,7 @@ The format ~HTML is not considered a programming language by some definitions.
 The first occurence of the glossary entry (`~HTML`) always uses the long form.
 The second will always be the short form. The long form can be enforced by using two
 (`~~HTML`) tildes.
+The glossary list can be inserted with the `[[GLS]]` placeholder.
 
 ## Math
 
