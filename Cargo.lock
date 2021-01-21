@@ -235,9 +235,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "charred"
-version = "0.3.3"
+version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e01302bf6a3d92a90baa965f84a735938520ab9fd896f0694a71e8dec5405ce"
+checksum = "0d76bd26a00789c7e782d3ba5c0adae6f7eabc2a1026dfb41838b0e11ebf55f8"
 
 [[package]]
 name = "chrono"

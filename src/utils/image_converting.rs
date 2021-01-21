@@ -60,7 +60,7 @@ impl ImageConverter {
             }
             pb.lock().tick();
         });
-        pb.lock().finish();
+        pb.lock().finish_and_clear();
     }
 }
 

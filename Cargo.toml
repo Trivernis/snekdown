@@ -21,7 +21,7 @@ path = "src/main.rs"
 pdf = ["headless_chrome", "failure"]
 
 [dependencies]
-charred = "0.3.3"
+charred = "0.3.4"
 asciimath-rs = "0.5.7"
 bibliographix = "0.6.0"
 crossbeam-utils = "0.7.2"
