@@ -6,6 +6,7 @@ use crate::parser::block::ParseBlock;
 use crate::references::glossary::GlossaryDisplay;
 use crate::references::glossary::GlossaryReference;
 use crate::references::templates::{GetTemplateVariables, Template, TemplateVariable};
+use crate::utils::parsing::remove_single_backlslash;
 use crate::Parser;
 use bibliographix::references::bib_reference::BibRef;
 use parking_lot::Mutex;
@@ -295,9 +296,10 @@ impl ParseInline for Parser {
         let start_index = self.ctm.get_index();
         self.ctm.assert_char(&BACKTICK, Some(start_index))?;
         self.ctm.seek_one()?;
-        let content = self
-            .ctm
-            .get_string_until_any_or_rewind(&[BACKTICK, LB], &[], start_index)?;
+        let mut content =
+            self.ctm
+                .get_string_until_any_or_rewind(&[BACKTICK, LB], &[], start_index)?;
+        content = remove_single_backlslash(content);
         self.ctm.assert_char(&BACKTICK, Some(start_index))?;
         self.ctm.seek_one()?;
 

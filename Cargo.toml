@@ -1,6 +1,6 @@
 [package]
 name = "snekdown"
-version = "0.32.1"
+version = "0.32.2"
 authors = ["trivernis <trivernis@protonmail.com>"]
 edition = "2018"
 license-file = "LICENSE"
@@ -21,7 +21,7 @@ path = "src/main.rs"
 pdf = ["headless_chrome", "failure"]
 
 [dependencies]
-charred = "0.3.3"
+charred = "0.3.5"
 asciimath-rs = "0.5.7"
 bibliographix = "0.6.0"
 crossbeam-utils = "0.7.2"

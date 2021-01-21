@@ -135,8 +135,9 @@ impl ParseBlock for Parser {
         let language = self.ctm.get_string_until_any(&[LB], &[])?;
         self.ctm.seek_one()?;
         let text = self.ctm.get_string_until_sequence(&[&SQ_CODE_BLOCK], &[])?;
+
         for _ in 0..2 {
-            self.ctm.seek_one()?;
+            self.ctm.try_seek();
         }
 
         Ok(CodeBlock {
@@ -153,7 +154,7 @@ impl ParseBlock for Parser {
         self.ctm.seek_one()?;
         let text = self.ctm.get_string_until_sequence(&[SQ_MATH], &[])?;
         for _ in 0..1 {
-            self.ctm.seek_one()?;
+            self.ctm.try_seek();
         }
         Ok(MathBlock {
             expression: asciimath_rs::parse(text),
@@ -231,6 +232,7 @@ impl ParseBlock for Parser {
         let ordered = self.ctm.get_current().is_numeric();
         list.ordered = ordered;
         let mut list_hierarchy: Vec<ListItem> = Vec::new();
+
         while let Ok(mut item) = self.parse_list_item() {
             while let Some(parent_item) = list_hierarchy.pop() {
                 if parent_item.level < item.level {
@@ -289,6 +291,7 @@ impl ParseBlock for Parser {
         }
         let seek_index = self.ctm.get_index();
         let mut table = Table::new(header);
+
         while let Ok(_) = self.ctm.seek_one() {
             self.ctm.seek_any(&INLINE_WHITESPACE)?;
             if !self.ctm.check_any(&[MINUS, PIPE]) || self.ctm.check_char(&LB) {
