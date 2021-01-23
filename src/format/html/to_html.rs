@@ -111,9 +111,7 @@ impl ToHtml for Document {
             writer.write("<!DOCTYPE html>".to_string())?;
             writer.write("<html lang=\"".to_string())?;
             writer.write_attribute(metadata.language)?;
-            writer.write("\"><head ".to_string())?;
-            writer.write(path)?;
-            writer.write("/>".to_string())?;
+            writer.write("\"><head>".to_string())?;
             writer.write("<meta charset=\"UTF-8\">".to_string())?;
 
             if let Some(author) = metadata.author {
