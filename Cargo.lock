@@ -235,9 +235,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "charred"
-version = "0.3.5"
+version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed9759715d56a062d5636cd0cbc71f2aa8a978afe08c572a69e65e8cf53418f5"
+checksum = "4163b788273102d5de1aaf35a76b1c0e347844842f5278d4d738ad08170e0ea8"
 
 [[package]]
 name = "chrono"
@@ -2315,7 +2315,7 @@ checksum = "fe0f37c9e8f3c5a4a66ad655a93c74daac4ad00c441533bf5c6e7990bb42604e"
 
 [[package]]
 name = "snekdown"
-version = "0.32.2"
+version = "0.33.0"
 dependencies = [
  "asciimath-rs",
  "base64 0.12.3",

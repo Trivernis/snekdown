@@ -10,7 +10,7 @@ use snekdown::settings::Settings;
 use snekdown::utils::caching::CacheStorage;
 use snekdown::Parser;
 use std::fs::{File, OpenOptions};
-use std::io::{BufWriter, Write};
+use std::io::{stdout, BufWriter, Write};
 use std::path::PathBuf;
 use std::process::exit;
 use std::sync::mpsc::channel;
@@ -48,7 +48,11 @@ struct RenderOptions {
 
     /// Path for the output file
     #[structopt(parse(from_os_str))]
-    output: PathBuf,
+    output: Option<PathBuf>,
+
+    /// If the output should be written to stdout instead of the output file
+    #[structopt(long = "stdout")]
+    stdout: bool,
 
     /// the output format
     #[structopt(short, long, default_value = "html")]
@@ -165,6 +169,7 @@ fn render(opt: &RenderOptions) -> Parser {
 
         exit(1)
     }
+
     let start = Instant::now();
 
     let mut parser = Parser::with_defaults(ParserOptions::default().add_path(opt.input.clone()));
@@ -173,16 +178,24 @@ fn render(opt: &RenderOptions) -> Parser {
     log::info!("Parsing + Processing took: {:?}", start.elapsed());
     let start_render = Instant::now();
 
-    let file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .truncate(true)
-        .create(true)
-        .open(&opt.output)
-        .unwrap();
-    let writer = BufWriter::new(file);
+    if let Some(output) = &opt.output {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(output)
+            .unwrap();
 
-    render_format(opt, document, writer);
+        render_format(opt, document, BufWriter::new(file));
+    } else {
+        if !opt.stdout {
+            log::error!("No output file specified");
+            exit(1)
+        }
+        render_format(opt, document, BufWriter::new(stdout()));
+    }
+
     log::info!("Rendering took: {:?}", start_render.elapsed());
     log::info!("Total: {:?}", start.elapsed());
 
@@ -190,7 +203,7 @@ fn render(opt: &RenderOptions) -> Parser {
 }
 
 #[cfg(not(feature = "pdf"))]
-fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File>) {
+fn render_format<W: Write + 'static>(opt: &RenderOptions, document: Document, writer: W) {
     match opt.format.as_str() {
         "html" => render_html(document, writer),
         _ => log::error!("Unknown format {}", opt.format),
@@ -198,7 +211,7 @@ fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File
 }
 
 #[cfg(feature = "pdf")]
-fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File>) {
+fn render_format<W: Write + 'static>(opt: &RenderOptions, document: Document, writer: W) {
     match opt.format.as_str() {
         "html" => render_html(document, writer),
         "pdf" => render_pdf(document, writer),
@@ -206,14 +219,14 @@ fn render_format(opt: &RenderOptions, document: Document, writer: BufWriter<File
     }
 }
 
-fn render_html(document: Document, writer: BufWriter<File>) {
+fn render_html<W: Write + 'static>(document: Document, writer: W) {
     let mut writer = HTMLWriter::new(Box::new(writer), document.config.lock().style.theme.clone());
     document.to_html(&mut writer).unwrap();
     writer.flush().unwrap();
 }
 
 #[cfg(feature = "pdf")]
-fn render_pdf(document: Document, mut writer: BufWriter<File>) {
+fn render_pdf<W: Write + 'static>(document: Document, mut writer: W) {
     use snekdown::format::chromium_pdf::render_to_pdf;
 
     let result = render_to_pdf(document).expect("Failed to render pdf!");

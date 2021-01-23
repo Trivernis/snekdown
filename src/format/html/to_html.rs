@@ -251,7 +251,7 @@ impl ToHtml for Paragraph {
         }
         if self.elements.len() > 1 {
             for element in &self.elements[1..] {
-                writer.write("<br/>".to_string())?;
+                writer.write(" ".to_string())?;
                 element.to_html(writer)?;
             }
         }

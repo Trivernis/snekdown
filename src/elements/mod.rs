@@ -665,6 +665,15 @@ impl Quote {
     pub fn add_text(&mut self, text: TextLine) {
         self.text.push(text)
     }
+
+    /// Strips a single linebreak from the end of the quote
+    pub fn strip_linebreak(&mut self) {
+        if let Some(last) = self.text.last_mut() {
+            if let Some(Inline::LineBreak) = last.subtext.last() {
+                last.subtext.pop();
+            }
+        }
+    }
 }
 
 impl ImportAnchor {

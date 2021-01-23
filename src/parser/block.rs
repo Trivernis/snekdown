@@ -165,6 +165,7 @@ impl ParseBlock for Parser {
     fn parse_quote(&mut self) -> ParseResult<Quote> {
         let start_index = self.ctm.get_index();
         self.ctm.seek_whitespace();
+
         let metadata = if let Ok(meta) = self.parse_inline_metadata() {
             Some(meta)
         } else {
@@ -190,6 +191,8 @@ impl ParseBlock for Parser {
                 break;
             }
         }
+
+        quote.strip_linebreak();
         if quote.text.len() == 0 {
             return Err(self.ctm.rewind_with_error(start_index).into());
         }
@@ -199,11 +202,12 @@ impl ParseBlock for Parser {
 
     /// Parses a paragraph
     fn parse_paragraph(&mut self) -> ParseResult<Paragraph> {
-        self.ctm.seek_whitespace();
         let mut paragraph = Paragraph::new();
-        while let Ok(token) = self.parse_line() {
-            paragraph.add_element(token);
+
+        while let Ok(element) = self.parse_line() {
+            paragraph.add_element(element);
             let start_index = self.ctm.get_index();
+
             if self.ctm.check_any_sequence(&BLOCK_SPECIAL_CHARS)
                 || self.ctm.check_any(&self.block_break_at)
             {
