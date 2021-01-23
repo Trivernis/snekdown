@@ -372,7 +372,7 @@ Definition:
 
 Usage:
 ```
-There is a book about snekdown[^book] and a github repo[^github].
+There is a book about snekdown[^SD_BOOK] and a github repo[^SD_GITHUB].
 ```
 
 Entries can also be defined in a separate toml file with the following data layout:
