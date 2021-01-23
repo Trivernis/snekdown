@@ -191,6 +191,8 @@ impl ParseBlock for Parser {
                 break;
             }
         }
+
+        quote.strip_linebreak();
         if quote.text.len() == 0 {
             return Err(self.ctm.rewind_with_error(start_index).into());
         }
