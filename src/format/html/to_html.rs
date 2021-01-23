@@ -154,16 +154,17 @@ impl ToHtml for Document {
             writer.write(style)?;
             writer.write("</style>".to_string())?;
 
+            if self.config.lock().features.include_mathjax {
+                writer.write(format!(
+                    "<script id=\"MathJax-script\" type=\"text/javascript\" async src={}></script>",
+                    MATHJAX_URL
+                ))?;
+            }
+
             for stylesheet in &self.stylesheets {
                 let mut stylesheet = stylesheet.lock();
                 let data = std::mem::replace(&mut stylesheet.data, None);
                 if let Some(data) = data {
-                    if self.config.lock().features.include_mathjax {
-                        writer.write(format!(
-                            "<script id=\"MathJax-script\" type=\"text/javascript\" async src={}></script>",
-                            MATHJAX_URL
-                        ))?;
-                    }
                     writer.write("<style>".to_string())?;
                     writer.write(minify(String::from_utf8(data).unwrap().as_str()))?;
                     writer.write("</style>".to_string())?;
