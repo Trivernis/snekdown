@@ -101,6 +101,7 @@ impl Parser {
     pub fn with_defaults(options: ParserOptions) -> Self {
         let text = if let Some(path) = &options.path {
             let mut text = read_to_string(&path).unwrap();
+            text = text.replace("\r\n", "\n");
             if text.chars().last() != Some('\n') {
                 text.push('\n');
             }
