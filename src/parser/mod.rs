@@ -136,6 +136,11 @@ impl Parser {
     /// Returns a string of the current position in the file
     pub(crate) fn get_position_string(&self) -> String {
         let char_index = self.ctm.get_index();
+        self.get_position_string_for_index(char_index)
+    }
+
+    /// Returns a string of the given index position in the file
+    fn get_position_string_for_index(&self, char_index: usize) -> String {
         let text = self.ctm.get_text();
         let mut text_unil = text[..char_index].to_vec();
         let line_number = text_unil.iter().filter(|c| c == &&LB).count();
@@ -180,10 +185,10 @@ impl Parser {
         let anchor = Arc::new(RwLock::new(ImportAnchor::new()));
         let anchor_clone = Arc::clone(&anchor);
         let wg = self.wg.clone();
-        let mut chid_parser = self.create_child(path.clone());
+        let mut child_parser = self.create_child(path.clone());
 
         let _ = thread::spawn(move || {
-            let document = chid_parser.parse();
+            let document = child_parser.parse();
             anchor_clone.write().unwrap().set_document(document);
 
             drop(wg);
@@ -332,7 +337,18 @@ impl Parser {
                     if self.ctm.check_eof() {
                         break;
                     }
-                    eprintln!("{}", err);
+                    match err {
+                        ParseError::TapeError(t) => {
+                            log::error!(
+                                "Parse Error: {}\n\t--> {}\n",
+                                t,
+                                self.get_position_string_for_index(t.get_index())
+                            )
+                        }
+                        _ => {
+                            log::error!("{}", err)
+                        }
+                    }
                     break;
                 }
             }

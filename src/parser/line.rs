@@ -1,7 +1,8 @@
 use super::ParseResult;
 use crate::elements::tokens::*;
+use crate::elements::Inline::LineBreak;
 use crate::elements::{BibEntry, Metadata};
-use crate::elements::{Cell, Centered, Header, Inline, Line, ListItem, Row, Ruler, TextLine};
+use crate::elements::{Cell, Centered, Header, Line, ListItem, Row, Ruler, TextLine};
 use crate::parser::inline::ParseInline;
 use crate::Parser;
 use bibliographix::bibliography::bibliography_entry::BibliographyEntry;
@@ -16,6 +17,7 @@ pub(crate) trait ParseLine {
     fn parse_row(&mut self) -> ParseResult<Row>;
     fn parse_centered(&mut self) -> ParseResult<Centered>;
     fn parse_ruler(&mut self) -> ParseResult<Ruler>;
+    fn parse_paragraph_break(&mut self) -> ParseResult<TextLine>;
     fn parse_text_line(&mut self) -> ParseResult<TextLine>;
     fn parse_bib_entry(&mut self) -> ParseResult<BibEntry>;
 }
@@ -36,6 +38,9 @@ impl ParseLine for Parser {
             } else if let Ok(bib) = self.parse_bib_entry() {
                 log::trace!("Line::BibEntry");
                 Ok(Line::BibEntry(bib))
+            } else if let Ok(text) = self.parse_paragraph_break() {
+                log::trace!("Line::LineBreak");
+                Ok(Line::Text(text))
             } else if let Ok(text) = self.parse_text_line() {
                 log::trace!("Line::Text");
                 Ok(Line::Text(text))
@@ -166,6 +171,8 @@ impl ParseLine for Parser {
     /// Parses a line of text
     fn parse_text_line(&mut self) -> ParseResult<TextLine> {
         let mut text = TextLine::new();
+        let start_index = self.ctm.get_index();
+
         while let Ok(subtext) = self.parse_inline() {
             text.add_subtext(subtext);
             if self.ctm.check_eof() || self.ctm.check_any(&self.inline_break_at) {
@@ -173,19 +180,34 @@ impl ParseLine for Parser {
             }
         }
 
+        // add a linebreak when encountering \n\n
         if self.ctm.check_char(&LB) {
-            if let Ok(_) = self.ctm.seek_one() {
-                if self.ctm.check_char(&LB) {
-                    text.add_subtext(Inline::LineBreak)
-                }
+            self.ctm.try_seek();
+
+            if self.ctm.check_char(&LB) {
+                text.add_subtext(LineBreak);
+
+                self.ctm.try_seek();
             }
         }
 
         if text.subtext.len() > 0 {
             Ok(text)
         } else {
-            Err(self.ctm.err().into())
+            Err(self.ctm.rewind_with_error(start_index).into())
         }
+    }
+
+    /// Parses a paragraph break
+    fn parse_paragraph_break(&mut self) -> ParseResult<TextLine> {
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_char(&LB, Some(start_index))?;
+        self.ctm.seek_one()?;
+
+        let mut line = TextLine::new();
+        line.subtext.push(LineBreak);
+
+        Ok(line)
     }
 
     fn parse_bib_entry(&mut self) -> ParseResult<BibEntry> {
@@ -239,6 +261,7 @@ impl ParseLine for Parser {
                 }
             }
         };
+        self.ctm.seek_whitespace();
 
         self.options
             .document
