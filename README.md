@@ -6,10 +6,18 @@
 <i>More than just Markdown</i>
 </p>
 <p align="center">
-<img src="https://img.shields.io/github/workflow/status/trivernis/snekdown/Build%20and%20Test/main?style=for-the-badge">
-<img src="https://img.shields.io/crates/v/snekdown?style=for-the-badge">
-<img src="https://img.shields.io/aur/version/snekdown?style=for-the-badge">
-<img src="https://img.shields.io/discord/729250668162056313?style=for-the-badge">
+    <a href="https://github.com/Trivernis/snekdown/actions">
+        <img src="https://img.shields.io/github/workflow/status/trivernis/snekdown/Build%20and%20Test/main?style=for-the-badge">
+    </a>
+    <a href="https://crates.io/crates/snekdown">
+        <img src="https://img.shields.io/crates/v/snekdown?style=for-the-badge">
+    </a>
+    <a href="https://aur.archlinux.org/packages/snekdown">
+        <img src="https://img.shields.io/aur/version/snekdown?style=for-the-badge">
+    </a>
+    <a href="https://discord.gg/vGAXW9nxUv">
+        <img src="https://img.shields.io/discord/729250668162056313?style=for-the-badge">
+    </a>
 <br/>
 <br/>
 <a href="https://trivernis.net/snekdown/">Documentation</a> |
