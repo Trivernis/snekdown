@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::elements::{Anchor, BoldText, ItalicText, Line, List, ListItem, PlainText, TextLine};
 use crate::elements::{Inline, Url};
 use bibliographix::bibliography::bib_types::article::Article;

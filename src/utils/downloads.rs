@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::utils::caching::CacheStorage;
 use indicatif::{ProgressBar, ProgressStyle};
 use parking_lot::Mutex;

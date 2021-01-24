@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::elements::Document;
 use crate::format::chromium_pdf::result::{PdfRenderingError, PdfRenderingResult};
 use crate::format::html::html_writer::HTMLWriter;

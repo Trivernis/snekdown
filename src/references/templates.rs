@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::elements::{Block, Element, Inline, Line, ListItem};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};

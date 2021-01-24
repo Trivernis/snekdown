@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::elements::{Metadata, MetadataValue};
 use crate::settings::feature_settings::FeatureSettings;
 use crate::settings::image_settings::ImageSettings;
