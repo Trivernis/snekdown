@@ -33,6 +33,7 @@ pub(crate) const L_BRACE: char = '}';
 pub(crate) const PERCENT: char = '%';
 pub(crate) const COMMA: char = ',';
 pub(crate) const MATH: char = '$';
+pub(crate) const DOLLAR: char = '$';
 pub(crate) const AMPERSAND: char = '&';
 pub(crate) const QUESTION_MARK: char = '?';
 
@@ -82,6 +83,18 @@ pub(crate) const CHARACTER_STOP: char = SEMICOLON;
 
 pub(crate) const GLOSSARY_REF_START: char = TILDE;
 
+// Reference Anchors
+
+pub(crate) const ANCHOR_START: &'static [char] = &[R_BRACKET, QUESTION_MARK];
+pub(crate) const ANCHOR_STOP: char = L_BRACKET;
+
+// References
+
+pub(crate) const REF_START: &'static [char] = &[R_BRACKET, DOLLAR];
+pub(crate) const REF_STOP: char = L_BRACKET;
+pub(crate) const REF_DESC_START: char = R_PARENTH;
+pub(crate) const REF_DESC_STOP: char = L_PARENTH;
+
 // Arrows
 
 pub(crate) const A_RIGHT_ARROW: &'static [char] = &['-', '-', '>'];
@@ -130,6 +143,8 @@ pub(crate) const INLINE_SPECIAL_SEQUENCES: &'static [&'static [char]] = &[
     A_RIGHT_ARROW,
     A_LEFT_ARROW,
     A_LEFT_RIGHT_ARROW,
+    ANCHOR_START,
+    REF_START,
 ];
 
 pub(crate) const LIST_SPECIAL_CHARS: [char; 14] = [

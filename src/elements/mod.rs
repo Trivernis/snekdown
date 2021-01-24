@@ -188,6 +188,7 @@ pub enum Inline {
     CharacterCode(CharacterCode),
     LineBreak,
     Arrow(Arrow),
+    Anchor(Anchor),
 }
 
 #[derive(Clone, Debug)]

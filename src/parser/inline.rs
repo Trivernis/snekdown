@@ -39,6 +39,7 @@ pub(crate) trait ParseInline {
     fn parse_template(&mut self) -> ParseResult<Template>;
     fn parse_character_code(&mut self) -> ParseResult<CharacterCode>;
     fn parse_arrow(&mut self) -> ParseResult<Arrow>;
+    fn parse_anchor(&mut self) -> ParseResult<Anchor>;
 }
 
 impl ParseInline for Parser {
@@ -127,6 +128,9 @@ impl ParseInline for Parser {
         } else if let Ok(arrow) = self.parse_arrow() {
             log::trace!("Inline::Arrow {:?}", arrow);
             Ok(Inline::Arrow(arrow))
+        } else if let Ok(anchor) = self.parse_anchor() {
+            log::trace!("Inline::Anchor {:?}", anchor);
+            Ok(Inline::Anchor(anchor))
         } else {
             let plain = self.parse_plain()?;
             log::trace!("Inline::Plain {}", plain.value);
@@ -679,5 +683,23 @@ impl ParseInline for Parser {
         } else {
             Err(self.ctm.err().into())
         }
+    }
+
+    /// Parses an anchor elements
+    fn parse_anchor(&mut self) -> ParseResult<Anchor> {
+        let start_index = self.ctm.get_index();
+        self.ctm.assert_sequence(&ANCHOR_START, Some(start_index))?;
+        self.ctm.seek_one()?;
+        let key = self.ctm.get_string_until_any_or_rewind(
+            &[ANCHOR_STOP],
+            &INLINE_WHITESPACE,
+            start_index,
+        )?;
+        self.ctm.try_seek();
+
+        Ok(Anchor {
+            inner: Box::new(Line::Text(TextLine::new())),
+            key,
+        })
     }
 }

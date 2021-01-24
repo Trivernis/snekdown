@@ -62,6 +62,7 @@ impl ToHtml for Inline {
             Inline::CharacterCode(code) => code.to_html(writer),
             Inline::GlossaryReference(gloss) => gloss.lock().to_html(writer),
             Inline::Arrow(a) => a.to_html(writer),
+            Inline::Anchor(a) => a.to_html(writer),
         }
     }
 }
