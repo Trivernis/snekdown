@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 pub(crate) mod block;
 pub(crate) mod inline;
 pub(crate) mod line;

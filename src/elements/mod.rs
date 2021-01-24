@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 pub mod tokens;
 
 use crate::format::PlaceholderTemplate;
@@ -188,6 +194,7 @@ pub enum Inline {
     CharacterCode(CharacterCode),
     LineBreak,
     Arrow(Arrow),
+    Anchor(Anchor),
 }
 
 #[derive(Clone, Debug)]

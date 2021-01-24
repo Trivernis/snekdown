@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use colored::Colorize;
 use env_logger::Env;
 use log::{Level, LevelFilter};

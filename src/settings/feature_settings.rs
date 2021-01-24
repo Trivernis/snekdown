@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

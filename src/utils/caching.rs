@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use platform_dirs::{AppDirs, AppUI};
 use sha2::Digest;
 use std::fs;

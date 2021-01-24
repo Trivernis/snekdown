@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::settings::style_settings::Theme;
 use std::time::Instant;
 use syntect::highlighting::ThemeSet;

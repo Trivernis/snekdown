@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::elements::Metadata;
 use crate::utils::caching::CacheStorage;
 use crate::utils::downloads::download_path;

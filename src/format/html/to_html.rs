@@ -1,3 +1,9 @@
+/*
+ * Snekdown - Custom Markdown flavour and parser
+ * Copyright (C) 2021  Trivernis
+ * See LICENSE for more information.
+ */
+
 use crate::elements::*;
 use crate::format::html::html_writer::HTMLWriter;
 use crate::format::style::{get_code_theme_for_theme, get_css_for_theme};
@@ -62,6 +68,7 @@ impl ToHtml for Inline {
             Inline::CharacterCode(code) => code.to_html(writer),
             Inline::GlossaryReference(gloss) => gloss.lock().to_html(writer),
             Inline::Arrow(a) => a.to_html(writer),
+            Inline::Anchor(a) => a.to_html(writer),
         }
     }
 }
