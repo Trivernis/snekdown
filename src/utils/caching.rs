@@ -35,6 +35,7 @@ impl CacheStorage {
         if let Some(extension) = path.extension() {
             file_name.set_extension(extension);
         }
+        log::trace!("Cache path is {:?}", path);
 
         return self.location.join(PathBuf::from(file_name));
     }

@@ -26,8 +26,13 @@ pub mod result;
 /// Renders the document to pdf and returns the resulting bytes
 pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
     let cache = CacheStorage::new();
-    let mut file_path = PathBuf::from(format!("tmp-document.html"));
+    let mut file_path = PathBuf::from("tmp-document.html");
     file_path = cache.get_file_path(&file_path);
+
+    if !file_path.parent().map(|p| p.exists()).unwrap_or(false) {
+        file_path = PathBuf::from(".tmp-document.html")
+    }
+
     let config = document.config.clone();
     let mathjax = config.lock().features.include_mathjax;
 
