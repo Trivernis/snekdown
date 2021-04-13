@@ -31,3 +31,12 @@ jobs:
 
       - name: Run tests
         run: cargo test --verbose --all-features
+
+      - name: Test init
+        run: cargo run -- init
+
+      - name: Test HTML
+        run: cargo run -- render README.md README.html --format html
+
+      - name: Test PDF
+        run: cargo run --all-features -- render README.md README.pdf --format pdf

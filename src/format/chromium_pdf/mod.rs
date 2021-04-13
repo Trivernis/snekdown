@@ -12,7 +12,7 @@ use crate::settings::Settings;
 use crate::utils::caching::CacheStorage;
 use bibliographix::Mutex;
 use headless_chrome::protocol::page::PrintToPdfOptions;
-use headless_chrome::{Browser, LaunchOptionsBuilder, Tab};
+use headless_chrome::{Browser, Tab};
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::BufWriter;
@@ -50,7 +50,7 @@ pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
         }
     });
 
-    let browser = Browser::new(LaunchOptionsBuilder::default().build().unwrap())?;
+    let browser = Browser::default()?;
     let tab = browser.wait_for_initial_tab()?;
     handle.join().unwrap()?;
     tab.navigate_to(format!("file:///{}", file_path.to_string_lossy()).as_str())?;
