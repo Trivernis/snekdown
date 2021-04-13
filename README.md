@@ -39,6 +39,9 @@ for my needs.
 - Placeholders
 - Advanced Images
 
+## Prerequisites
+
+- Google Chrome/Chromium (for PDF rendering)
 
 ## Installation
 

@@ -128,6 +128,7 @@ fn init() {
     let manifest_path = PathBuf::from("Manifest.toml");
     let bibliography_path = PathBuf::from("Bibliography.toml");
     let glossary_path = PathBuf::from("Glossary.toml");
+    let css_path = PathBuf::from("style.css");
 
     if !manifest_path.exists() {
         let mut file = OpenOptions::new()
@@ -144,6 +145,9 @@ fn init() {
     }
     if !glossary_path.exists() {
         File::create("Glossary.toml".to_string()).unwrap();
+    }
+    if !css_path.exists() {
+        File::create("style.css".to_string()).unwrap();
     }
 }
 
