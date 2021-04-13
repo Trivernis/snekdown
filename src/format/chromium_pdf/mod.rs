@@ -13,6 +13,7 @@ use crate::utils::caching::CacheStorage;
 use bibliographix::Mutex;
 use headless_chrome::protocol::page::PrintToPdfOptions;
 use headless_chrome::{Browser, Tab};
+use std::env;
 use std::fs;
 use std::fs::OpenOptions;
 use std::io::BufWriter;
@@ -30,7 +31,8 @@ pub fn render_to_pdf(document: Document) -> PdfRenderingResult<Vec<u8>> {
     file_path = cache.get_file_path(&file_path);
 
     if !file_path.parent().map(|p| p.exists()).unwrap_or(false) {
-        file_path = PathBuf::from(".tmp-document.html")
+        file_path = env::current_dir()?;
+        file_path.push(PathBuf::from(".tmp-document.html"))
     }
 
     let config = document.config.clone();
